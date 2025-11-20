@@ -254,14 +254,14 @@ class TodoAgent:
         self.name = name
         self.system_prompt = system_prompt
         # Get model from environment variable or use default/parameter
-        # Try common model names: claude-3-5-sonnet-20240620 (June 2024) is more widely available
-        self.model = model or os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20240620")
+        # Use base model name without date - Anthropic API will use the latest version
+        self.model = model or os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet")
         self.tools = tools
 
         # Validate model name is not truncated
         if len(self.model) < 10:
             print(f"⚠️ WARNING: Model name seems truncated: '{self.model}'. Using default.")
-            self.model = "claude-3-5-sonnet-20240620"
+            self.model = "claude-3-5-sonnet"
         
         print(f"🤖 Using Anthropic model: {self.model}")
         
@@ -271,11 +271,13 @@ class TodoAgent:
             raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
         
         # Try multiple model names as fallback
+        # Try simpler formats first, then versions with dates
         model_candidates = [
             self.model,  # Try the specified model first
-            "claude-3-5-sonnet-20240620",  # June 2024 version (more widely available)
-            "claude-3-5-sonnet",  # Without date suffix
-            "claude-3-sonnet-20240229",  # Older but stable version
+            "claude-3-5-sonnet",  # Base model name (uses latest version)
+            "claude-3-opus-20240229",  # Opus model as fallback
+            "claude-3-sonnet-20240229",  # Older Sonnet version
+            "claude-3-5-sonnet-20240620",  # June 2024 version
         ]
         
         last_error = None
