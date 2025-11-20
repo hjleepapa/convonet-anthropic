@@ -1201,7 +1201,7 @@ def init_socketio(socketio_instance: SocketIO, app):
                 
                 # Convert speech to base64 for transmission
                 audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
-                print(f"🔊 TTS generated: {len(speech_response.content)} bytes, base64: {len(audio_base64)} chars")
+                print(f"🔊 TTS generated: {len(audio_bytes)} bytes, base64: {len(audio_base64)} chars")
                 print(f"🔊 TTS audio preview: {audio_base64[:100]}...")
                 sentry_capture_voice_event("tts_generation_completed", session_id, session.get('user_id'), details={"audio_size": len(audio_base64)})
                 
