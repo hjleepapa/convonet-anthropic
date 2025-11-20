@@ -280,15 +280,15 @@ class DeepgramService:
             logger.warning(f"⚠️ Audio quality analysis failed: {e}")
             return {"is_silence": False, "rms": 0, "clipping_percentage": 0}
     
-    def synthesize_speech(self, text: str, voice: str = "aura-asteria-en", model: str = "aura-2") -> Optional[bytes]:
+    def synthesize_speech(self, text: str, voice: str = "aura-asteria-en", model: str = None) -> Optional[bytes]:
         """
-        Synthesize speech from text using Deepgram's Aura-2 TTS API
+        Synthesize speech from text using Deepgram's Aura TTS API
         
         Args:
             text: Text to convert to speech
             voice: Voice name (default: "aura-asteria-en" - natural female voice)
                    Options: aura-asteria-en, aura-luna-en, aura-stella-en, aura-athena-en, etc.
-            model: Model to use (default: "aura-2")
+            model: Model to use (optional - Deepgram TTS doesn't require model parameter)
             
         Returns:
             Audio bytes (MP3 format) or None if failed
@@ -299,11 +299,13 @@ class DeepgramService:
             # Use Deepgram's TTS API
             url = "https://api.deepgram.com/v1/speak"
             
-            # Configure parameters
+            # Configure parameters - model is not required for TTS, only voice
             params = {
-                "model": model,
                 "voice": voice
             }
+            # Only add model if explicitly provided (though it's usually not needed)
+            if model:
+                params["model"] = model
             
             # Request body
             payload = {

@@ -767,6 +767,9 @@ async def _get_agent_graph() -> StateGraph:
                         else:
                             print(f"⚠️  MCP config: Environment variable {env_var_name} not found")
         
+        # Initialize tools list to avoid UnboundLocalError
+        tools = []
+        
         try:
             # Initialize MCP client (langchain-mcp-adapters 0.1.0+ does not support context manager)
             print("🔧 Creating MCP client...")
