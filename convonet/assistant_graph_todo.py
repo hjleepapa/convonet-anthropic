@@ -254,13 +254,14 @@ class TodoAgent:
         self.name = name
         self.system_prompt = system_prompt
         # Get model from environment variable or use default/parameter
-        self.model = model or os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
+        # Try common model names: claude-3-5-sonnet-20240620 (June 2024) is more widely available
+        self.model = model or os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20240620")
         self.tools = tools
 
         # Validate model name is not truncated
         if len(self.model) < 10:
             print(f"⚠️ WARNING: Model name seems truncated: '{self.model}'. Using default.")
-            self.model = "claude-3-5-sonnet-20241022"
+            self.model = "claude-3-5-sonnet-20240620"
         
         print(f"🤖 Using Anthropic model: {self.model}")
         
@@ -269,20 +270,43 @@ class TodoAgent:
         if not api_key:
             raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
         
-        try:
-            self.llm = ChatAnthropic(
-                name=self.name, 
-                model=self.model,
-                api_key=api_key,
-                temperature=0.0,  # Lower temperature for more consistent tool calling
-            ).bind_tools(tools=self.tools)
-            print(f"✅ Anthropic LLM initialized successfully with model: {self.model}")
-        except Exception as e:
-            print(f"❌ Error initializing Anthropic LLM: {e}")
-            print(f"❌ Model name used: '{self.model}'")
+        # Try multiple model names as fallback
+        model_candidates = [
+            self.model,  # Try the specified model first
+            "claude-3-5-sonnet-20240620",  # June 2024 version (more widely available)
+            "claude-3-5-sonnet",  # Without date suffix
+            "claude-3-sonnet-20240229",  # Older but stable version
+        ]
+        
+        last_error = None
+        for model_name in model_candidates:
+            try:
+                print(f"🔄 Attempting to initialize with model: {model_name}")
+                self.llm = ChatAnthropic(
+                    name=self.name, 
+                    model=model_name,
+                    api_key=api_key,
+                    temperature=0.0,  # Lower temperature for more consistent tool calling
+                ).bind_tools(tools=self.tools)
+                self.model = model_name  # Update to the working model
+                print(f"✅ Anthropic LLM initialized successfully with model: {self.model}")
+                break
+            except Exception as e:
+                last_error = e
+                print(f"⚠️ Failed to initialize with model '{model_name}': {e}")
+                if "not_found_error" in str(e) or "404" in str(e):
+                    continue  # Try next model
+                else:
+                    # For other errors (auth, etc.), don't try other models
+                    print(f"❌ Non-404 error, stopping fallback attempts")
+                    raise
+        else:
+            # All models failed
+            print(f"❌ All model candidates failed. Last error: {last_error}")
+            print(f"❌ Model candidates tried: {model_candidates}")
             print(f"❌ API key present: {'Yes' if api_key else 'No'}")
             print(f"❌ API key length: {len(api_key) if api_key else 0}")
-            raise
+            raise Exception(f"Failed to initialize Anthropic LLM with any model. Last error: {last_error}")
         self.graph = self.build_graph()
 
     def build_graph(self,) -> CompiledStateGraph:
