@@ -38,7 +38,7 @@ class TodoAgent:
     def __init__(
             self,
             name: str = "Convonet Assistant",
-            model: str = "claude-3-5-sonnet-20241022",
+            model: str = None,
             tools: List[BaseTool] = [],
             system_prompt: str = """You are a productivity assistant that helps users manage todos, reminders, and calendar events. You MUST use tools to perform actions - never just ask for more information.
 
@@ -253,15 +253,36 @@ class TodoAgent:
             ) -> None:
         self.name = name
         self.system_prompt = system_prompt
-        self.model = model
+        # Get model from environment variable or use default/parameter
+        self.model = model or os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
         self.tools = tools
 
-        self.llm = ChatAnthropic(
-            name=self.name, 
-            model=model,
-            api_key=os.getenv("ANTHROPIC_API_KEY"),
-            temperature=0.0,  # Lower temperature for more consistent tool calling
-        ).bind_tools(tools=self.tools)
+        # Validate model name is not truncated
+        if len(self.model) < 10:
+            print(f"⚠️ WARNING: Model name seems truncated: '{self.model}'. Using default.")
+            self.model = "claude-3-5-sonnet-20241022"
+        
+        print(f"🤖 Using Anthropic model: {self.model}")
+        
+        # Validate API key is present
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
+        
+        try:
+            self.llm = ChatAnthropic(
+                name=self.name, 
+                model=self.model,
+                api_key=api_key,
+                temperature=0.0,  # Lower temperature for more consistent tool calling
+            ).bind_tools(tools=self.tools)
+            print(f"✅ Anthropic LLM initialized successfully with model: {self.model}")
+        except Exception as e:
+            print(f"❌ Error initializing Anthropic LLM: {e}")
+            print(f"❌ Model name used: '{self.model}'")
+            print(f"❌ API key present: {'Yes' if api_key else 'No'}")
+            print(f"❌ API key length: {len(api_key) if api_key else 0}")
+            raise
         self.graph = self.build_graph()
 
     def build_graph(self,) -> CompiledStateGraph:
