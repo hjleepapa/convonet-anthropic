@@ -383,7 +383,7 @@ asterisk -rx "pjsip show identifies"
 
 2. **Configure Voice & Fax:**
    - **A CALL COMES IN**: Webhook
-   - **URL**: `https://hjlees.com/convonet_todo/twilio/voice`
+   - **URL**: `https://hjlees.com/anthropic/convonet_todo/twilio/voice`
    - **HTTP Method**: `POST`
 
 3. **Save Configuration**
@@ -486,7 +486,7 @@ Key settings (already configured):
 
 1. **Access Dashboard:**
    ```
-   https://hjlees.com/call_center/
+   https://hjlees.com/anthropic/call-center/
    ```
 
 2. **Login:**
@@ -590,7 +590,7 @@ TEST_VOICE_PIN=1234
 
 1. **Access Voice Assistant:**
    ```
-   https://hjlees.com/convonet_todo/webrtc/voice-assistant
+   https://hjlees.com/anthropic/webrtc/voice-assistant
    ```
 
 2. **Enter PIN:**
@@ -648,7 +648,7 @@ TWILIO_TRUNK_NUMBER=+19256337818  # Optional, for SIP trunking
 
 # ===== WEBHOOK URLS =====
 WEBHOOK_BASE_URL=https://hjlees.com
-WEBSOCKET_BASE_URL=wss://hjlees.com/convonet_todo/ws
+WEBSOCKET_BASE_URL=wss://hjlees.com/anthropic/convonet_todo/ws
 
 # ===== FUSIONPBX =====
 FREEPBX_DOMAIN=136.115.41.45
@@ -748,7 +748,7 @@ nc -zuv 136.115.41.45 3478
 
 ```bash
 # Test webhook endpoint
-curl -X POST https://hjlees.com/convonet_todo/twilio/voice \
+curl -X POST https://hjlees.com/anthropic/convonet_todo/twilio/voice \
   -d "CallSid=test123" \
   -d "From=+1234567890" \
   -d "To=+12344007818"
@@ -768,7 +768,7 @@ curl -X POST https://hjlees.com/convonet_todo/twilio/voice \
 
 ### Step 4: Test WebRTC Voice Assistant
 
-1. **Open**: `https://hjlees.com/convonet_todo/webrtc/voice-assistant`
+1. **Open**: `https://hjlees.com/anthropic/webrtc/voice-assistant`
 2. **Enter PIN**: Your configured voice PIN
 3. **Test conversation**:
    - "Create a todo item"
@@ -777,7 +777,7 @@ curl -X POST https://hjlees.com/convonet_todo/twilio/voice \
 
 ### Step 5: Test Agent Dashboard
 
-1. **Open**: `https://hjlees.com/call_center/`
+1. **Open**: `https://hjlees.com/anthropic/call-center/`
 2. **Login**: Use agent credentials
 3. **Verify SIP connection**: Should show "Connected" and "Registered"
 4. **Test incoming call**: Have someone call and transfer to extension 2001

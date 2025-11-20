@@ -1183,7 +1183,7 @@
                         <h4 class="text-lg font-semibold mb-4 text-gray-800">LangGraph Workflow Diagram</h4>
                         <div class="bg-white p-6 rounded-lg border-2 border-gray-200">
                             <div class="flex justify-center">
-                                <img src="/convonet_todo/static/assets/img/lgwfdg.png" 
+                                <img src="/anthropic/convonet_todo/static/assets/img/lgwfdg.png" 
                                      alt="LangGraph Workflow Diagram" 
                                      class="max-w-full h-auto rounded-lg shadow-lg"
                                      style="max-width: 800px; height: auto;">
@@ -1329,7 +1329,7 @@
                         <h4 class="text-lg font-semibold mb-4 text-gray-800">Tool Calls Flow Diagram</h4>
                         <div class="bg-white p-6 rounded-lg border-2 border-gray-200">
                             <div class="flex justify-center">
-                                <img src="/convonet_todo/static/assets/img/tool_calls_flow_diagram.png" 
+                                <img src="/anthropic/convonet_todo/static/assets/img/tool_calls_flow_diagram.png" 
                                      alt="Tool Calls Flow Diagram" 
                                      class="max-w-full h-auto rounded-lg shadow-lg"
                                      style="max-width: 900px; height: auto;">
@@ -1594,11 +1594,11 @@
                     <div class="bg-white p-6 rounded-lg shadow">
                         <h4 class="text-lg font-semibold mb-3 text-gray-800">Authentication</h4>
                         <ul class="text-sm text-gray-600 space-y-2">
-                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">POST /api/auth/register</code></li>
-                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">POST /api/auth/login</code></li>
-                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">POST /api/auth/refresh</code></li>
-                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">GET /api/auth/profile</code></li>
-                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">PUT /api/auth/profile</code></li>
+                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">POST /anthropic/api/auth/register</code></li>
+                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">POST /anthropic/api/auth/login</code></li>
+                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">POST /anthropic/api/auth/refresh</code></li>
+                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">GET /anthropic/api/auth/profile</code></li>
+                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">PUT /anthropic/api/auth/profile</code></li>
                         </ul>
                     </div>
                     
@@ -1606,12 +1606,12 @@
                     <div class="bg-white p-6 rounded-lg shadow">
                         <h4 class="text-lg font-semibold mb-3 text-gray-800">Team Management</h4>
                         <ul class="text-sm text-gray-600 space-y-2">
-                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">POST /api/teams/</code></li>
-                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">GET /api/teams/</code></li>
-                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">GET /api/teams/{id}</code></li>
-                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">POST /api/teams/{id}/members</code></li>
-                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">DELETE /api/teams/{id}/members/{user_id}</code></li>
-                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">PUT /api/teams/{id}/members/{user_id}/role</code></li>
+                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">POST /anthropic/api/teams/</code></li>
+                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">GET /anthropic/api/teams/</code></li>
+                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">GET /anthropic/api/teams/{id}</code></li>
+                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">POST /anthropic/api/teams/{id}/members</code></li>
+                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">DELETE /anthropic/api/teams/{id}/members/{user_id}</code></li>
+                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">PUT /anthropic/api/teams/{id}/members/{user_id}/role</code></li>
                         </ul>
                     </div>
                     
@@ -1619,13 +1619,13 @@
                     <div class="bg-white p-6 rounded-lg shadow">
                         <h4 class="text-lg font-semibold mb-3 text-gray-800">Twilio Voice</h4>
                         <ul class="text-sm text-gray-600 space-y-2">
-                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">POST /convonet_todo/twilio/call</code></li>
-                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">POST /convonet_todo/twilio/process_audio</code></li>
-                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">POST /convonet_todo/twilio/transfer</code></li>
+                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">POST /anthropic/convonet_todo/twilio/call</code></li>
+                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">POST /anthropic/convonet_todo/twilio/process_audio</code></li>
+                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">POST /anthropic/convonet_todo/twilio/transfer</code></li>
                         </ul>
                         <div class="mt-3 p-3 bg-gray-50 rounded">
                             <p class="text-xs text-gray-600 mb-2">Webhook URL:</p>
-                            <pre class="text-xs"><code>https://hjlees.com/convonet_todo/twilio/call</code></pre>
+                            <pre class="text-xs"><code>https://hjlees.com/anthropic/convonet_todo/twilio/call</code></pre>
                         </div>
                     </div>
                     
@@ -1633,13 +1633,13 @@
                     <div class="bg-white p-6 rounded-lg shadow">
                         <h4 class="text-lg font-semibold mb-3 text-gray-800">WebRTC Voice</h4>
                         <ul class="text-sm text-gray-600 space-y-2">
-                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">GET /convonet_todo/webrtc/voice-assistant</code></li>
+                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">GET /anthropic/webrtc/voice-assistant</code></li>
                             <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">WebSocket /voice</code></li>
-                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">GET /audio-player/</code></li>
+                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">GET /anthropic/audio-player/</code></li>
                         </ul>
                         <div class="mt-3 p-3 bg-gray-50 rounded">
                             <p class="text-xs text-gray-600 mb-2">WebRTC Voice Interface:</p>
-                            <pre class="text-xs"><code>https://hjlees.com/convonet_todo/webrtc/voice-assistant</code></pre>
+                            <pre class="text-xs"><code>https://hjlees.com/anthropic/webrtc/voice-assistant</code></pre>
                         </div>
                         <div class="mt-2 p-3 bg-blue-50 rounded">
                             <p class="text-xs text-blue-800">
@@ -1927,7 +1927,7 @@
                             <h4 class="font-semibold text-gray-800 mb-2">Processing Flow</h4>
                             <ol class="text-sm text-gray-600 space-y-1">
                                 <li>1. User calls Twilio number</li>
-                                <li>2. Twilio webhook triggers /convonet_todo/twilio/call</li>
+                                <li>2. Twilio webhook triggers /anthropic/convonet_todo/twilio/call</li>
                                 <li>3. TwiML with &lt;Gather&gt; returned (10s timeout)</li>
                                 <li>4. User speaks, Twilio recognizes speech</li>
                                 <li>5. SpeechResult posted to /process_audio</li>
@@ -2072,12 +2072,12 @@ TWILIO_AUTH_TOKEN=your_auth_token
 TWILIO_PHONE_NUMBER=+1234567890
 
 # Webhook Endpoints
-POST https://hjlees.com/convonet_todo/twilio/call
-POST https://hjlees.com/convonet_todo/twilio/process_audio
+POST https://hjlees.com/anthropic/convonet_todo/twilio/call
+POST https://hjlees.com/anthropic/convonet_todo/twilio/process_audio
 
 # TwiML Response Example
 &lt;Response&gt;
-  &lt;Gather action="/convonet_todo/twilio/process_audio" 
+  &lt;Gather action="/anthropic/convonet_todo/twilio/process_audio" 
           method="POST" 
           input="speech" 
           speechTimeout="auto" 
@@ -2086,7 +2086,7 @@ POST https://hjlees.com/convonet_todo/twilio/process_audio
     &lt;Say voice="Polly.Amy"&gt;Hello! I'm your Convonet productivity assistant...&lt;/Say&gt;
   &lt;/Gather&gt;
   &lt;Say voice="Polly.Amy"&gt;I didn't hear anything. Please try again.&lt;/Say&gt;
-  &lt;Redirect&gt;/convonet_todo/twilio/call?is_continuation=true&lt;/Redirect&gt;
+  &lt;Redirect&gt;/anthropic/convonet_todo/twilio/call?is_continuation=true&lt;/Redirect&gt;
 &lt;/Response&gt;</pre>
                         </div>
                     </div>
@@ -2100,7 +2100,7 @@ POST https://hjlees.com/convonet_todo/twilio/process_audio
                             </div>
                             <div>
                                 <p class="text-sm text-blue-700 font-medium mb-1">Step 2: Set Webhook URL</p>
-                                <p class="text-sm text-blue-600">A CALL COMES IN: https://hjlees.com/convonet_todo/twilio/call (HTTP POST)</p>
+                                <p class="text-sm text-blue-600">A CALL COMES IN: https://hjlees.com/anthropic/convonet_todo/twilio/call (HTTP POST)</p>
                             </div>
                             <div>
                                 <p class="text-sm text-blue-700 font-medium mb-1">Step 3: Test Integration</p>
@@ -2166,7 +2166,7 @@ def get_agent():
 from convonet.security.auth import require_auth
 from convonet.models.user_models import User, Team, TeamMembership
 
-team_bp = Blueprint('teams', __name__, url_prefix='/api/teams')
+team_bp = Blueprint('teams', __name__, url_prefix='/anthropic/api/teams')
 
 @team_bp.route('/', methods=['POST'])
 @require_auth
@@ -2402,7 +2402,7 @@ require_auth = jwt_auth.require_auth</code></pre>
 from twilio.twiml.voice_response import VoiceResponse, Gather
 import asyncio
 
-convonet_todo_bp = Blueprint('convonet_todo', __name__, url_prefix='/convonet_todo')
+convonet_todo_bp = Blueprint('convonet_todo', __name__, url_prefix='/anthropic/convonet_todo')
 
 @convonet_todo_bp.route('/twilio/call', methods=['POST'])
 def twilio_call_webhook():
@@ -2412,7 +2412,7 @@ def twilio_call_webhook():
     
     gather = response.gather(
         input='speech',
-        action='/convonet_todo/twilio/process_audio',
+        action='/anthropic/convonet_todo/twilio/process_audio',
         method='POST',
         speech_timeout='auto',
         timeout=10,
@@ -2426,7 +2426,7 @@ def twilio_call_webhook():
         )
     
     response.say("I didn't hear anything. Please try again.", voice='Polly.Amy')
-    response.redirect('/convonet_todo/twilio/call?is_continuation=true')
+    response.redirect('/anthropic/convonet_todo/twilio/call?is_continuation=true')
     
     return Response(str(response), mimetype='text/xml')
 
@@ -2437,7 +2437,7 @@ def process_audio_webhook():
     
     if not transcribed_text:
         response = VoiceResponse()
-        gather = Gather(input='speech', action='/convonet_todo/twilio/process_audio')
+        gather = Gather(input='speech', action='/anthropic/convonet_todo/twilio/process_audio')
         gather.say("I didn't catch that. Could you please repeat?", voice='Polly.Amy')
         response.append(gather)
         return Response(str(response), mimetype='text/xml')
@@ -2460,10 +2460,10 @@ def process_audio_webhook():
     
     # Return TwiML response
     response = VoiceResponse()
-    gather = Gather(input='speech', action='/convonet_todo/twilio/process_audio', barge_in=True)
+    gather = Gather(input='speech', action='/anthropic/convonet_todo/twilio/process_audio', barge_in=True)
     gather.say(agent_response, voice='Polly.Amy')
     response.append(gather)
-    response.redirect('/convonet_todo/twilio/call?is_continuation=true')
+    response.redirect('/anthropic/convonet_todo/twilio/call?is_continuation=true')
     
     return Response(str(response), mimetype='text/xml')</code></pre>
                     </div>
@@ -2649,11 +2649,11 @@ export DEEPGRAM_API_KEY="your_deepgram_api_key"
                             <h4 class="text-lg font-semibold mb-3 text-gray-800">4. Twilio Configuration</h4>
                             <div class="bg-gray-50 p-4 rounded">
                                 <pre class="text-sm"><code># Configure Twilio phone number webhook:
-Webhook URL: https://hjlees.com/convonet_todo/twilio/call
+Webhook URL: https://hjlees.com/anthropic/convonet_todo/twilio/call
 HTTP Method: POST
 
 # Test webhook:
-curl -X POST https://hjlees.com/convonet_todo/twilio/call \
+curl -X POST https://hjlees.com/anthropic/convonet_todo/twilio/call \
   -d "CallSid=test123&From=+1234567890"</code></pre>
                             </div>
                         </div>
@@ -2668,8 +2668,8 @@ python app.py
 gunicorn --worker-class gthread -w 1 --threads 4 --bind 0.0.0.0:$PORT start_simple:app
 
 # Verify deployment:
-curl https://hjlees.com/convonet_todo/
-curl https://hjlees.com/team-dashboard</code></pre>
+curl https://hjlees.com/anthropic/convonet_todo/
+curl https://hjlees.com/anthropic/team-dashboard</code></pre>
                             </div>
                         </div>
                     </div>
@@ -2683,7 +2683,7 @@ curl https://hjlees.com/team-dashboard</code></pre>
                     <div class="mb-6">
                         <h4 class="text-lg font-semibold mb-3 text-gray-800">Team Dashboard</h4>
                         <p class="text-gray-700 mb-4">
-                            Access the team dashboard at <code class="bg-gray-100 px-2 py-1 rounded">/team-dashboard</code> 
+                            Access the team dashboard at <code class="bg-gray-100 px-2 py-1 rounded">/anthropic/team-dashboard</code> 
                             to manage teams, members, and todos through a web interface.
                         </p>
                         <div class="bg-blue-50 p-4 rounded border-l-4 border-blue-400">
@@ -2714,7 +2714,7 @@ curl https://hjlees.com/team-dashboard</code></pre>
                                 <li>• "Show my todos"</li>
                             </ul>
                             <p class="text-xs text-gray-500 mt-2">
-                                Access: <code>/convonet_todo/webrtc/voice-assistant</code>
+                                Access: <code>/anthropic/webrtc/voice-assistant</code>
                             </p>
                         </div>
                         <div class="bg-gray-50 p-4 rounded">
@@ -2837,7 +2837,7 @@ curl https://hjlees.com/team-dashboard</code></pre>
                     <h4 class="text-xl font-semibold mb-4 text-gray-800">Authentication API</h4>
                     <div class="space-y-4">
                         <div class="border-l-4 border-blue-400 pl-4">
-                            <div class="font-mono text-sm font-bold text-gray-800">POST /api/auth/register</div>
+                            <div class="font-mono text-sm font-bold text-gray-800">POST /anthropic/api/auth/register</div>
                             <p class="text-sm text-gray-600 mt-1">Register a new user account</p>
                             <div class="mt-2 bg-gray-50 p-3 rounded">
                                 <pre class="text-xs"><code>Request: {
@@ -2860,7 +2860,7 @@ Response: {
                         </div>
                         
                         <div class="border-l-4 border-green-400 pl-4">
-                            <div class="font-mono text-sm font-bold text-gray-800">POST /api/auth/login</div>
+                            <div class="font-mono text-sm font-bold text-gray-800">POST /anthropic/api/auth/login</div>
                             <p class="text-sm text-gray-600 mt-1">Login and receive JWT tokens</p>
                             <div class="mt-2 bg-gray-50 p-3 rounded">
                                 <pre class="text-xs"><code>Request: {
@@ -2890,7 +2890,7 @@ Response: {
                     <h4 class="text-xl font-semibold mb-4 text-gray-800">Team Management API</h4>
                     <div class="space-y-4">
                         <div class="border-l-4 border-purple-400 pl-4">
-                            <div class="font-mono text-sm font-bold text-gray-800">POST /api/teams/</div>
+                            <div class="font-mono text-sm font-bold text-gray-800">POST /anthropic/api/teams/</div>
                             <p class="text-sm text-gray-600 mt-1">Create a new team (requires auth)</p>
                             <div class="mt-2 bg-gray-50 p-3 rounded">
                                 <pre class="text-xs"><code>Headers: {
@@ -2914,7 +2914,7 @@ Response: {
                         </div>
                         
                         <div class="border-l-4 border-orange-400 pl-4">
-                            <div class="font-mono text-sm font-bold text-gray-800">GET /api/teams/</div>
+                            <div class="font-mono text-sm font-bold text-gray-800">GET /anthropic/api/teams/</div>
                             <p class="text-sm text-gray-600 mt-1">Get all teams for current user (requires auth)</p>
                             <div class="mt-2 bg-gray-50 p-3 rounded">
                                 <pre class="text-xs"><code>Headers: {
@@ -2935,7 +2935,7 @@ Response: {
                         </div>
                         
                         <div class="border-l-4 border-pink-400 pl-4">
-                            <div class="font-mono text-sm font-bold text-gray-800">POST /api/teams/{team_id}/members</div>
+                            <div class="font-mono text-sm font-bold text-gray-800">POST /anthropic/api/teams/{team_id}/members</div>
                             <p class="text-sm text-gray-600 mt-1">Add member to team (requires auth)</p>
                             <div class="mt-2 bg-gray-50 p-3 rounded">
                                 <pre class="text-xs"><code>Request: {

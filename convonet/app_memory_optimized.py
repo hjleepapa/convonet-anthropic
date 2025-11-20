@@ -157,12 +157,12 @@ def create_app():
         """Renders the Sequence Diagram page for Convonet."""
         return render_template('convonet_sequence_diagram.html')
     
-    @app.route('/team-dashboard')
+    @app.route('/anthropic/team-dashboard')
     def team_dashboard():
         """Renders the team collaboration dashboard."""
         return render_template('team_dashboard.html')
     
-    @app.route('/register')
+    @app.route('/anthropic/register')
     def register():
         """Renders the user registration page."""
         return render_template('register.html')

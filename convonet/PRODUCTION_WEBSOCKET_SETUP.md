@@ -37,7 +37,7 @@ uvicorn wsgi_to_asgi_converter:asgi_app \
 ### **Step 4: Test WebSocket**
 ```bash
 # Test WebSocket endpoint
-wscat -c wss://hjlees.com/convonet_todo/ws
+wscat -c wss://hjlees.com/anthropic/convonet_todo/ws
 ```
 
 ## 🔧 **Solution 2: Use Flask-SocketIO**
@@ -130,13 +130,13 @@ ASGI_SERVER=uvicorn
 python start_convonet_asgi.py
 
 # Test WebSocket
-wscat -c ws://localhost:8000/convonet_todo/ws
+wscat -c ws://localhost:8000/anthropic/convonet_todo/ws
 ```
 
 ### **Production Test:**
 ```bash
 # Test production WebSocket
-wscat -c wss://hjlees.com/convonet_todo/ws
+wscat -c wss://hjlees.com/anthropic/convonet_todo/ws
 ```
 
 ## ⚠️ **Important Notes**

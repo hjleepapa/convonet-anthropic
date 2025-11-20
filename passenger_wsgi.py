@@ -4,10 +4,11 @@ Memory-optimized WSGI entry point for Flask-SocketIO with eventlet support
 """
 
 # CRITICAL: Monkey patch MUST be the very first thing
+# But we need to patch select=False to avoid blocking issues with gunicorn
 import eventlet
-eventlet.monkey_patch()
+eventlet.monkey_patch(select=False, socket=True, time=True, thread=True)
 
-print("✅ Eventlet monkey patch applied!")
+print("✅ Eventlet monkey patch applied (select=False to avoid gunicorn blocking)!")
 
 import sys
 import os

@@ -38,7 +38,7 @@ _agent_graph_lock = asyncio.Lock()
 convonet_todo_bp = Blueprint(
     'convonet_todo',
     __name__,
-    url_prefix='/convonet_todo',
+    url_prefix='/anthropic/convonet_todo',
     template_folder='templates',
     static_folder='static'
 )
@@ -51,7 +51,7 @@ def get_webhook_base_url():
 def get_websocket_url():
     """Get the WebSocket URL for Twilio Media Streams."""
     # Use integrated WebSocket endpoint on hjlees.com
-    return os.getenv('WEBSOCKET_BASE_URL', 'wss://hjlees.com/convonet_todo/ws')
+    return os.getenv('WEBSOCKET_BASE_URL', 'wss://hjlees.com/anthropic/convonet_todo/ws')
 
 # --- Twilio Voice Routes ---
 @convonet_todo_bp.route('/twilio/call', methods=['POST'])
@@ -74,7 +74,7 @@ def twilio_call_webhook():
     if not is_authenticated and not is_continuation:
         gather = response.gather(
             input='dtmf speech',  # Accept both DTMF (keypad) and speech
-            action='/convonet_todo/twilio/verify_pin',
+            action='/anthropic/convonet_todo/twilio/verify_pin',
             method='POST',
             timeout=10,
             finish_on_key='#'  # Press # to finish (for DTMF), no num_digits requirement
@@ -82,7 +82,7 @@ def twilio_call_webhook():
         gather.say("Welcome to Convonet productivity assistant. Please enter or say your 4 to 6 digit PIN, then press pound.", voice='Polly.Amy')
         
         response.say("I didn't receive a PIN. Please try again.", voice='Polly.Amy')
-        response.redirect('/convonet_todo/twilio/call')
+        response.redirect('/anthropic/convonet_todo/twilio/call')
         
         print(f"Generated TwiML for PIN request: {str(response)}")
         return Response(str(response), mimetype='text/xml')
@@ -90,7 +90,7 @@ def twilio_call_webhook():
     # User is authenticated, proceed with normal conversation
     gather = response.gather(
         input='speech',
-        action='/convonet_todo/twilio/process_audio',
+            action='/anthropic/convonet_todo/twilio/process_audio',
         method='POST',
         speech_timeout='auto',
         timeout=10,
@@ -103,7 +103,7 @@ def twilio_call_webhook():
     
     # Fallback if no speech is detected
     response.say("I didn't hear anything. Please try again.", voice='Polly.Amy')
-    response.redirect('/convonet_todo/twilio/call?is_continuation=true&authenticated=true')
+    response.redirect('/anthropic/convonet_todo/twilio/call?is_continuation=true&authenticated=true')
     
     print(f"Generated TwiML for incoming call: {str(response)}")
     return Response(str(response), mimetype='text/xml')
@@ -123,7 +123,7 @@ def verify_pin_webhook():
         if not pin:
             response = VoiceResponse()
             response.say("I didn't receive a PIN. Please try again.", voice='Polly.Amy')
-            response.redirect('/convonet_todo/twilio/call')
+            response.redirect('/anthropic/convonet_todo/twilio/call')
             return Response(str(response), mimetype='text/xml')
         
         # Convert spoken numbers to digits
@@ -160,7 +160,7 @@ def verify_pin_webhook():
         if not clean_pin or len(clean_pin) < 4 or len(clean_pin) > 6:
             response = VoiceResponse()
             response.say("Invalid PIN format. Please enter a 4 to 6 digit PIN.", voice='Polly.Amy')
-            response.redirect('/convonet_todo/twilio/call')
+            response.redirect('/anthropic/convonet_todo/twilio/call')
             return Response(str(response), mimetype='text/xml')
         
         # Verify PIN - use direct database query (fast, <100ms, avoids Twilio timeout)
@@ -194,7 +194,7 @@ def verify_pin_webhook():
                 response = VoiceResponse()
                 gather = response.gather(
                     input='speech',
-                    action=f'/convonet_todo/twilio/process_audio?user_id={user_id}',
+                    action=f'/anthropic/convonet_todo/twilio/process_audio?user_id={user_id}',
                     method='POST',
                     speech_timeout='auto',
                     timeout=10,
@@ -208,7 +208,7 @@ def verify_pin_webhook():
                 gather.say(f"Welcome back, {user_name}! How can I help you today?", voice='Polly.Amy')
                 
                 response.say("I didn't hear anything. Please try again.", voice='Polly.Amy')
-                response.redirect(f'/convonet_todo/twilio/call?is_continuation=true&authenticated=true&user_id={user_id}')
+                response.redirect(f'/anthropic/convonet_todo/twilio/call?is_continuation=true&authenticated=true&user_id={user_id}')
                 
                 print(f"✅ PIN verified for user {user_id} ({user.email})")
                 return Response(str(response), mimetype='text/xml')
@@ -216,7 +216,7 @@ def verify_pin_webhook():
                 # Invalid PIN
                 response = VoiceResponse()
                 response.say("Invalid PIN. Please try again.", voice='Polly.Amy')
-                response.redirect('/convonet_todo/twilio/call')
+                response.redirect('/anthropic/convonet_todo/twilio/call')
                 print(f"❌ Invalid PIN: {clean_pin}")
                 return Response(str(response), mimetype='text/xml')
         
@@ -226,7 +226,7 @@ def verify_pin_webhook():
             traceback.print_exc()
             response = VoiceResponse()
             response.say("There was an error verifying your PIN. Please try again.", voice='Polly.Amy')
-            response.redirect('/convonet_todo/twilio/call')
+            response.redirect('/anthropic/convonet_todo/twilio/call')
             return Response(str(response), mimetype='text/xml')
             
     except Exception as e:
@@ -235,7 +235,7 @@ def verify_pin_webhook():
         traceback.print_exc()
         response = VoiceResponse()
         response.say("Sorry, there was a system error. Please try again.", voice='Polly.Amy')
-        response.redirect('/convonet_todo/twilio/call')
+        response.redirect('/anthropic/convonet_todo/twilio/call')
         return Response(str(response), mimetype='text/xml')
 
 @convonet_todo_bp.route('/twilio/transfer', methods=['POST'])
@@ -276,7 +276,7 @@ def transfer_to_agent():
             answer_on_bridge=True,  # Wait for agent to answer before connecting
             timeout=transfer_timeout,
             caller_id=caller_number,
-            action=f'/convonet_todo/twilio/transfer_callback?extension={extension}'
+            action=f'/anthropic/convonet_todo/twilio/transfer_callback?extension={extension}'
         )
         
         # Add SIP destination
@@ -400,7 +400,7 @@ def voice_assistant_transfer_bridge():
             answer_on_bridge=True,
             timeout=transfer_timeout,
             caller_id=caller_number,
-            action=f'/convonet_todo/twilio/transfer_callback?extension={extension}'
+            action=f'/anthropic/convonet_todo/twilio/transfer_callback?extension={extension}'
         )
         
         if sip_username and sip_password:
@@ -463,7 +463,7 @@ def process_audio_webhook():
                 # Use Gather with barge-in for "didn't catch that" response
                 gather = Gather(
                     input='speech',
-                    action=f'/convonet_todo/twilio/process_audio?user_id={user_id}' if user_id else '/convonet_todo/twilio/process_audio',
+                    action=f'/anthropic/convonet_todo/twilio/process_audio?user_id={user_id}' if user_id else '/anthropic/convonet_todo/twilio/process_audio',
                     method='POST',
                     speech_timeout='auto',
                     timeout=10,
@@ -477,14 +477,14 @@ def process_audio_webhook():
                 
                 # Fallback
                 response.say("I didn't hear anything. Please try again.", voice='Polly.Amy')
-                response.redirect(f'/convonet_todo/twilio/call?is_continuation=true&authenticated=true{user_param}')
+                response.redirect(f'/anthropic/convonet_todo/twilio/call?is_continuation=true&authenticated=true{user_param}')
                 return Response(str(response), mimetype='text/xml')
             
             transfer_requested = has_transfer_intent(transcribed_text)
             if transfer_requested:
                 webhook_base_url = get_webhook_base_url()
                 response = VoiceResponse()
-                response.redirect(f'{webhook_base_url}/convonet_todo/twilio/transfer?extension=2001')
+                response.redirect(f'{webhook_base_url}/anthropic/convonet_todo/twilio/transfer?extension=2001')
                 logger.info(f"Redirecting call to transfer endpoint based on user request: {transcribed_text}")
                 return Response(str(response), mimetype='text/xml')
             
@@ -630,7 +630,7 @@ def process_audio_webhook():
                     
                     webhook_base_url = get_webhook_base_url()
                     response = VoiceResponse()
-                    response.redirect(f'{webhook_base_url}/convonet_todo/twilio/transfer?extension={target_extension}')
+                    response.redirect(f'{webhook_base_url}/anthropic/convonet_todo/twilio/transfer?extension={target_extension}')
                     logger.info(f"Agent initiated transfer to extension {target_extension}")
                     if user_id:
                         if not hasattr(_run_agent_async, '_reset_threads'):
@@ -648,7 +648,7 @@ def process_audio_webhook():
             # Enhanced Twilio speech recognition configuration
             gather = Gather(
                 input='speech',
-                action=f'/convonet_todo/twilio/process_audio{user_param}',
+                action=f'/anthropic/convonet_todo/twilio/process_audio{user_param}',
                 method='POST',
                 speech_timeout='auto',
                 timeout=15,  # Increased from 10s
@@ -666,7 +666,7 @@ def process_audio_webhook():
             
             # Fallback if no speech is detected after the response
             response.say("I didn't hear anything. Please try again.", voice='Polly.Amy')
-            response.redirect(f'/convonet_todo/twilio/call?is_continuation=true{auth_param}{user_param}')
+            response.redirect(f'/anthropic/convonet_todo/twilio/call?is_continuation=true{auth_param}{user_param}')
             
             print(f"Generated TwiML response: {str(response)}")
             return Response(str(response), mimetype='text/xml')
@@ -683,7 +683,7 @@ def process_audio_webhook():
             # Use Gather with barge-in for error messages too
             gather = Gather(
                 input='speech',
-                action=f'/convonet_todo/twilio/process_audio{user_param}',
+                action=f'/anthropic/convonet_todo/twilio/process_audio{user_param}',
                 method='POST',
                 speech_timeout='auto',
                 timeout=10,
@@ -694,7 +694,7 @@ def process_audio_webhook():
             
             # Fallback
             response.say("I didn't hear anything. Please try again.", voice='Polly.Amy')
-            response.redirect(f'/convonet_todo/twilio/call?is_continuation=true{auth_param}{user_param}')
+            response.redirect(f'/anthropic/convonet_todo/twilio/call?is_continuation=true{auth_param}{user_param}')
             return Response(str(response), mimetype='text/xml')
 
 # WebSocket server is now handled by a separate process
@@ -706,7 +706,7 @@ def index():
     template_path = os.path.join(os.path.dirname(__file__), 'templates', 'convonet_todo_index.html')
     if os.path.exists(template_path):
         return render_template('convonet_todo_index.html')
-    return "Convonet Todo: Convonet + MCP integration is ready. POST to /convonet_todo/run_agent with JSON {prompt: str}."
+    return "Convonet Todo: Convonet + MCP integration is ready. POST to /anthropic/convonet_todo/run_agent with JSON {prompt: str}."
 
 
 async def _get_agent_graph() -> StateGraph:
@@ -1000,18 +1000,18 @@ def websocket_route():
 def register_socketio_events(socketio):
     """Register Socket.IO events for Convonet WebSocket functionality."""
     
-    @socketio.on('connect', namespace='/convonet_todo')
+    @socketio.on('connect', namespace='/anthropic/convonet_todo')
     def handle_connect():
         """Handle WebSocket connection from Twilio."""
         logger.info(f"WebSocket connection established from {request.remote_addr}")
         emit('status', {'msg': 'Connected to Convonet WebSocket'})
     
-    @socketio.on('disconnect', namespace='/convonet_todo')
+    @socketio.on('disconnect', namespace='/anthropic/convonet_todo')
     def handle_disconnect():
         """Handle WebSocket disconnection."""
         logger.info(f"WebSocket connection closed from {request.remote_addr}")
     
-    @socketio.on('media', namespace='/convonet_todo')
+    @socketio.on('media', namespace='/anthropic/convonet_todo')
     def handle_media(data):
         """Handle media data from Twilio."""
         try:
@@ -1026,7 +1026,7 @@ def register_socketio_events(socketio):
             logger.error(f"Error handling media: {str(e)}", exc_info=True)
             emit('error', {'msg': str(e)})
     
-    @socketio.on('start', namespace='/convonet_todo')
+    @socketio.on('start', namespace='/anthropic/convonet_todo')
     def handle_start(data):
         """Handle start event from Twilio."""
         try:
@@ -1039,7 +1039,7 @@ def register_socketio_events(socketio):
             logger.error(f"Error handling start: {str(e)}", exc_info=True)
             emit('error', {'msg': str(e)})
     
-    @socketio.on('stop', namespace='/convonet_todo')
+    @socketio.on('stop', namespace='/anthropic/convonet_todo')
     def handle_stop(data):
         """Handle stop event from Twilio."""
         try:

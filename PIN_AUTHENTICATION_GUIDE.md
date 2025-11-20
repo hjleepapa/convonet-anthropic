@@ -37,7 +37,7 @@ This will:
 ### **Step 3: Register New Users with PIN**
 
 **Web Registration:**
-1. Go to https://hjlees.com/register
+1. Go to https://hjlees.com/anthropic/register
 2. Fill in email, username, first name, last name, password
 3. **Enter a 4-6 digit Voice PIN** (e.g., 5678)
 4. Click "Create Account"
@@ -242,7 +242,7 @@ CREATE INDEX idx_users_voice_pin ON users_convonet(voice_pin);
 4. Should hear: "Welcome back, Admin!"
 
 ### **Test 3: Web Dashboard Login**
-1. Go to https://hjlees.com/team-dashboard
+1. Go to https://hjlees.com/anthropic/team-dashboard
 2. Email: admin@convonet.com
 3. Password: admin123
 4. Should login successfully
@@ -272,7 +272,7 @@ SELECT title, creator_id FROM todos_convonet ORDER BY created_at DESC LIMIT 1;
 ## 📞 Demo Credentials
 
 **Web Dashboard:**
-- URL: https://hjlees.com/team-dashboard
+- URL: https://hjlees.com/anthropic/team-dashboard
 - Email: admin@convonet.com
 - Password: admin123
 

@@ -40,7 +40,7 @@ def get_session_factory():
         SessionLocal = None
     return SessionLocal
 
-team_bp = Blueprint('teams', __name__, url_prefix='/api/teams')
+team_bp = Blueprint('teams', __name__, url_prefix='/anthropic/api/teams')
 
 @team_bp.route('/', methods=['POST'])
 @require_auth

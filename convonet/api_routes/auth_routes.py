@@ -40,7 +40,7 @@ def get_session_factory():
         SessionLocal = None
     return SessionLocal
 
-auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
+auth_bp = Blueprint('auth', __name__, url_prefix='/anthropic/api/auth')
 
 @auth_bp.route('/register', methods=['POST'])
 def register():

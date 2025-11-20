@@ -160,7 +160,7 @@ class CallCenterAgent {
         const data = Object.fromEntries(formData.entries());
         
         try {
-            const response = await fetch('/call-center/api/agent/login', {
+            const response = await fetch('/anthropic/call-center/api/agent/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -193,7 +193,7 @@ class CallCenterAgent {
             }
             
             // Logout from backend
-            await fetch('/call-center/api/agent/logout', {
+            await fetch('/anthropic/call-center/api/agent/logout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -208,7 +208,7 @@ class CallCenterAgent {
     
     async setReady() {
         try {
-            const response = await fetch('/call-center/api/agent/ready', {
+            const response = await fetch('/anthropic/call-center/api/agent/ready', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -228,7 +228,7 @@ class CallCenterAgent {
         if (!reason) return;
         
         try {
-            const response = await fetch('/call-center/api/agent/not-ready', {
+            const response = await fetch('/anthropic/call-center/api/agent/not-ready', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ reason })
@@ -611,7 +611,7 @@ class CallCenterAgent {
         this.activeCallIdentity = incomingIdentity;
         
         // Notify backend
-        fetch('/call-center/api/call/ringing', {
+        fetch('/anthropic/call-center/api/call/ringing', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(this.currentCall)
@@ -750,7 +750,7 @@ class CallCenterAgent {
             console.log('Answer sent for session', session.id);
             
             // Notify backend
-            await fetch('/call-center/api/call/answer', {
+            await fetch('/anthropic/call-center/api/call/answer', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ call_id: this.currentCall.call_id })
@@ -779,7 +779,7 @@ class CallCenterAgent {
             
             // Notify backend if we still have call metadata
             if (this.currentCall && this.currentCall.call_id) {
-                await fetch('/call-center/api/call/drop', {
+                await fetch('/anthropic/call-center/api/call/drop', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ call_id: this.currentCall.call_id })
@@ -797,7 +797,7 @@ class CallCenterAgent {
             this.currentSession.hold();
             
             // Notify backend
-            await fetch('/call-center/api/call/hold', {
+            await fetch('/anthropic/call-center/api/call/hold', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ call_id: this.currentCall.call_id })
@@ -817,7 +817,7 @@ class CallCenterAgent {
             this.currentSession.unhold();
             
             // Notify backend
-            await fetch('/call-center/api/call/unhold', {
+            await fetch('/anthropic/call-center/api/call/unhold', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ call_id: this.currentCall.call_id })
@@ -877,7 +877,7 @@ class CallCenterAgent {
         
         try {
             // Notify backend
-            await fetch('/call-center/api/call/transfer', {
+            await fetch('/anthropic/call-center/api/call/transfer', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -907,7 +907,7 @@ class CallCenterAgent {
         this.customerData.innerHTML = '<div class="customer-info loading"><i class="fas fa-spinner fa-spin"></i> Loading customer data...</div>';
         
         try {
-            const response = await fetch(`/call-center/api/customer/${customerId}`);
+            const response = await fetch(`/anthropic/call-center/api/customer/${customerId}`);
             const customer = await response.json();
             
             this.displayCustomerData(customer);
@@ -1183,7 +1183,7 @@ class CallCenterAgent {
     
     async checkLoginStatus() {
         try {
-            const response = await fetch('/call-center/api/agent/status');
+            const response = await fetch('/anthropic/call-center/api/agent/status');
             const result = await response.json();
             
             if (result.logged_in) {

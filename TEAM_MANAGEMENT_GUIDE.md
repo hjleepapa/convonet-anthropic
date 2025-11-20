@@ -5,7 +5,7 @@
 ### Method 1: Team Dashboard UI (Recommended)
 
 1. **Login to Team Dashboard**
-   - Visit: `https://hjlees.com/team-dashboard`
+   - Visit: `https://hjlees.com/anthropic/team-dashboard`
    - Login with admin credentials: `admin@convonet.com` / `admin123`
 
 2. **Select a Team**
@@ -121,28 +121,28 @@ When users register via `/register`, they can be manually added to teams by admi
 
 ```bash
 # 1. Login and get token
-curl -X POST https://hjlees.com/api/auth/login \
+curl -X POST https://hjlees.com/anthropic/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email": "admin@convonet.com", "password": "admin123"}'
 
 # 2. Create team
-curl -X POST https://hjlees.com/api/teams/ \
+curl -X POST https://hjlees.com/anthropic/api/teams/ \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "Development Team", "description": "Software development team"}'
 
 # 3. Search for users
-curl -X GET "https://hjlees.com/api/teams/search/users?q=developer" \
+curl -X GET "https://hjlees.com/anthropic/api/teams/search/users?q=developer" \
   -H "Authorization: Bearer YOUR_TOKEN"
 
 # 4. Add member to team
-curl -X POST https://hjlees.com/api/teams/TEAM_ID/members \
+curl -X POST https://hjlees.com/anthropic/api/teams/TEAM_ID/members \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"user_id": "USER_ID", "role": "member"}'
 
 # 5. Create team todo
-curl -X POST https://hjlees.com/api/team-todos/ \
+curl -X POST https://hjlees.com/anthropic/api/team-todos/ \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{

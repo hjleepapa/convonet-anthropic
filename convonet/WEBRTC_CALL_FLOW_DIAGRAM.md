@@ -212,7 +212,7 @@ sequenceDiagram
     WS-->>User: 38. Show Transfer Status
     
     Note over User,Agent: === TWILIO TRANSFER FLOW ===
-    WVS->>Twilio: 39. POST /voice_assistant/transfer_bridge<br/>SIP URI: sip:2001@FREEPBX_DOMAIN
+    WVS->>Twilio: 39. POST /anthropic/convonet_todo/twilio/voice_assistant/transfer_bridge<br/>SIP URI: sip:2001@FREEPBX_DOMAIN
     Twilio->>FusionPBX: 40. SIP INVITE to Extension 2001
     FusionPBX->>Agent: 41. Ring Extension 2001
     Agent->>DB: 42. Fetch User Info

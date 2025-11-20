@@ -229,12 +229,12 @@ Server runs on: `http://localhost:10000`
 
 Open in browser:
 ```
-https://hjlees.com/convonet_todo/webrtc/voice-assistant
+https://hjlees.com/anthropic/webrtc/voice-assistant
 ```
 
 Or locally:
 ```
-http://localhost:10000/convonet_todo/webrtc/voice-assistant
+http://localhost:10000/anthropic/webrtc/voice-assistant
 ```
 
 ### 4. **Authenticate**

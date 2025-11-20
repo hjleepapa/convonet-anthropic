@@ -60,7 +60,7 @@ except ImportError as e:
 ENABLE_TEST_PIN = os.getenv('ENABLE_TEST_PIN', 'false').lower() == 'true'
 TEST_VOICE_PIN = os.getenv('TEST_VOICE_PIN', '1234')
 
-webrtc_bp = Blueprint('webrtc_voice', __name__, url_prefix='/convonet_todo/webrtc')
+webrtc_bp = Blueprint('webrtc_voice', __name__, url_prefix='/anthropic/webrtc')
 
 # Initialize Deepgram service for STT and TTS
 # Note: OpenAI client kept for potential Whisper fallback, but TTS now uses Deepgram
@@ -205,7 +205,7 @@ def initiate_agent_transfer(session_id: str, extension: str, department: str, re
         return False, {'error': message}
 
     conference_name = re.sub(r'[^a-zA-Z0-9_-]', '', f"va-transfer-{session_id or 'anon'}")
-    conference_url = f"{base_url.rstrip('/')}/convonet_todo/twilio/voice_assistant/transfer_bridge?conference={quote(conference_name)}"
+    conference_url = f"{base_url.rstrip('/')}/anthropic/convonet_todo/twilio/voice_assistant/transfer_bridge?conference={quote(conference_name)}"
 
     client = Client(account_sid, auth_token)
     response_details = {

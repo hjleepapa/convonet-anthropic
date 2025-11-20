@@ -374,7 +374,7 @@
         </div>
 
         <div class="content">
-            <a href="/" class="back-link">← Back to Main App</a>
+            <a href="/anthropic" class="back-link">← Back to Main App</a>
             
             <div class="sessions-section">
                 <h2 class="section-title">Active Sessions</h2>
@@ -422,7 +422,7 @@
             loading.style.display = 'block';
             sessionsGrid.innerHTML = '';
             
-            fetch('/audio-player/api/sessions')
+            fetch('/anthropic/audio-player/api/sessions')
                 .then(response => response.json())
                 .then(data => {
                     loading.style.display = 'none';
@@ -508,7 +508,7 @@
         }
         
         function showSessionInfo(sessionId) {
-            fetch(`/audio-player/api/session/${sessionId}/info`)
+            fetch(`/anthropic/audio-player/api/session/${sessionId}/info`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -524,7 +524,7 @@
         }
         
         function analyzeAudio(sessionId) {
-            fetch(`/audio-player/api/session/${sessionId}/analyze`)
+            fetch(`/anthropic/audio-player/api/session/${sessionId}/analyze`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -589,7 +589,7 @@
         }
         
         function downloadAudio(sessionId) {
-            window.open(`/audio-player/api/session/${sessionId}/download`, '_blank');
+            window.open(`/anthropic/audio-player/api/session/${sessionId}/download`, '_blank');
         }
         
         function showAlert(message, type) {
