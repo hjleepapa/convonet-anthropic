@@ -775,9 +775,31 @@ async def _get_agent_graph() -> StateGraph:
             print("🔧 Creating MCP client...")
             client = MultiServerMCPClient(connections=mcp_config["mcpServers"])
             print("🔧 Getting tools from MCP client...")
+            # Wrap in a task to better catch exceptions from nested coroutines
             try:
-                tools = await asyncio.wait_for(client.get_tools(), timeout=10.0)
+                # Create a wrapper function to catch any exceptions from nested coroutines
+                async def safe_get_tools():
+                    try:
+                        return await client.get_tools()
+                    except (UnboundLocalError, NameError) as e:
+                        # Re-raise as a different exception type so we can catch it
+                        raise RuntimeError(f"MCP library UnboundLocalError: {e}") from e
+                    except Exception as e:
+                        error_str = str(e)
+                        if "UnboundLocalError" in error_str or "cannot access local variable 'tools'" in error_str:
+                            raise RuntimeError(f"MCP library UnboundLocalError (wrapped): {e}") from e
+                        raise
+                
+                tools = await asyncio.wait_for(safe_get_tools(), timeout=10.0)
                 print(f"✅ MCP client initialized successfully with {len(tools)} tools")
+            except RuntimeError as e:
+                # Catch our wrapped UnboundLocalError
+                if "UnboundLocalError" in str(e):
+                    print(f"⚠️ MCP library error (UnboundLocalError): {e}")
+                    print("⚠️ Continuing with empty tools list")
+                    tools = []  # Ensure tools is set to empty list
+                else:
+                    raise
             except (UnboundLocalError, NameError) as e:
                 # Handle library bug where tools variable is referenced before assignment
                 print(f"⚠️ MCP library error (UnboundLocalError/NameError): {e}")
@@ -861,7 +883,15 @@ async def _get_agent_graph() -> StateGraph:
             print(f"❌ Error building agent graph: {e}")
             import traceback
             print(f"❌ Traceback: {traceback.format_exc()}")
-            raise Exception(f"Failed to build agent graph: {str(e)}")
+            # Don't raise - try to build with empty tools as last resort
+            print("⚠️ Attempting to build graph with empty tools list as fallback...")
+            try:
+                _agent_graph_cache = TodoAgent(tools=[]).build_graph()
+                print("✅ Agent graph built with empty tools list (fallback)")
+                return _agent_graph_cache
+            except Exception as fallback_error:
+                print(f"❌ Even fallback graph building failed: {fallback_error}")
+                raise Exception(f"Failed to build agent graph even with empty tools: {str(e)}")
         finally:
             os.chdir(original_cwd)
 
