@@ -775,8 +775,19 @@ async def _get_agent_graph() -> StateGraph:
             print("🔧 Creating MCP client...")
             client = MultiServerMCPClient(connections=mcp_config["mcpServers"])
             print("🔧 Getting tools from MCP client...")
-            tools = await asyncio.wait_for(client.get_tools(), timeout=10.0)
-            print(f"✅ MCP client initialized successfully with {len(tools)} tools")
+            try:
+                tools = await asyncio.wait_for(client.get_tools(), timeout=10.0)
+                print(f"✅ MCP client initialized successfully with {len(tools)} tools")
+            except UnboundLocalError as e:
+                # Handle library bug where tools variable is referenced before assignment
+                print(f"⚠️ MCP library error (UnboundLocalError): {e}")
+                print("⚠️ Continuing with empty tools list")
+                tools = []
+            except Exception as e:
+                # Handle any other errors from get_tools()
+                print(f"⚠️ Error getting MCP tools: {e}")
+                print("⚠️ Continuing with empty tools list")
+                tools = []
             
             # Add call transfer tools (non-MCP tools) - optional
             try:
