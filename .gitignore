@@ -1,0 +1,21 @@
+.env
+vapi1.py
+
+# Google API credentials and tokens
+shared/credentials.json
+shared/Credentials.json
+shared/token.pickle
+shared/create_token.py
+create_token.py
+Credentials.json
+token.pickle
+
+
+
+
+# Call recordings
+recordings/
+*.wav
+*.mp3
+*.m4a
+
