@@ -778,16 +778,23 @@ async def _get_agent_graph() -> StateGraph:
             try:
                 tools = await asyncio.wait_for(client.get_tools(), timeout=10.0)
                 print(f"✅ MCP client initialized successfully with {len(tools)} tools")
-            except UnboundLocalError as e:
+            except (UnboundLocalError, NameError) as e:
                 # Handle library bug where tools variable is referenced before assignment
-                print(f"⚠️ MCP library error (UnboundLocalError): {e}")
+                print(f"⚠️ MCP library error (UnboundLocalError/NameError): {e}")
                 print("⚠️ Continuing with empty tools list")
-                tools = []
+                tools = []  # Ensure tools is set to empty list
             except Exception as e:
-                # Handle any other errors from get_tools()
-                print(f"⚠️ Error getting MCP tools: {e}")
-                print("⚠️ Continuing with empty tools list")
-                tools = []
+                # Check if the error message contains UnboundLocalError (might be wrapped)
+                error_str = str(e)
+                if "UnboundLocalError" in error_str or "cannot access local variable 'tools'" in error_str:
+                    print(f"⚠️ MCP library error (wrapped UnboundLocalError): {e}")
+                    print("⚠️ Continuing with empty tools list")
+                    tools = []  # Ensure tools is set to empty list
+                else:
+                    # Handle any other errors from get_tools()
+                    print(f"⚠️ Error getting MCP tools: {e}")
+                    print("⚠️ Continuing with empty tools list")
+                    tools = []  # Ensure tools is set to empty list
             
             # Add call transfer tools (non-MCP tools) - optional
             try:
@@ -818,22 +825,43 @@ async def _get_agent_graph() -> StateGraph:
                 print(f"⚠️ Failed to load Composio tools: {e}")
                 print("⚠️ Continuing without external integrations")
             
-            print("🔧 Building agent graph...")
-            
-            # Build and cache the graph
-            _agent_graph_cache = TodoAgent(tools=tools).build_graph()
-            print("✅ Agent graph cached for future requests")
-            
-            return _agent_graph_cache
         except asyncio.TimeoutError:
             print("❌ MCP client initialization timed out after 10 seconds")
-            raise Exception("Database connection timed out. Please try again.")
+            # Continue with empty tools list instead of raising
+            print("⚠️ Continuing with empty tools list")
+            tools = []
+        except (UnboundLocalError, NameError) as e:
+            # Handle library bug where tools variable is referenced before assignment
+            print(f"❌ MCP library error (UnboundLocalError/NameError): {e}")
+            print("⚠️ Continuing with empty tools list")
+            tools = []  # Ensure tools is set to empty list
         except Exception as e:
-            print(f"❌ Error initializing MCP client: {e}")
-            print(f"❌ Error type: {type(e)}")
+            error_str = str(e)
+            # Check if the error is related to tools variable
+            if "UnboundLocalError" in error_str or "cannot access local variable 'tools'" in error_str:
+                print(f"❌ MCP library error (wrapped UnboundLocalError): {e}")
+                print("⚠️ Continuing with empty tools list")
+                tools = []  # Ensure tools is set to empty list
+            else:
+                print(f"❌ Error initializing MCP client: {e}")
+                print(f"❌ Error type: {type(e)}")
+                import traceback
+                print(f"❌ Traceback: {traceback.format_exc()}")
+                print("⚠️ Continuing with empty tools list")
+                tools = []  # Ensure tools is set to empty list
+        
+        # Build agent graph with whatever tools we have (even if empty)
+        # This ensures we always try to build the graph, even if MCP tools failed
+        try:
+            print(f"🔧 Building agent graph with {len(tools)} tools...")
+            _agent_graph_cache = TodoAgent(tools=tools).build_graph()
+            print("✅ Agent graph cached for future requests")
+            return _agent_graph_cache
+        except Exception as e:
+            print(f"❌ Error building agent graph: {e}")
             import traceback
             print(f"❌ Traceback: {traceback.format_exc()}")
-            raise Exception(f"Database initialization failed: {str(e)}")
+            raise Exception(f"Failed to build agent graph: {str(e)}")
         finally:
             os.chdir(original_cwd)
 
