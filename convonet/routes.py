@@ -1051,16 +1051,34 @@ async def _run_agent_async(
         error_str = str(e)
         
         # Check if it's a model 404 error - if so, clear cache and retry once
-        if "MODEL_404_ERROR" in error_str or ("404" in error_str and "model" in error_str.lower()):
+        # Check for various 404 error patterns
+        is_model_404 = (
+            "MODEL_404_ERROR" in error_str or 
+            ("404" in error_str and ("model" in error_str.lower() or "not_found_error" in error_str)) or
+            ("not_found_error" in error_str and "model:" in error_str.lower())
+        )
+        if is_model_404:
             print("🔄 Model 404 error detected, clearing cache and retrying...")
+            print(f"🔄 Error details: {error_str[:200]}")
             global _agent_graph_cache, _agent_graph_model
             _agent_graph_cache = None
             _agent_graph_model = None
             
+            # Also force a different model by temporarily unsetting the env var
+            # This will make it use the default (claude-3-sonnet-20240229)
+            original_model = os.getenv("ANTHROPIC_MODEL")
+            if original_model:
+                print(f"🔄 Temporarily unsetting ANTHROPIC_MODEL ({original_model}) to force fallback...")
+                os.environ.pop("ANTHROPIC_MODEL", None)
+            
             # Retry once with fresh graph
             try:
-                print("🔄 Retrying with fresh agent graph...")
+                print("🔄 Retrying with fresh agent graph (will try fallback models)...")
                 agent_graph = await _get_agent_graph()
+                
+                # Restore original env var if we unset it
+                if original_model:
+                    os.environ["ANTHROPIC_MODEL"] = original_model
                 stream = agent_graph.astream(input=input_state, stream_mode="values", config=config)
                 
                 async def process_stream_retry():

@@ -293,11 +293,14 @@ class TodoAgent:
                 ).bind_tools(tools=self.tools)
                 self.model = model_name  # Update to the working model
                 print(f"✅ Anthropic LLM initialized successfully with model: {self.model}")
+                print(f"⚠️ Note: Model will be validated on first API call. If 404 occurs, cache will be cleared and fallback models will be tried.")
                 break
             except Exception as e:
                 last_error = e
+                error_str = str(e)
                 print(f"⚠️ Failed to initialize with model '{model_name}': {e}")
-                if "not_found_error" in str(e) or "404" in str(e):
+                if "not_found_error" in error_str or "404" in error_str or "model:" in error_str.lower():
+                    print(f"⚠️ Model {model_name} not found, trying next model...")
                     continue  # Try next model
                 else:
                     # For other errors (auth, etc.), don't try other models
