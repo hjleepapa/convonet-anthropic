@@ -254,14 +254,14 @@ class TodoAgent:
         self.name = name
         self.system_prompt = system_prompt
         # Get model from environment variable or use default/parameter
-        # Default to older stable model that's more likely to be available
-        self.model = model or os.getenv("ANTHROPIC_MODEL", "claude-3-sonnet-20240229")
+        # Use model IDs from Anthropic API - these are the actual available models
+        self.model = model or os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
         self.tools = tools
 
         # Validate model name is not truncated
         if len(self.model) < 10:
             print(f"⚠️ WARNING: Model name seems truncated: '{self.model}'. Using default.")
-            self.model = "claude-3-sonnet-20240229"
+            self.model = "claude-sonnet-4-20250514"
         
         print(f"🤖 Using Anthropic model: {self.model}")
         
@@ -277,14 +277,14 @@ class TodoAgent:
             print(f"⚠️ WARNING: API key doesn't start with 'sk-ant-'. This might be invalid.")
         
         # Try multiple model names as fallback
-        # Anthropic model names can vary - try different formats
+        # Use actual model IDs from Anthropic API response
         model_candidates = [
             self.model,  # Try the specified model first
-            "claude-sonnet-4-20250514",  # Newer format (if available)
-            "claude-3-opus-20240229",  # Opus model as fallback
-            "claude-3-sonnet-20240229",  # Older Sonnet version (known to work)
-            "claude-3-5-sonnet-20240620",  # June 2024 version
-            "claude-3-5-sonnet",  # Base model name
+            "claude-sonnet-4-20250514",  # Claude Sonnet 4 (confirmed available)
+            "claude-3-7-sonnet-20250219",  # Claude Sonnet 3.7 (confirmed available)
+            "claude-3-opus-20240229",  # Claude Opus 3 (confirmed available)
+            "claude-sonnet-4-5-20250929",  # Claude Sonnet 4.5 (newer, confirmed available)
+            "claude-opus-4-20250514",  # Claude Opus 4 (confirmed available)
         ]
         
         last_error = None

@@ -715,7 +715,8 @@ async def _get_agent_graph() -> StateGraph:
     global _agent_graph_cache, _agent_graph_model
     
     # Get current model name (from env var or default)
-    current_model = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet")
+    # Use actual model ID from Anthropic API
+    current_model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
     
     # Return cached graph if available AND model hasn't changed
     if _agent_graph_cache is not None and _agent_graph_model == current_model:
@@ -1076,12 +1077,13 @@ async def _run_agent_async(
             _agent_graph_model = None
             
             # Force a different model by setting env var to a known working model
-            # Skip the failed model and try others
+            # Skip the failed model and try others (using actual model IDs from API)
             original_model = os.getenv("ANTHROPIC_MODEL")
             fallback_models = [
-                "claude-3-opus-20240229",  # Try Opus
-                "claude-3-5-sonnet-20240620",  # Try June 2024
-                "claude-3-5-sonnet",  # Try base name
+                "claude-sonnet-4-20250514",  # Claude Sonnet 4 (confirmed available)
+                "claude-3-7-sonnet-20250219",  # Claude Sonnet 3.7 (confirmed available)
+                "claude-3-opus-20240229",  # Claude Opus 3 (confirmed available)
+                "claude-sonnet-4-5-20250929",  # Claude Sonnet 4.5 (newer)
             ]
             
             # Find a model that's different from the failed one
