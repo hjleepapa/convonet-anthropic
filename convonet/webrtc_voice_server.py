@@ -204,13 +204,14 @@ def initiate_agent_transfer(session_id: str, extension: str, department: str, re
         print(f"⚠️ {message}")
         return False, {'error': message}
 
-    conference_name = re.sub(r'[^a-zA-Z0-9_-]', '', f"va-transfer-{session_id or 'anon'}")
-    conference_url = f"{base_url.rstrip('/')}/anthropic/convonet_todo/twilio/voice_assistant/transfer_bridge?conference={quote(conference_name)}"
+    # For WebRTC transfers, we directly dial the FusionPBX extension
+    # The WebRTC user can't join a Twilio conference, so we just connect the agent
+    transfer_url = f"{base_url.rstrip('/')}/anthropic/convonet_todo/twilio/voice_assistant/transfer_bridge?extension={quote(extension)}"
 
     client = Client(account_sid, auth_token)
     response_details = {
-        'conference': conference_name,
-        'conference_url': conference_url,
+        'extension': extension,
+        'transfer_url': transfer_url,
         'agent_call_sid': None,
         'user_call_sid': None
     }
@@ -220,7 +221,7 @@ def initiate_agent_transfer(session_id: str, extension: str, department: str, re
         agent_call = client.calls.create(
             to=sip_target,
             from_=caller_id,
-            url=conference_url
+            url=transfer_url
         )
         response_details['agent_call_sid'] = agent_call.sid
         print(f"📞 Initiated agent call via Twilio (Call SID: {agent_call.sid}) to {sip_target}")
@@ -230,35 +231,12 @@ def initiate_agent_transfer(session_id: str, extension: str, department: str, re
         response_details['error'] = message
         return False, response_details
 
-    user_number = None
-    if session_data:
-        for key in ('user_phone', 'contact_phone', 'phone_number', 'transfer_phone'):
-            if session_data.get(key):
-                user_number = session_data[key]
-                break
-    if not user_number:
-        user_number = os.getenv('VOICE_ASSISTANT_TRANSFER_USER_NUMBER')
-
-    if not user_number:
-        print("ℹ️ No user phone number available. Agent leg will ring but user must join manually.")
-        return True, response_details
-
-    if isinstance(user_number, bytes):
-        user_number = user_number.decode('utf-8', errors='ignore')
-
-    try:
-        user_call = client.calls.create(
-            to=user_number,
-            from_=caller_id,
-            url=conference_url
-        )
-        response_details['user_call_sid'] = user_call.sid
-        print(f"📞 Initiated user call via Twilio (Call SID: {user_call.sid}) to {user_number}")
-    except Exception as user_error:
-        message = f"Agent call started but failed to call user number {user_number}: {user_error}"
-        print(f"⚠️ {message}")
-        response_details['user_error'] = message
-        return True, response_details
+    # For WebRTC transfers, we don't call the user back because:
+    # 1. WebRTC is browser-based, not a phone number
+    # 2. The user needs to manually call the agent or use a different method
+    # Instead, we provide instructions to the user via the WebRTC interface
+    print(f"ℹ️ WebRTC transfer: Agent call initiated to extension {extension}. User should contact agent separately or use call center dashboard.")
+    response_details['user_instructions'] = f"Please contact extension {extension} via the call center dashboard at {base_url}/anthropic/call-center/"
 
     return True, response_details
 
