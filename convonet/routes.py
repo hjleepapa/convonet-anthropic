@@ -1050,6 +1050,41 @@ async def _run_agent_async(
         print(f"Error in agent execution: {e}")
         error_str = str(e)
         
+        # Check if it's a model 404 error - if so, clear cache and retry once
+        if "MODEL_404_ERROR" in error_str or ("404" in error_str and "model" in error_str.lower()):
+            print("🔄 Model 404 error detected, clearing cache and retrying...")
+            global _agent_graph_cache, _agent_graph_model
+            _agent_graph_cache = None
+            _agent_graph_model = None
+            
+            # Retry once with fresh graph
+            try:
+                print("🔄 Retrying with fresh agent graph...")
+                agent_graph = await _get_agent_graph()
+                stream = agent_graph.astream(input=input_state, stream_mode="values", config=config)
+                
+                async def process_stream_retry():
+                    transfer_marker = None
+                    async for state in stream:
+                        if "messages" in state:
+                            for msg in state["messages"]:
+                                if hasattr(msg, 'content') and isinstance(msg.content, str):
+                                    if 'TRANSFER_INITIATED:' in msg.content:
+                                        transfer_marker = msg.content
+                    final_state = agent_graph.get_state(config=config)
+                    last_message = final_state.values.get("messages")[-1]
+                    final_response = getattr(last_message, 'content', "")
+                    if include_metadata:
+                        return {"response": final_response, "transfer_marker": transfer_marker}
+                    if transfer_marker:
+                        return transfer_marker
+                    return final_response
+                
+                return await asyncio.wait_for(process_stream_retry(), timeout=20.0)
+            except Exception as retry_error:
+                print(f"❌ Retry also failed: {retry_error}")
+                return f"AGENT_ERROR:model_not_found:Unable to find a working Anthropic model. Please check your API key and model configuration."
+        
         # Return special markers for specific errors so they can be detected upstream
         if "tool_call" in error_str.lower():
             return f"AGENT_ERROR:tool_call_incomplete:{error_str[:100]}"

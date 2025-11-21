@@ -254,14 +254,14 @@ class TodoAgent:
         self.name = name
         self.system_prompt = system_prompt
         # Get model from environment variable or use default/parameter
-        # Use base model name without date - Anthropic API will use the latest version
-        self.model = model or os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet")
+        # Default to older stable model that's more likely to be available
+        self.model = model or os.getenv("ANTHROPIC_MODEL", "claude-3-sonnet-20240229")
         self.tools = tools
 
         # Validate model name is not truncated
         if len(self.model) < 10:
             print(f"⚠️ WARNING: Model name seems truncated: '{self.model}'. Using default.")
-            self.model = "claude-3-5-sonnet"
+            self.model = "claude-3-sonnet-20240229"
         
         print(f"🤖 Using Anthropic model: {self.model}")
         
@@ -271,13 +271,14 @@ class TodoAgent:
             raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
         
         # Try multiple model names as fallback
-        # Try simpler formats first, then versions with dates
+        # Anthropic model names can vary - try different formats
         model_candidates = [
             self.model,  # Try the specified model first
-            "claude-3-5-sonnet",  # Base model name (uses latest version)
+            "claude-sonnet-4-20250514",  # Newer format (if available)
             "claude-3-opus-20240229",  # Opus model as fallback
-            "claude-3-sonnet-20240229",  # Older Sonnet version
+            "claude-3-sonnet-20240229",  # Older Sonnet version (known to work)
             "claude-3-5-sonnet-20240620",  # June 2024 version
+            "claude-3-5-sonnet",  # Base model name
         ]
         
         last_error = None
@@ -323,14 +324,30 @@ class TodoAgent:
                 )
 
             print(f"🤖 Assistant processing: {state.messages[-1].content if state.messages else 'No messages'}")
-            response = await self.llm.ainvoke([SystemMessage(content=system_prompt)] + state.messages)
-            print(f"🤖 Assistant response: {response.content}")
-            print(f"🤖 Tool calls: {response.tool_calls if hasattr(response, 'tool_calls') else 'None'}")
-            print(f"🤖 Available tools: {len(self.tools)}")
-            print(f"🤖 Tool names: {[tool.name for tool in self.tools[:5]]}...")  # Show first 5 tools
-            
-            state.messages.append(response)
-            return state
+            try:
+                response = await self.llm.ainvoke([SystemMessage(content=system_prompt)] + state.messages)
+                print(f"🤖 Assistant response: {response.content}")
+                print(f"🤖 Tool calls: {response.tool_calls if hasattr(response, 'tool_calls') else 'None'}")
+                print(f"🤖 Available tools: {len(self.tools)}")
+                print(f"🤖 Tool names: {[tool.name for tool in self.tools[:5]]}...")  # Show first 5 tools
+                
+                state.messages.append(response)
+                return state
+            except Exception as e:
+                error_str = str(e)
+                # Check if it's a 404 model not found error
+                if "404" in error_str or "not_found_error" in error_str or "model:" in error_str:
+                    print(f"❌ Model 404 error during execution: {e}")
+                    print(f"❌ Current model: {self.model}")
+                    # Clear the global cache to force reinitialization
+                    import convonet.routes as routes_module
+                    routes_module._agent_graph_cache = None
+                    routes_module._agent_graph_model = None
+                    print("🔄 Cleared agent graph cache due to model 404 error")
+                    # Raise a special exception that will trigger retry
+                    raise RuntimeError(f"MODEL_404_ERROR: Model {self.model} not found. Cache cleared. Please retry.") from e
+                # For other errors, re-raise
+                raise
 
         async def tools_node(state: AgentState):
             """Execute async MCP tools and return results."""
