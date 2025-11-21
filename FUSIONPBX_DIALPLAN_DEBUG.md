@@ -25,12 +25,18 @@ From the logs:
 ### Check Dialplan Configuration
 
 ```bash
-# Interactive mode (recommended)
+# CORRECT: From command line (one-liner)
+fs_cli -x "xml_locate dialplan public 2001"
+
+# CORRECT: Inside fs_cli (interactive mode)
 fs_cli
-# Then type:
+# Then type (NO quotes, NO -x):
 xml_locate dialplan public 2001
 
-# Or one-liner:
+# Check if dialplan entry exists (shows all extensions in public context)
+fs_cli -x "show dialplan public" | grep -i 2001
+
+# Or check dialplan XML directly
 fs_cli -x "xml_locate dialplan public 2001"
 ```
 
