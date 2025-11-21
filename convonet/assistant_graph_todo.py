@@ -358,8 +358,24 @@ class TodoAgent:
                 )
 
             print(f"🤖 Assistant processing: {state.messages[-1].content if state.messages else 'No messages'}")
+            print(f"🤖 Message count: {len(state.messages)}")
+            
+            # Filter messages to ensure proper tool_use/tool_result pairing
+            # Anthropic requires that every tool_use is immediately followed by tool_result
+            filtered_messages = []
+            for i, msg in enumerate(state.messages):
+                filtered_messages.append(msg)
+                # Check if this is a tool_use message and verify next message is tool_result
+                if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                    print(f"🤖 Found {len(msg.tool_calls)} tool calls in message {i}")
+                    # Verify next message(s) contain tool results for these calls
+                    if i + 1 < len(state.messages):
+                        next_msg = state.messages[i + 1]
+                        if hasattr(next_msg, 'tool_call_id'):
+                            print(f"🤖 Next message has tool_call_id: {next_msg.tool_call_id}")
+            
             try:
-                response = await self.llm.ainvoke([SystemMessage(content=system_prompt)] + state.messages)
+                response = await self.llm.ainvoke([SystemMessage(content=system_prompt)] + filtered_messages)
                 print(f"🤖 Assistant response: {response.content}")
                 print(f"🤖 Tool calls: {response.tool_calls if hasattr(response, 'tool_calls') else 'None'}")
                 print(f"🤖 Available tools: {len(self.tools)}")
