@@ -275,11 +275,12 @@ def transfer_to_agent():
         sip_password = os.getenv('FREEPBX_SIP_PASSWORD', '')
         
         # Build SIP URI for FusionPBX extension
-        # Flow: Voice AI (current call) → Transfer → FusionPBX extension
-        # Try with transport=udp for better compatibility
-        sip_uri = f"sip:{extension}@{freepbx_domain};transport=udp"
+        # FusionPBX routing: Use 'internal' context for extension routing
+        # The 'internal' context is where FusionPBX routes calls to extensions
+        sip_context = os.getenv('FREEPBX_SIP_CONTEXT', 'internal')  # Default to 'internal' context
+        sip_uri = f"sip:{extension}@{sip_context};transport=udp"
         logger.info(f"Transferring to SIP URI: {sip_uri}")
-        logger.info(f"FusionPBX Domain: {freepbx_domain}, Extension: {extension}")
+        logger.info(f"FusionPBX Domain: {freepbx_domain}, Extension: {extension}, Context: {sip_context}")
         logger.info(f"Transfer Timeout: {transfer_timeout} seconds")
         
         # Create Dial verb with transfer settings

@@ -223,7 +223,10 @@ def initiate_agent_transfer(session_id: str, extension: str, department: str, re
     }
 
     try:
-        sip_target = f"sip:{extension}@{freepbx_domain};transport=udp"
+        # FusionPBX routing: Use 'internal' context for extension routing
+        # The 'internal' context is where FusionPBX routes calls to extensions
+        sip_context = os.getenv('FREEPBX_SIP_CONTEXT', 'internal')  # Default to 'internal' context
+        sip_target = f"sip:{extension}@{sip_context};transport=udp"
         print(f"📞 Creating Twilio call:")
         print(f"   To: {sip_target}")
         print(f"   From: {caller_id}")
