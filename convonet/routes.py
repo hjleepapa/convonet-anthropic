@@ -275,12 +275,12 @@ def transfer_to_agent():
         sip_password = os.getenv('FREEPBX_SIP_PASSWORD', '')
         
         # Build SIP URI for FusionPBX extension
-        # FusionPBX routing: Use 'internal' context for extension routing
-        # The 'internal' context is where FusionPBX routes calls to extensions
-        sip_context = os.getenv('FREEPBX_SIP_CONTEXT', 'internal')  # Default to 'internal' context
-        sip_uri = f"sip:{extension}@{sip_context};transport=udp"
+        # Use domain/IP for Twilio (Twilio needs resolvable domain/IP)
+        # FusionPBX dialplan must be configured to route external calls to extensions
+        sip_uri = f"sip:{extension}@{freepbx_domain};transport=udp"
         logger.info(f"Transferring to SIP URI: {sip_uri}")
-        logger.info(f"FusionPBX Domain: {freepbx_domain}, Extension: {extension}, Context: {sip_context}")
+        logger.info(f"FusionPBX Domain: {freepbx_domain}, Extension: {extension}")
+        logger.info(f"NOTE: FusionPBX dialplan must route external calls from 'public' context to extension {extension}")
         logger.info(f"Transfer Timeout: {transfer_timeout} seconds")
         
         # Create Dial verb with transfer settings
@@ -425,12 +425,12 @@ def voice_assistant_transfer_bridge():
         sip_username = os.getenv('FREEPBX_SIP_USERNAME', '')
         sip_password = os.getenv('FREEPBX_SIP_PASSWORD', '')
         
-        # FusionPBX routing: Use 'internal' context for extension routing
-        # The 'internal' context is where FusionPBX routes calls to extensions
-        # If this doesn't work, try: sip:{extension}@{freepbx_domain};transport=udp
-        sip_context = os.getenv('FREEPBX_SIP_CONTEXT', 'internal')  # Default to 'internal' context
-        sip_uri = f"sip:{extension}@{sip_context};transport=udp"
-        logger.info(f"[VoiceAssistantBridge] Using SIP context: {sip_context} (set FREEPBX_SIP_CONTEXT to change)")
+        # Use domain/IP for Twilio (Twilio needs resolvable domain/IP)
+        # FusionPBX dialplan must be configured to route external calls to extensions
+        # The dialplan should route: public context -> extension@internal
+        sip_uri = f"sip:{extension}@{freepbx_domain};transport=udp"
+        logger.info(f"[VoiceAssistantBridge] Using SIP URI: {sip_uri}")
+        logger.info(f"[VoiceAssistantBridge] NOTE: FusionPBX dialplan must route external calls to extension {extension}")
         
         logger.info(f"[VoiceAssistantBridge] Dialing {sip_uri} for call {call_sid}")
         logger.info(f"[VoiceAssistantBridge] FusionPBX Domain: {freepbx_domain}")
