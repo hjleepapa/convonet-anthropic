@@ -15,38 +15,46 @@ FusionPBX needs a dialplan entry to route external SIP calls (from Twilio) to in
 
 ### Step 2: Create Dialplan Entry for External SIP Calls
 
-**Option A: Create New Dialplan (Recommended)**
+1. Click **"Add"** to create a new dialplan entry
+2. Configure the form fields as follows:
 
-1. Click **"Add"** to create a new dialplan
-2. Configure as follows:
+   **Name:**
+   - Enter: `Twilio-to-Extensions` (or any descriptive name)
 
-   **Basic Settings:**
-   - **Context**: `public` (for external calls)
-   - **Name**: `Twilio-to-Extensions`
-   - **Enabled**: `True`
-   - **Description**: `Route Twilio SIP calls to extensions`
+   **Context:**
+   - **IMPORTANT**: Change from `10.128.0.10` to: `public`
+   - This is the context for external calls (like from Twilio)
 
-   **Dialplan Details:**
-   - **Destination Number**: `^(\d+)$` (matches any extension number)
-   - **Caller ID Name**: (leave empty or set to variable)
-   - **Caller ID Number**: (leave empty or set to variable)
+   **Condition 1:**
+   - Field: `destination_number`
+   - Operator: `=` (equals)
+   - Value: `2001`
+   - Click the blue arrow button to add the condition
+   - *Note: For all extensions, use regex: `destination_number` = `^(\d+)$`*
 
-   **Actions:**
-   - **Action**: `transfer`
-   - **Destination**: `${destination_number}@internal`
-   - **Order**: `100` (or appropriate priority)
+   **Action 1:**
+   - Field: `transfer`
+   - Value: `2001@internal`
+   - Click the blue arrow button to add the action
+   - *Note: For dynamic routing, use: `${destination_number}@internal`*
 
-   **Advanced:**
-   - **Continue**: `false`
-   - **Enabled**: `true`
+   **Order:**
+   - Set to: `100` (or lower number for higher priority)
+   - Lower numbers are processed first
 
-**Option B: Edit Existing Public Dialplan**
+   **Enabled:**
+   - Keep as: `True`
 
-1. Find the existing `public` context dialplan
-2. Add a new entry:
-   - **Destination Number**: `^2001$` (or `^(\d+)$` for all extensions)
-   - **Action**: `transfer`
-   - **Destination**: `2001@internal` (or `${destination_number}@internal`)
+   **Description:**
+   - Enter: `Route Twilio SIP calls to extension 2001` (optional but helpful)
+
+3. Click **"SAVE"** to save the dialplan entry
+
+**For Multiple Extensions (Optional):**
+
+If you want to route any extension number, create a second condition:
+- **Condition 1**: `destination_number` = `^(\d+)$` (regex to match any digits)
+- **Action 1**: `transfer` = `${destination_number}@internal` (dynamic routing)
 
 ### Step 3: Verify Dialplan
 
