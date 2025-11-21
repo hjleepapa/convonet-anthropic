@@ -398,6 +398,14 @@ def voice_assistant_transfer_bridge():
         call_sid = request.form.get('CallSid', '')
         caller_number = request.form.get('From') or os.getenv('TWILIO_PHONE_NUMBER', '')
         
+        logger.info(f"[VoiceAssistantBridge] ===== TRANSFER BRIDGE CALLED =====")
+        logger.info(f"[VoiceAssistantBridge] Call SID: {call_sid}")
+        logger.info(f"[VoiceAssistantBridge] Extension: {extension}")
+        logger.info(f"[VoiceAssistantBridge] Caller: {caller_number}")
+        logger.info(f"[VoiceAssistantBridge] Request method: {request.method}")
+        logger.info(f"[VoiceAssistantBridge] Request args: {dict(request.args)}")
+        logger.info(f"[VoiceAssistantBridge] Request form: {dict(request.form)}")
+        
         freepbx_domain = os.getenv('FREEPBX_DOMAIN', '136.115.41.45')
         transfer_timeout = int(os.getenv('TRANSFER_TIMEOUT', '30'))
         sip_username = os.getenv('FREEPBX_SIP_USERNAME', '')
@@ -405,31 +413,44 @@ def voice_assistant_transfer_bridge():
         sip_uri = f"sip:{extension}@{freepbx_domain};transport=udp"
         
         logger.info(f"[VoiceAssistantBridge] Dialing {sip_uri} for call {call_sid}")
+        logger.info(f"[VoiceAssistantBridge] FusionPBX Domain: {freepbx_domain}")
+        logger.info(f"[VoiceAssistantBridge] Transfer Timeout: {transfer_timeout} seconds")
+        
+        # Get base URL for absolute callback URL
+        webhook_base_url = get_webhook_base_url()
+        callback_url = f"{webhook_base_url}/anthropic/convonet_todo/twilio/transfer_callback?extension={extension}"
+        logger.info(f"[VoiceAssistantBridge] Callback URL: {callback_url}")
         
         response = VoiceResponse()
         dial = response.dial(
             answer_on_bridge=True,
             timeout=transfer_timeout,
             caller_id=caller_number,
-            action=f'/anthropic/convonet_todo/twilio/transfer_callback?extension={extension}'
+            action=callback_url  # Use absolute URL
         )
         
         if sip_username and sip_password:
             dial.sip(sip_uri, username=sip_username, password=sip_password)
-            logger.info("[VoiceAssistantBridge] Using SIP authentication")
+            logger.info(f"[VoiceAssistantBridge] Using SIP authentication (username: {sip_username})")
         else:
             dial.sip(sip_uri)
             logger.info("[VoiceAssistantBridge] Using IP-based SIP authentication")
+            logger.warning("[VoiceAssistantBridge] ⚠️ FusionPBX must whitelist Twilio IP ranges for IP-based auth")
         
+        # Fallback message if dial fails
         response.say("I'm sorry, the transfer failed. Please try again later.", voice='Polly.Amy')
         response.hangup()
         
-        return Response(str(response), mimetype='text/xml')
+        twiml_content = str(response)
+        logger.info(f"[VoiceAssistantBridge] Generated TwiML for call {call_sid}")
+        logger.info(f"[VoiceAssistantBridge] TwiML preview: {twiml_content[:200]}...")
+        
+        return Response(twiml_content, mimetype='text/xml')
     
     except Exception as e:
-        logger.error(f"[VoiceAssistantBridge] Error connecting to agent: {e}")
+        logger.error(f"[VoiceAssistantBridge] ❌ Error connecting to agent: {e}")
         import traceback
-        traceback.print_exc()
+        logger.error(f"[VoiceAssistantBridge] Traceback: {traceback.format_exc()}")
         
         response = VoiceResponse()
         response.say("I'm sorry, there was an error connecting you to an agent. Please try again later.", voice='Polly.Amy')
