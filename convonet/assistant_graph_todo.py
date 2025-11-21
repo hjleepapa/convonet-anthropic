@@ -258,6 +258,26 @@ class TodoAgent:
         self.model = model or os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
         self.tools = tools
 
+        # List of known valid models from Anthropic API
+        valid_models = [
+            "claude-sonnet-4-20250514",
+            "claude-sonnet-4-5-20250929",
+            "claude-3-7-sonnet-20250219",
+            "claude-3-opus-20240229",
+            "claude-opus-4-20250514",
+            "claude-opus-4-1-20250805",
+            "claude-3-5-haiku-20241022",
+            "claude-3-haiku-20240307",
+            "claude-haiku-4-5-20251001",
+        ]
+        
+        # Validate model name - if it's not in the valid list, use default
+        if self.model not in valid_models:
+            print(f"⚠️ WARNING: Model '{self.model}' is not in the list of known valid models.")
+            print(f"⚠️ Valid models: {', '.join(valid_models[:3])}...")
+            print(f"⚠️ Using default model: claude-sonnet-4-20250514")
+            self.model = "claude-sonnet-4-20250514"
+        
         # Validate model name is not truncated
         if len(self.model) < 10:
             print(f"⚠️ WARNING: Model name seems truncated: '{self.model}'. Using default.")
