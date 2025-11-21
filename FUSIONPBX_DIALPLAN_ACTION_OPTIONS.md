@@ -78,11 +78,20 @@ Based on your interface:
 
 After saving, test with:
 ```bash
-# On FusionPBX server
-fs_cli -x "dialplan xml public 2001"
+# On FusionPBX server - CORRECT COMMAND
+fs_cli -x "xml_locate dialplan public 2001"
+
+# Or interactive mode:
+fs_cli
+# Then type: xml_locate dialplan public 2001
+
+# Or check all dialplans:
+fs_cli -x "show dialplan public"
 ```
 
 Should show XML with transfer application.
+
+**Note:** The command `dialplan xml` doesn't exist. Use `xml_locate dialplan` instead.
 
 ## Alternative: Use Dialplan XML Directly
 
