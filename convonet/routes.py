@@ -888,7 +888,9 @@ async def _get_agent_graph() -> StateGraph:
         # This ensures we always try to build the graph, even if MCP tools failed
         try:
             print(f"🔧 Building agent graph with {len(tools)} tools...")
-            _agent_graph_cache = TodoAgent(tools=tools).build_graph()
+            print(f"🔧 Using model: {current_model} (from env var or default)")
+            # Explicitly pass the model to ensure it uses the current env var value
+            _agent_graph_cache = TodoAgent(tools=tools, model=current_model).build_graph()
             _agent_graph_model = current_model  # Store the model used for this cache
             print(f"✅ Agent graph cached for future requests (model: {current_model})")
             return _agent_graph_cache
@@ -1086,22 +1088,25 @@ async def _run_agent_async(
                 "claude-sonnet-4-5-20250929",  # Claude Sonnet 4.5 (newer)
             ]
             
-            # Find a model that's different from the failed one
+            # Find a model that's different from the failed one and the original
             next_model = None
             for model in fallback_models:
-                if model != failed_model:
+                if model != failed_model and model != original_model:
                     next_model = model
                     break
             
             if not next_model:
-                next_model = "claude-3-opus-20240229"  # Last resort
+                # Last resort - use the first available model that's different
+                next_model = "claude-sonnet-4-20250514"  # Most reliable
             
             print(f"🔄 Temporarily setting ANTHROPIC_MODEL to {next_model} to try different model...")
+            print(f"🔄 Original model was: {original_model}, failed model was: {failed_model}")
             os.environ["ANTHROPIC_MODEL"] = next_model
             
             # Retry once with fresh graph
             try:
-                print("🔄 Retrying with fresh agent graph (will try fallback models)...")
+                print(f"🔄 Retrying with fresh agent graph (will try model: {next_model})...")
+                print(f"🔄 Current ANTHROPIC_MODEL env var: {os.getenv('ANTHROPIC_MODEL')}")
                 agent_graph = await _get_agent_graph()
                 stream = agent_graph.astream(input=input_state, stream_mode="values", config=config)
                 
