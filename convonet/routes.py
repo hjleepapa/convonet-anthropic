@@ -46,13 +46,23 @@ convonet_todo_bp = Blueprint(
 
 def get_webhook_base_url():
     """Get the webhook base URL for Twilio webhooks."""
-    # Use hjlees.com webserver for all environments
-    return os.getenv('WEBHOOK_BASE_URL', 'https://hjlees.com')
+    # Prefer explicit setting, then Render URL, then fallback
+    return (
+        os.getenv('WEBHOOK_BASE_URL')
+        or os.getenv('RENDER_EXTERNAL_URL')
+        or 'https://convonet-anthropic.onrender.com'
+    )
 
 def get_websocket_url():
     """Get the WebSocket URL for Twilio Media Streams."""
-    # Use integrated WebSocket endpoint on hjlees.com
-    return os.getenv('WEBSOCKET_BASE_URL', 'wss://hjlees.com/anthropic/convonet_todo/ws')
+    # Prefer explicit setting, then derive from Render URL, then fallback
+    websocket_url = os.getenv('WEBSOCKET_BASE_URL')
+    if websocket_url:
+        return websocket_url
+    
+    # Derive from Render URL or use default
+    base_url = os.getenv('RENDER_EXTERNAL_URL') or 'https://convonet-anthropic.onrender.com'
+    return base_url.replace('https://', 'wss://').replace('http://', 'ws://') + '/anthropic/convonet_todo/ws'
 
 # --- Twilio Voice Routes ---
 @convonet_todo_bp.route('/twilio/call', methods=['POST'])
