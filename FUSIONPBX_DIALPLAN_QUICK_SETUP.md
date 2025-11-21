@@ -26,9 +26,10 @@ Based on the FusionPBX dialplan manager interface you're seeing:
 
 4. **Action 1:**
    - Click in the Action 1 field
-   - Type or select: `transfer`
-   - In the value field: `2001@internal`
+   - **Type manually**: `transfer` (it's not in the dropdown, you need to type it)
+   - In the value field: `2001 XML internal`
    - Click the blue arrow button (←) to add the action
+   - *Alternative: Try `bridge` with value `user/2001@internal` if transfer doesn't work*
 
 5. **Order:**
    ```
