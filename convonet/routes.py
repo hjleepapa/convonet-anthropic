@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 # Global agent graph cache (initialized on first use)
 _agent_graph_cache = None
+_agent_graph_model = None  # Track which model was used for the cached graph
 _agent_graph_lock = asyncio.Lock()
 
 convonet_todo_bp = Blueprint(
@@ -711,11 +712,21 @@ def index():
 
 async def _get_agent_graph() -> StateGraph:
     """Helper to initialize the agent graph with tools (cached for performance)."""
-    global _agent_graph_cache
+    global _agent_graph_cache, _agent_graph_model
     
-    # Return cached graph if available
-    if _agent_graph_cache is not None:
+    # Get current model name (from env var or default)
+    current_model = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet")
+    
+    # Return cached graph if available AND model hasn't changed
+    if _agent_graph_cache is not None and _agent_graph_model == current_model:
+        print(f"♻️ Using cached agent graph (model: {current_model})")
         return _agent_graph_cache
+    
+    # Clear cache if model changed
+    if _agent_graph_cache is not None and _agent_graph_model != current_model:
+        print(f"🔄 Model changed from {_agent_graph_model} to {current_model}, clearing cache")
+        _agent_graph_cache = None
+        _agent_graph_model = None
     
     # Use lock to prevent multiple simultaneous initializations
     async with _agent_graph_lock:
@@ -877,7 +888,8 @@ async def _get_agent_graph() -> StateGraph:
         try:
             print(f"🔧 Building agent graph with {len(tools)} tools...")
             _agent_graph_cache = TodoAgent(tools=tools).build_graph()
-            print("✅ Agent graph cached for future requests")
+            _agent_graph_model = current_model  # Store the model used for this cache
+            print(f"✅ Agent graph cached for future requests (model: {current_model})")
             return _agent_graph_cache
         except Exception as e:
             print(f"❌ Error building agent graph: {e}")
@@ -887,7 +899,8 @@ async def _get_agent_graph() -> StateGraph:
             print("⚠️ Attempting to build graph with empty tools list as fallback...")
             try:
                 _agent_graph_cache = TodoAgent(tools=[]).build_graph()
-                print("✅ Agent graph built with empty tools list (fallback)")
+                _agent_graph_model = current_model  # Store the model used for this cache
+                print(f"✅ Agent graph built with empty tools list (fallback, model: {current_model})")
                 return _agent_graph_cache
             except Exception as fallback_error:
                 print(f"❌ Even fallback graph building failed: {fallback_error}")
