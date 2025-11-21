@@ -387,12 +387,23 @@ def transfer_callback():
         return Response(str(response), mimetype='text/xml')
 
 
-@convonet_todo_bp.route('/twilio/voice_assistant/transfer_bridge', methods=['POST'])
+@convonet_todo_bp.route('/twilio/voice_assistant/transfer_bridge', methods=['GET', 'POST'])
 def voice_assistant_transfer_bridge():
     """
     TwiML endpoint used by the WebRTC voice assistant to connect callers directly
     to a FusionPBX/SIP extension instead of a conference bridge.
     """
+    # Handle GET requests for testing
+    if request.method == 'GET':
+        extension = request.args.get('extension', '2001')
+        logger.info(f"[VoiceAssistantBridge] GET request received - testing endpoint with extension={extension}")
+        return jsonify({
+            'status': 'ok',
+            'endpoint': 'transfer_bridge',
+            'extension': extension,
+            'message': 'Endpoint is accessible. Use POST for actual transfers.'
+        }), 200
+    
     try:
         extension = request.args.get('extension') or request.form.get('extension') or '2001'
         call_sid = request.form.get('CallSid', '')
@@ -403,8 +414,10 @@ def voice_assistant_transfer_bridge():
         logger.info(f"[VoiceAssistantBridge] Extension: {extension}")
         logger.info(f"[VoiceAssistantBridge] Caller: {caller_number}")
         logger.info(f"[VoiceAssistantBridge] Request method: {request.method}")
+        logger.info(f"[VoiceAssistantBridge] Request URL: {request.url}")
         logger.info(f"[VoiceAssistantBridge] Request args: {dict(request.args)}")
         logger.info(f"[VoiceAssistantBridge] Request form: {dict(request.form)}")
+        logger.info(f"[VoiceAssistantBridge] Request headers: {dict(request.headers)}")
         
         freepbx_domain = os.getenv('FREEPBX_DOMAIN', '136.115.41.45')
         transfer_timeout = int(os.getenv('TRANSFER_TIMEOUT', '30'))
