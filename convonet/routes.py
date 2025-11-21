@@ -423,7 +423,13 @@ def voice_assistant_transfer_bridge():
         transfer_timeout = int(os.getenv('TRANSFER_TIMEOUT', '30'))
         sip_username = os.getenv('FREEPBX_SIP_USERNAME', '')
         sip_password = os.getenv('FREEPBX_SIP_PASSWORD', '')
-        sip_uri = f"sip:{extension}@{freepbx_domain};transport=udp"
+        
+        # FusionPBX routing: Use 'internal' context for extension routing
+        # The 'internal' context is where FusionPBX routes calls to extensions
+        # If this doesn't work, try: sip:{extension}@{freepbx_domain};transport=udp
+        sip_context = os.getenv('FREEPBX_SIP_CONTEXT', 'internal')  # Default to 'internal' context
+        sip_uri = f"sip:{extension}@{sip_context};transport=udp"
+        logger.info(f"[VoiceAssistantBridge] Using SIP context: {sip_context} (set FREEPBX_SIP_CONTEXT to change)")
         
         logger.info(f"[VoiceAssistantBridge] Dialing {sip_uri} for call {call_sid}")
         logger.info(f"[VoiceAssistantBridge] FusionPBX Domain: {freepbx_domain}")
