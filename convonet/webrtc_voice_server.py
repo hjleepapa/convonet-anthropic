@@ -224,13 +224,20 @@ def initiate_agent_transfer(session_id: str, extension: str, department: str, re
 
     try:
         sip_target = f"sip:{extension}@{freepbx_domain};transport=udp"
+        print(f"📞 Creating Twilio call:")
+        print(f"   To: {sip_target}")
+        print(f"   From: {caller_id}")
+        print(f"   URL: {transfer_url}")
         agent_call = client.calls.create(
             to=sip_target,
             from_=caller_id,
-            url=transfer_url
+            url=transfer_url,
+            method='POST'  # Explicitly set POST method
         )
         response_details['agent_call_sid'] = agent_call.sid
-        print(f"📞 Initiated agent call via Twilio (Call SID: {agent_call.sid}) to {sip_target}")
+        print(f"📞 ✅ Initiated agent call via Twilio (Call SID: {agent_call.sid}) to {sip_target}")
+        print(f"📞 Call status: {agent_call.status}")
+        print(f"📞 Twilio will POST to: {transfer_url}")
     except Exception as agent_error:
         message = f"Failed to originate agent call: {agent_error}"
         print(f"❌ {message}")
