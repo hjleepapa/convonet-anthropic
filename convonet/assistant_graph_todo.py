@@ -393,14 +393,17 @@ class TodoAgent:
                 if not hasattr(last_message, 'tool_calls') or not last_message.tool_calls:
                     return state
                 
-                # Execute each tool call
+                # Execute each tool call - CRITICAL: Every tool_use MUST have a tool_result
                 tool_messages = []
+                tool_call_ids = set()  # Track all tool call IDs to ensure we handle them all
+                
                 for tool_call in last_message.tool_calls:
-                    tool_name = tool_call['name']
-                    tool_args = tool_call['args']
-                    tool_id = tool_call['id']
+                    tool_name = tool_call.get('name', 'unknown')
+                    tool_args = tool_call.get('args', {})
+                    tool_id = tool_call.get('id', f'tool_{len(tool_messages)}')
+                    tool_call_ids.add(tool_id)
                     
-                    print(f"🔧 Executing tool: {tool_name} with args: {tool_args}")
+                    print(f"🔧 Executing tool: {tool_name} (id: {tool_id}) with args: {tool_args}")
                     
                     try:
                         # Find the tool by name
@@ -498,8 +501,29 @@ class TodoAgent:
                         )
                         tool_messages.append(tool_message)
                 
-                # Add tool messages to state
+                # CRITICAL: Verify we have results for ALL tool calls
+                result_ids = {msg.tool_call_id for msg in tool_messages if hasattr(msg, 'tool_call_id')}
+                missing_ids = tool_call_ids - result_ids
+                if missing_ids:
+                    print(f"⚠️ WARNING: Missing tool results for IDs: {missing_ids}")
+                    # Create error messages for any missing tool results
+                    for missing_id in missing_ids:
+                        error_tool_message = ToolMessage(
+                            content="Tool execution failed - no result returned",
+                            name="system_error",
+                            tool_call_id=missing_id
+                        )
+                        tool_messages.append(error_tool_message)
+                
+                # Verify we have exactly one result per tool call
+                if len(tool_messages) != len(last_message.tool_calls):
+                    print(f"⚠️ WARNING: Tool message count mismatch. Expected {len(last_message.tool_calls)}, got {len(tool_messages)}")
+                    print(f"⚠️ Tool call IDs: {[tc.get('id') for tc in last_message.tool_calls]}")
+                    print(f"⚠️ Tool message IDs: {[msg.tool_call_id for msg in tool_messages if hasattr(msg, 'tool_call_id')]}")
+                
+                # Add tool messages to state - CRITICAL: Must be added in order
                 state.messages.extend(tool_messages)
+                print(f"✅ Added {len(tool_messages)} tool result messages to state")
                 return state
                 
             except Exception as e:
