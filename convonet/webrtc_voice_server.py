@@ -187,7 +187,13 @@ def initiate_agent_transfer(session_id: str, extension: str, department: str, re
         or os.getenv('TWILIO_CALLER_ID')
         or os.getenv('TWILIO_NUMBER')
     )
-    base_url = os.getenv('VOICE_ASSISTANT_TRANSFER_BASE_URL') or os.getenv('PUBLIC_BASE_URL')
+    # Get base URL - prefer explicit transfer URL, then public URL, then Render URL
+    base_url = (
+        os.getenv('VOICE_ASSISTANT_TRANSFER_BASE_URL') 
+        or os.getenv('PUBLIC_BASE_URL')
+        or os.getenv('RENDER_EXTERNAL_URL')  # Render automatically sets this
+        or 'https://convonet-anthropic.onrender.com'  # Fallback to Render service URL
+    )
     freepbx_domain = os.getenv('FREEPBX_DOMAIN', '136.115.41.45')
 
     if not (account_sid and auth_token and caller_id and base_url):

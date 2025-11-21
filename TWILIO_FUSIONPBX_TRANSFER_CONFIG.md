@@ -44,10 +44,18 @@ TWILIO_AUTH_TOKEN=your_auth_token
 TWILIO_PHONE_NUMBER=+1234567890                 # Your Twilio number for caller ID
 TWILIO_TRANSFER_CALLER_ID=+1234567890           # Optional: specific caller ID for transfers
 
-# Base URL (for webhooks)
+# Base URL (for webhooks) - IMPORTANT: Use Render service URL, not custom domain
+# Option 1: Use Render's automatic RENDER_EXTERNAL_URL (recommended)
+# Render automatically sets RENDER_EXTERNAL_URL to your service URL
+# No need to set this manually if using Render's default
+
+# Option 2: Explicitly set the Render service URL
 PUBLIC_BASE_URL=https://convonet-anthropic.onrender.com
 # OR
 VOICE_ASSISTANT_TRANSFER_BASE_URL=https://convonet-anthropic.onrender.com
+
+# ⚠️ DO NOT use custom domain (hjlees.com) here - use the Render service URL
+# Custom domains may have routing issues with Twilio webhooks
 ```
 
 ## FusionPBX Configuration
