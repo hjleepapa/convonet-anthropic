@@ -1075,10 +1075,6 @@ async def _run_agent_async(
             try:
                 print("🔄 Retrying with fresh agent graph (will try fallback models)...")
                 agent_graph = await _get_agent_graph()
-                
-                # Restore original env var if we unset it
-                if original_model:
-                    os.environ["ANTHROPIC_MODEL"] = original_model
                 stream = agent_graph.astream(input=input_state, stream_mode="values", config=config)
                 
                 async def process_stream_retry():
@@ -1098,8 +1094,15 @@ async def _run_agent_async(
                         return transfer_marker
                     return final_response
                 
-                return await asyncio.wait_for(process_stream_retry(), timeout=20.0)
+                result = await asyncio.wait_for(process_stream_retry(), timeout=20.0)
+                # Restore original env var if we unset it (after successful retry)
+                if original_model:
+                    os.environ["ANTHROPIC_MODEL"] = original_model
+                return result
             except Exception as retry_error:
+                # Restore original env var even if retry fails
+                if original_model:
+                    os.environ["ANTHROPIC_MODEL"] = original_model
                 print(f"❌ Retry also failed: {retry_error}")
                 return f"AGENT_ERROR:model_not_found:Unable to find a working Anthropic model. Please check your API key and model configuration."
         
