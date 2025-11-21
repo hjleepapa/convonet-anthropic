@@ -1061,15 +1061,41 @@ async def _run_agent_async(
             print("🔄 Model 404 error detected, clearing cache and retrying...")
             print(f"🔄 Error details: {error_str[:200]}")
             global _agent_graph_cache, _agent_graph_model
+            
+            # Extract the failed model name from error
+            failed_model = None
+            if "model:" in error_str.lower():
+                # Try to extract model name from error message
+                import re
+                model_match = re.search(r"model:\s*([^\s,}']+)", error_str, re.IGNORECASE)
+                if model_match:
+                    failed_model = model_match.group(1).strip()
+                    print(f"🔄 Detected failed model: {failed_model}")
+            
             _agent_graph_cache = None
             _agent_graph_model = None
             
-            # Also force a different model by temporarily unsetting the env var
-            # This will make it use the default (claude-3-sonnet-20240229)
+            # Force a different model by setting env var to a known working model
+            # Skip the failed model and try others
             original_model = os.getenv("ANTHROPIC_MODEL")
-            if original_model:
-                print(f"🔄 Temporarily unsetting ANTHROPIC_MODEL ({original_model}) to force fallback...")
-                os.environ.pop("ANTHROPIC_MODEL", None)
+            fallback_models = [
+                "claude-3-opus-20240229",  # Try Opus
+                "claude-3-5-sonnet-20240620",  # Try June 2024
+                "claude-3-5-sonnet",  # Try base name
+            ]
+            
+            # Find a model that's different from the failed one
+            next_model = None
+            for model in fallback_models:
+                if model != failed_model:
+                    next_model = model
+                    break
+            
+            if not next_model:
+                next_model = "claude-3-opus-20240229"  # Last resort
+            
+            print(f"🔄 Temporarily setting ANTHROPIC_MODEL to {next_model} to try different model...")
+            os.environ["ANTHROPIC_MODEL"] = next_model
             
             # Retry once with fresh graph
             try:
@@ -1095,15 +1121,22 @@ async def _run_agent_async(
                     return final_response
                 
                 result = await asyncio.wait_for(process_stream_retry(), timeout=20.0)
-                # Restore original env var if we unset it (after successful retry)
+                # Restore original env var (after successful retry)
                 if original_model:
                     os.environ["ANTHROPIC_MODEL"] = original_model
+                elif "ANTHROPIC_MODEL" in os.environ:
+                    os.environ.pop("ANTHROPIC_MODEL", None)
                 return result
             except Exception as retry_error:
                 # Restore original env var even if retry fails
                 if original_model:
                     os.environ["ANTHROPIC_MODEL"] = original_model
+                elif "ANTHROPIC_MODEL" in os.environ:
+                    os.environ.pop("ANTHROPIC_MODEL", None)
                 print(f"❌ Retry also failed: {retry_error}")
+                retry_error_str = str(retry_error)
+                if "404" in retry_error_str or "not_found_error" in retry_error_str:
+                    return f"AGENT_ERROR:model_not_found:All Anthropic models returned 404. Please verify your API key has access to Anthropic models. Error: {retry_error_str[:150]}"
                 return f"AGENT_ERROR:model_not_found:Unable to find a working Anthropic model. Please check your API key and model configuration."
         
         # Return special markers for specific errors so they can be detected upstream
