@@ -270,6 +270,12 @@ class TodoAgent:
         if not api_key:
             raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
         
+        # Log API key info (without exposing the key)
+        api_key_prefix = api_key[:10] if len(api_key) > 10 else "***"
+        print(f"🔑 API key present: Yes (prefix: {api_key_prefix}..., length: {len(api_key)})")
+        if not api_key.startswith("sk-ant-"):
+            print(f"⚠️ WARNING: API key doesn't start with 'sk-ant-'. This might be invalid.")
+        
         # Try multiple model names as fallback
         # Anthropic model names can vary - try different formats
         model_candidates = [
@@ -312,7 +318,12 @@ class TodoAgent:
             print(f"❌ Model candidates tried: {model_candidates}")
             print(f"❌ API key present: {'Yes' if api_key else 'No'}")
             print(f"❌ API key length: {len(api_key) if api_key else 0}")
-            raise Exception(f"Failed to initialize Anthropic LLM with any model. Last error: {last_error}")
+            print(f"❌ API key prefix: {api_key[:10] if api_key and len(api_key) > 10 else 'N/A'}")
+            print(f"❌ TROUBLESHOOTING: If all models return 404, please:")
+            print(f"   1. Verify your ANTHROPIC_API_KEY is correct in Render environment variables")
+            print(f"   2. Check that your API key has access to Anthropic models")
+            print(f"   3. Test your API key: curl https://api.anthropic.com/v1/models -H 'x-api-key: YOUR_KEY' -H 'anthropic-version: 2023-06-01'")
+            raise Exception(f"Failed to initialize Anthropic LLM with any model. All models returned 404. Please verify your API key. Last error: {last_error}")
         self.graph = self.build_graph()
 
     def build_graph(self,) -> CompiledStateGraph:
