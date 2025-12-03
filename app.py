@@ -122,6 +122,14 @@ def create_app():
         app.register_blueprint(call_center_bp)
     except ImportError as e:
         print(f"⚠️  Call center module not available: {e}")
+    
+    # Register tool execution GUI blueprint
+    try:
+        from convonet.tool_execution_gui import tool_gui_bp
+        app.register_blueprint(tool_gui_bp)
+        print("✅ Tool Execution GUI registered at /anthropic/tool-execution")
+    except ImportError as e:
+        print(f"⚠️  Tool Execution GUI not available: {e}")
 
     # --- Main Application Routes ---
     @app.route('/', methods=["GET", "POST"])

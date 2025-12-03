@@ -24,7 +24,7 @@ The WebRTC Voice Assistant provides **high-quality, browser-based voice interact
 │                      WebRTC Voice Flow                       │
 └─────────────────────────────────────────────────────────────┘
 
-User Browser                 Flask Server                OpenAI APIs
+User Browser                 Flask Server                Claude & Deepgram APIs
      │                            │                            │
      │  1. Open Voice UI          │                            │
      ├────────────────────────────>                            │
@@ -102,9 +102,9 @@ User Browser                 Flask Server                OpenAI APIs
 - Stops recording flag
 - Processes complete audio buffer
 - Spawns background task for:
-  1. Transcription (OpenAI Whisper)
+  1. Transcription (Deepgram STT)
   2. Agent processing (LangGraph)
-  3. Speech synthesis (OpenAI TTS)
+  3. Speech synthesis (Deepgram TTS)
 
 ### 2. **Frontend: Voice UI** (`convonet/templates/webrtc_voice_assistant.html`)
 
@@ -158,13 +158,10 @@ socket.on('agent_response', (data) => {
 
 ### 3. **Speech Processing Pipeline**
 
-#### OpenAI Whisper Transcription
+#### Deepgram STT Transcription
 ```python
-transcription = openai_client.audio.transcriptions.create(
-    model="whisper-1",
-    file=audio_file,
-    language="en"
-)
+deepgram_service = DeepgramService(api_key=DEEPGRAM_API_KEY)
+transcription = deepgram_service.transcribe_audio(audio_buffer)
 ```
 
 **Accuracy Improvements:**
@@ -187,22 +184,20 @@ result = await graph.ainvoke(initial_state)
 
 Same agent as Twilio, but with authenticated context.
 
-#### OpenAI TTS Speech Generation
+#### Deepgram TTS Speech Generation
 ```python
-speech_response = openai_client.audio.speech.create(
-    model="tts-1",
-    voice="nova",  # Natural, friendly voice
-    input=agent_response
+deepgram_tts = DeepgramService(api_key=DEEPGRAM_API_KEY)
+audio_bytes = deepgram_tts.synthesize_speech(
+    text=agent_response,
+    voice="aura-asteria-en"  # Natural, friendly voice
 )
 ```
 
 **Voice Options:**
-- `alloy` - Neutral, balanced
-- `echo` - Clear, professional
-- `fable` - Warm, conversational
-- `onyx` - Deep, authoritative
-- `nova` - Friendly, energetic (default)
-- `shimmer` - Soft, expressive
+- `aura-asteria-en` - Natural, friendly (default)
+- `aura-luna-en` - Warm, conversational
+- `aura-stella-en` - Clear, professional
+- `aura-athena-en` - Authoritative
 
 ---
 
@@ -211,7 +206,8 @@ speech_response = openai_client.audio.speech.create(
 ### 1. **Prerequisites**
 
 Ensure you have:
-- ✅ OpenAI API key in `.env`: `OPENAI_API_KEY=sk-...`
+- ✅ Deepgram API key in `.env`: `DEEPGRAM_API_KEY=...`
+- ✅ Anthropic API key in `.env`: `ANTHROPIC_API_KEY=...`
 - ✅ Flask-SocketIO installed: `pip install flask-socketio`
 - ✅ User registered with voice PIN
 
@@ -303,9 +299,9 @@ Split view for conversation history:
 |------|------|--------------|
 | Audio capture | Real-time | Browser MediaRecorder |
 | Upload to server | < 500ms | WebSocket streaming |
-| Whisper transcription | 1-2s | OpenAI's optimized API |
+| Deepgram STT transcription | 1-2s | Deepgram's optimized API |
 | Agent processing | 2-5s | Cached agent graph |
-| TTS generation | 1-2s | OpenAI's fast TTS |
+| Deepgram TTS generation | 1-2s | Deepgram's fast TTS |
 | Audio playback | Real-time | Browser Audio API |
 | **Total** | **5-10s** | vs 15-20s for Twilio |
 
@@ -314,9 +310,9 @@ Split view for conversation history:
 | Service | Cost |
 |---------|------|
 | Twilio Voice | $0.02 |
-| OpenAI Whisper | $0.006 |
-| OpenAI TTS | $0.015 |
-| **Total WebRTC** | **$0.021** |
+| Deepgram STT | ~$0.0043 |
+| Deepgram TTS | ~$0.015 |
+| **Total WebRTC** | **~$0.019** |
 
 **Verdict**: Slightly more expensive, but **MUCH better quality**.
 
@@ -383,12 +379,12 @@ python app.py
 
 **Solution**:
 - Check browser console for audio errors
-- Verify OpenAI API key has TTS access
+- Verify Deepgram API key has TTS access
 - Try different browser (Chrome/Firefox recommended)
 
 #### 4. **Poor Transcription Quality**
 
-**Symptom**: Whisper misunderstands commands
+**Symptom**: Deepgram STT misunderstands commands
 
 **Solution**:
 - Speak clearly and slowly
@@ -403,14 +399,14 @@ python app.py
 ### Short-term
 
 1. ✅ **Barge-in support**: Interrupt agent while speaking
-2. ✅ **Real-time transcription**: Stream Whisper results as they come
+2. ✅ **Real-time transcription**: Stream Deepgram STT results as they come
 3. ✅ **Voice activity detection**: Auto-detect when user stops speaking
 4. ✅ **Multi-language support**: Detect language automatically
 
 ### Long-term
 
 1. 🔄 **ElevenLabs integration**: More natural voices
-2. 🔄 **Local Whisper**: Self-hosted for privacy
+2. 🔄 **Local STT**: Self-hosted for privacy
 3. 🔄 **WebRTC peer-to-peer**: Direct browser-to-browser
 4. 🔄 **Multi-user calls**: Team collaboration via voice
 
@@ -460,9 +456,9 @@ python app.py
 - [Socket.IO Documentation](https://socket.io/docs/v4/)
 - [Flask-SocketIO Guide](https://flask-socketio.readthedocs.io/)
 
-### OpenAI APIs
-- [Whisper API Documentation](https://platform.openai.com/docs/guides/speech-to-text)
-- [TTS API Documentation](https://platform.openai.com/docs/guides/text-to-speech)
+### Deepgram APIs
+- [Deepgram STT Documentation](https://developers.deepgram.com/docs/speech-recognition-api)
+- [Deepgram TTS Documentation](https://developers.deepgram.com/docs/text-to-speech-api)
 
 ---
 

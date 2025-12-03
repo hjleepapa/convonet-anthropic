@@ -111,6 +111,14 @@ def create_app():
     from convonet.audio_player_routes import audio_player_bp
     app.register_blueprint(audio_player_bp)
     
+    # Register tool execution GUI blueprint
+    try:
+        from convonet.tool_execution_gui import tool_gui_bp
+        app.register_blueprint(tool_gui_bp)
+        print("✅ Tool Execution GUI registered at /anthropic/tool-execution")
+    except ImportError as e:
+        print(f"⚠️  Tool Execution GUI not available: {e}")
+    
     # Initialize Socket.IO event handlers (pass app explicitly)
     init_socketio(socketio, app)
 

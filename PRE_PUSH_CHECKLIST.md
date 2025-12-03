@@ -114,7 +114,7 @@
 2. **Update environment variables** in deployment platform (Render.com):
    - Ensure `ANTHROPIC_API_KEY` is set
    - Ensure `DEEPGRAM_API_KEY` is set
-   - Remove `OPENAI_API_KEY` if no longer needed (or keep for Whisper fallback)
+   - Remove `OPENAI_API_KEY` - no longer needed (using Claude LLM and Deepgram TTS)
 
 3. **Test deployment:**
    - Verify application starts successfully

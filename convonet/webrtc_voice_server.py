@@ -13,7 +13,7 @@ from uuid import UUID
 from urllib.parse import quote
 from flask import Blueprint, render_template, request, jsonify
 from flask_socketio import SocketIO, emit, join_room, leave_room
-import openai
+# Note: OpenAI import removed - using Claude LLM and Deepgram TTS
 from convonet.assistant_graph_todo import get_agent
 from convonet.state import AgentState
 from convonet.voice_intent_utils import has_transfer_intent
@@ -63,7 +63,7 @@ TEST_VOICE_PIN = os.getenv('TEST_VOICE_PIN', '1234')
 webrtc_bp = Blueprint('webrtc_voice', __name__, url_prefix='/anthropic/webrtc')
 
 # Initialize Deepgram service for STT and TTS
-# Note: OpenAI client kept for potential Whisper fallback, but TTS now uses Deepgram
+# Note: Using Deepgram for both STT and TTS, Claude for LLM
 deepgram_service = None
 def get_deepgram_tts_service():
     """Get Deepgram service for TTS"""

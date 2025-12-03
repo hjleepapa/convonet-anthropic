@@ -17,7 +17,8 @@ Enterprise-grade voice AI platform combining LangGraph, Twilio, MCP, Team Manage
 - Python 3.9+
 - PostgreSQL
 - Redis
-- OpenAI API Key
+- Anthropic Claude API Key
+- Deepgram API Key
 - Twilio Account
 - Deepgram API Key
 - FusionPBX (for call transfer)

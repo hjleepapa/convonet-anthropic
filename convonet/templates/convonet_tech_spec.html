@@ -34,7 +34,7 @@
                     <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">LangGraph</span>
                     <span class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">MCP (38 Tools)</span>
                     <span class="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-medium">LangChain</span>
-                    <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">OpenAI GPT-4</span>
+                    <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">Claude 3.5 Sonnet</span>
                     <span class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium">Google Calendar</span>
                     <span class="bg-pink-100 text-pink-800 px-3 py-1 rounded-full text-sm font-medium">Twilio Voice</span>
                     <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-medium">JWT Auth</span>
@@ -128,7 +128,7 @@
                                     <h5 class="text-sm font-bold text-gray-800 text-center">External Services Layer</h5>
                                     <div class="space-y-2">
                                         <div class="bg-red-100 border border-red-300 rounded p-3 text-center">
-                                            <div class="text-xs font-medium text-red-800">OpenAI APIs</div>
+                                            <div class="text-xs font-medium text-red-800">Claude & Deepgram APIs</div>
                                             <div class="text-xs text-red-600">GPT-4, TTS</div>
                                         </div>
                                         <div class="bg-gray-100 border border-gray-300 rounded p-3 text-center">
@@ -202,7 +202,7 @@
                                 <div class="mt-6 space-y-3">
                                     <div class="flex justify-center">
                                         <div class="text-xs text-gray-600 bg-gray-100 px-4 py-2 rounded-lg max-w-4xl w-full">
-                                            <strong>WebRTC Flow:</strong> User Browser → PIN Auth (PostgreSQL) → Redis Audio Buffer → Deepgram STT → LangGraph → OpenAI LLM → Tool Calling → PostgreSQL/Google APIs → OpenAI TTS → User
+                                            <strong>WebRTC Flow:</strong> User Browser → PIN Auth (PostgreSQL) → Redis Audio Buffer → Deepgram STT → LangGraph → Claude LLM → Tool Calling → PostgreSQL/Google APIs → Deepgram TTS → User
                                         </div>
                                     </div>
                                     <div class="flex justify-center">
@@ -260,7 +260,8 @@
                                 <li>• Flask + Flask-SocketIO for web API & WebSocket</li>
                                 <li>• SQLAlchemy ORM with PostgreSQL (multi-tenant)</li>
                                 <li>• PIN authentication (4-6 digit voice PIN)</li>
-                                <li>• OpenAI APIs (GPT-4 Turbo, Whisper STT)</li>
+                                <li>• Anthropic Claude API (Claude 3.5 Sonnet)</li>
+                                <li>• Deepgram APIs (STT & TTS)</li>
                                 <li>• Twilio Programmable Voice with Media Streams</li>
                                 <li>• Google Calendar OAuth2 integration (optimized)</li>
                                 <li>• FusionPBX SIP integration for call transfer</li>
@@ -591,7 +592,7 @@
                                     <!-- Flow Description -->
                                     <div class="mt-4 text-center">
                                         <p class="text-xs text-gray-600">
-                                            <strong>Corrected Flow:</strong> User Browser → PIN Auth (PostgreSQL) → WebRTC Audio Capture → Socket.IO Streaming → Redis Audio Buffer → Deepgram STT → LangGraph → OpenAI LLM → Tool Calling (PostgreSQL/Google APIs) → OpenAI TTS → Redis Buffer → Socket.IO → User Browser
+                                            <strong>Corrected Flow:</strong> User Browser → PIN Auth (PostgreSQL) → WebRTC Audio Capture → Socket.IO Streaming → Redis Audio Buffer → Deepgram STT → LangGraph → Claude LLM → Tool Calling (PostgreSQL/Google APIs) → Deepgram TTS → Redis Buffer → Socket.IO → User Browser
                                         </p>
                                     </div>
                                 </div>
@@ -619,7 +620,7 @@
                                     <div class="border-l-4 border-green-500 pl-4">
                                         <h6 class="font-semibold text-gray-800 mb-1">Phase 2: Conversation Loop</h6>
                                         <p class="text-xs text-gray-600 mb-2">Steps 8-31</p>
-                                        <p class="text-sm text-gray-600">Audio capture → Redis buffer → Deepgram STT → LangGraph → OpenAI LLM → Tool execution → TTS → Response</p>
+                                        <p class="text-sm text-gray-600">Audio capture → Redis buffer → Deepgram STT → LangGraph → Claude LLM → Tool execution → Deepgram TTS → Response</p>
                                     </div>
                                     
                                     <!-- Phase 3: Transfer Request -->
@@ -641,7 +642,7 @@
                             <div class="mt-6 text-center">
                                 <p class="text-sm text-gray-600">
                                     <strong>WebRTC Architecture:</strong> Browser-based voice assistant with PostgreSQL PIN authentication, Redis session and audio buffer management, 
-                                    real-time audio streaming via Socket.IO, Deepgram STT transcription (not Twilio), LangGraph AI orchestration with OpenAI LLM/TTS, 
+                                    real-time audio streaming via Socket.IO, Deepgram STT transcription (not Twilio), LangGraph AI orchestration with Claude LLM and Deepgram TTS, 
                                     MCP tool integration (PostgreSQL, Google APIs), and seamless transfer to FusionPBX call center via Twilio SIP trunking.
                                 </p>
                             </div>
@@ -693,11 +694,11 @@
                                             <tr class="bg-gray-50">
                                                 <td class="px-4 py-3 font-medium text-gray-800">LangGraph</td>
                                                 <td class="px-4 py-3 text-gray-600">WebRTC Server</td>
-                                                <td class="px-4 py-3 text-gray-600">OpenAI LLM, Tools</td>
+                                                <td class="px-4 py-3 text-gray-600">Claude LLM, Tools</td>
                                                 <td class="px-4 py-3 text-gray-600">Orchestrates AI conversation flow</td>
                                             </tr>
                                             <tr>
-                                                <td class="px-4 py-3 font-medium text-gray-800">OpenAI LLM</td>
+                                                <td class="px-4 py-3 font-medium text-gray-800">Claude LLM</td>
                                                 <td class="px-4 py-3 text-gray-600">LangGraph</td>
                                                 <td class="px-4 py-3 text-gray-600">LangGraph</td>
                                                 <td class="px-4 py-3 text-gray-600">Generates responses, decides actions</td>
@@ -709,7 +710,7 @@
                                                 <td class="px-4 py-3 text-gray-600">Executes external operations</td>
                                             </tr>
                                             <tr>
-                                                <td class="px-4 py-3 font-medium text-gray-800">OpenAI TTS</td>
+                                                <td class="px-4 py-3 font-medium text-gray-800">Deepgram TTS</td>
                                                 <td class="px-4 py-3 text-gray-600">LangGraph Response</td>
                                                 <td class="px-4 py-3 text-gray-600">WebRTC Server</td>
                                                 <td class="px-4 py-3 text-gray-600">Converts text to speech</td>
@@ -1735,7 +1736,7 @@
                                         <span class="text-orange-800 font-bold text-sm">🗣️</span>
                                     </div>
                                     <div class="text-sm font-medium text-gray-800">TTS Response</div>
-                                    <div class="text-xs text-gray-600">OpenAI TTS</div>
+                                    <div class="text-xs text-gray-600">Deepgram TTS</div>
                                 </div>
                             </div>
                             
@@ -1789,7 +1790,7 @@
                                 <li>6. Complete WebM blob sent to server</li>
                                 <li>7. Deepgram STT transcribes audio</li>
                                 <li>8. LangGraph agent processes request</li>
-                                <li>9. OpenAI TTS generates response</li>
+                                <li>9. Deepgram TTS generates response</li>
                                 <li>10. Audio response played in browser</li>
                             </ol>
                         </div>
@@ -2120,15 +2121,15 @@ POST https://hjlees.com/anthropic/convonet_todo/twilio/process_audio
                     <div class="bg-white p-6 rounded-lg shadow">
                         <h4 class="text-lg font-semibold mb-3 text-gray-800">LangGraph Agent (assistant_graph_todo.py)</h4>
                         <pre class="bg-gray-100 p-4 rounded text-sm overflow-x-auto"><code>from langchain_core.tools import BaseTool
-from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 from langgraph.graph import StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 
 class TodoAgent:
     def __init__(self, tools: List[BaseTool] = []):
         self.tools = tools
-        self.llm = ChatOpenAI(
-            model="gpt-4.1-mini-2025-04-14"
+        self.llm = ChatAnthropic(
+            model="claude-3-5-sonnet-20241022"
         ).bind_tools(tools=self.tools)
         self.graph = self.build_graph()
 
@@ -2563,15 +2564,15 @@ def handle_stop_recording(data=None):
                 transcribed_text, user_id, user_name
             ))
             
-            # Generate TTS response
-            speech_response = openai_client.audio.speech.create(
-                model="tts-1",
-                voice="nova",
-                input=agent_response,
-                response_format="mp3"
+            # Generate TTS response using Deepgram
+            from deepgram_service import get_deepgram_tts_service
+            deepgram_tts = get_deepgram_tts_service()
+            audio_bytes = deepgram_tts.synthesize_speech(
+                text=agent_response,
+                voice="aura-asteria-en"
             )
             
-            audio_base64 = base64.b64encode(speech_response.content).decode('utf-8')
+            audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
             
             # Send to client
             emit('agent_response', {
@@ -2603,7 +2604,8 @@ def handle_stop_recording(data=None):
 pip install -r requirements.txt
 
 # Set up environment variables
-export OPENAI_API_KEY="your_openai_key"
+export ANTHROPIC_API_KEY="sk-ant-your-anthropic-key"
+export DEEPGRAM_API_KEY="dg-your-deepgram-key"
 export DB_URI="postgresql://user:pass@host/db"
 export JWT_SECRET_KEY="your-super-secret-jwt-key"
 export TWILIO_ACCOUNT_SID="your_twilio_sid"

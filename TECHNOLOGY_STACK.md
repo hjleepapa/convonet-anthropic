@@ -43,9 +43,9 @@
 ### **AI & Agent:**
 - **LangGraph** - AI agent state management and workflow orchestration
 - **LangChain** - LLM framework and utilities
-  - `langchain-openai` - OpenAI integration
+  - `langchain-anthropic` - Anthropic Claude integration
   - `langchain-mcp-adapters` - MCP tool integration
-- **OpenAI API** - GPT-4.1-mini-2025-04-14 for natural language understanding
+- **Anthropic Claude API** - Claude 3.5 Sonnet for natural language understanding
 
 ### **MCP (Model Context Protocol):**
 - **FastMCP** - MCP server implementation
@@ -165,7 +165,7 @@
 ## 🤖 AI & Machine Learning
 
 ### **Language Models:**
-- **OpenAI GPT-4.1-mini-2025-04-14**
+- **Anthropic Claude 3.5 Sonnet**
   - Temperature: 0.7 (balanced creativity/determinism)
   - Max tokens: Context-aware
   - Streaming responses
@@ -180,7 +180,7 @@
   - Workflow orchestration
 
 ### **Natural Language Processing:**
-- **OpenAI Embeddings** - (Future: semantic search)
+- **Anthropic Claude Embeddings** - (Future: semantic search)
 - **Token management** - Cost optimization
 - **Prompt engineering** - System prompts with guidelines
 
@@ -207,7 +207,7 @@
   - Authorization Code flow
   - Refresh tokens
   - Access token management
-- **API Keys** - OpenAI, Twilio
+- **API Keys** - Anthropic Claude, Deepgram, Twilio
 - **Service Accounts** - Google Cloud
 
 ---
@@ -252,9 +252,9 @@ twilio==8.10.0
 google-api-python-client==2.108.0
 google-auth==2.25.2
 google-auth-oauthlib==1.1.0
-openai==1.6.1
+anthropic==0.34.0
 langchain==0.1.0
-langchain-openai==0.0.2
+langchain-anthropic==0.1.0
 langgraph==0.0.20
 langchain-mcp-adapters==0.1.0
 fastmcp==0.1.0
@@ -361,7 +361,7 @@ pydantic==2.5.3
 - `twilio.twiml.voice_response.Gather` - Speech/DTMF collection
 
 ### **LangChain:**
-- `langchain_openai.ChatOpenAI` - LLM wrapper
+- `langchain_anthropic.ChatAnthropic` - LLM wrapper
 - `langchain_core.messages` - Message types
 - `langchain_core.tools` - Tool definitions
 - `langgraph.graph` - State graph builder
@@ -399,7 +399,7 @@ pydantic==2.5.3
 ✅ **LangGraph** - Stateful AI agents, complex workflows  
 ✅ **Twilio** - Reliable telephony, global reach  
 ✅ **Render.com** - Easy deployment, automatic SSL, database included  
-✅ **OpenAI** - State-of-the-art language understanding  
+✅ **Anthropic Claude** - State-of-the-art language understanding  
 ✅ **Flask** - Lightweight, flexible, Pythonic  
 ✅ **SQLAlchemy** - Database abstraction, easy migrations  
 ✅ **JWT** - Stateless authentication, mobile-friendly  
@@ -413,7 +413,7 @@ pydantic==2.5.3
 - **Major Frameworks**: 5 (Flask, LangGraph, LangChain, SQLAlchemy, Tailwind)
 - **Cloud Services**: 4 (Render.com, Twilio, Google Cloud, GitHub)
 - **Databases**: 1 (PostgreSQL)
-- **APIs**: 3 major (Twilio, Google Calendar, OpenAI)
+- **APIs**: 3 major (Twilio, Google Calendar, Anthropic Claude)
 - **Authentication Methods**: 3 (JWT, PIN, OAuth2)
 - **MCP Tools**: 35+
 - **Python Packages**: 20+
@@ -428,7 +428,7 @@ pydantic==2.5.3
 1. **Python over Node.js**: Better AI/ML ecosystem, type hints, sync/async flexibility
 2. **PostgreSQL over MongoDB**: ACID transactions, complex relationships, mature
 3. **Flask over Django**: Lightweight, flexible, no ORM lock-in
-4. **LangGraph over Raw OpenAI**: State management, tool orchestration, workflow control
+4. **LangGraph over Raw Claude**: State management, tool orchestration, workflow control
 5. **Render.com over AWS**: Simpler deployment, free tier, automatic SSL
 6. **JWT over Sessions**: Stateless, mobile-friendly, scalable
 7. **MCP over Direct Tool Calls**: Standardized protocol, reusable tools, modularity

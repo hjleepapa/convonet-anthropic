@@ -73,7 +73,7 @@ PHASE 2: NORMAL CONVERSATION LOOP (Steps 8-31)
     │
     │ 14. Process Intent
     ▼
-🧠 OpenAI LLM
+🧠 Claude LLM
     │
     │ 15. Response + Tool Calls
     ▼
@@ -86,7 +86,7 @@ PHASE 2: NORMAL CONVERSATION LOOP (Steps 8-31)
     │
     │ 22. Generate Final Response
     ▼
-🧠 OpenAI LLM
+🧠 Claude LLM
     │
     │ 23. Response Text
     ▼
@@ -140,7 +140,7 @@ PHASE 3: TRANSFER REQUEST (Steps 30-38)
     │
     │ 33. Confirm Transfer
     ▼
-🧠 OpenAI LLM
+🧠 Claude LLM
     │
     │ 34. Transfer Command
     ▼
@@ -219,9 +219,10 @@ WebSocket              Socket.IO (Flask)
 Database               PostgreSQL (SQLAlchemy)
 Cache                  Redis
 Speech-to-Text         Deepgram STT
-AI Agent               LangGraph + OpenAI LLM
-Text-to-Speech         OpenAI/Deepgram TTS
+AI Agent               LangGraph + Claude LLM
+Text-to-Speech         Deepgram TTS
 Telephony              Twilio + FusionPBX
 Agent Client           JsSIP (WebRTC)
 ```
+
 

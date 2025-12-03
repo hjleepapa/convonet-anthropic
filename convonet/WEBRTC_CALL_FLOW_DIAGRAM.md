@@ -20,12 +20,12 @@ graph TB
     
     subgraph "Speech Processing"
         DEEP[Deepgram STT<br/>Speech-to-Text]
-        TTS[OpenAI TTS<br/>Text-to-Speech]
+        TTS[Deepgram TTS<br/>Text-to-Speech]
     end
     
     subgraph "AI Orchestration"
         LG[LangGraph<br/>Assistant Graph]
-        LLM[OpenAI LLM<br/>GPT-4/Claude]
+        LLM[Claude LLM<br/>Claude 3.5 Sonnet]
     end
     
     subgraph "Tools & External APIs"
@@ -151,11 +151,11 @@ sequenceDiagram
     participant WVS as WebRTC Voice Server
     participant Deepgram as Deepgram STT
     participant LG as LangGraph
-    participant LLM as OpenAI LLM
+    participant LLM as Claude LLM
     participant Tools as Tool Calling<br/>MCP
     participant DB as PostgreSQL
     participant Google as Google APIs
-    participant TTS as OpenAI TTS
+    participant TTS as Deepgram TTS
     participant Twilio as Twilio API
     participant FusionPBX as FusionPBX<br/>GCloud
     participant Agent as Agent Dashboard<br/>JsSIP
@@ -242,10 +242,10 @@ sequenceDiagram
 | **PIN Auth** | WebSocket Server | PostgreSQL | Validates user credentials |
 | **Redis** | WebRTC Server, Tools | Deepgram, WebRTC Server | Buffers audio, stores session |
 | **Deepgram STT** | Redis Audio Buffer | WebRTC Voice Server | Converts speech to text |
-| **LangGraph** | WebRTC Server | OpenAI LLM, Tools | Orchestrates AI conversation flow |
-| **OpenAI LLM** | LangGraph | LangGraph | Generates responses, decides actions |
+| **LangGraph** | WebRTC Server | Claude LLM, Tools | Orchestrates AI conversation flow |
+| **Claude LLM** | LangGraph | LangGraph | Generates responses, decides actions |
 | **Tool Calling** | LangGraph | PostgreSQL, Google APIs | Executes external operations |
-| **OpenAI TTS** | LangGraph Response | WebRTC Server | Converts text to speech |
+| **Deepgram TTS** | LangGraph Response | WebRTC Server | Converts text to speech |
 | **Twilio API** | WebRTC Server | FusionPBX | Bridges call to agent |
 | **FusionPBX** | Twilio | Agent Dashboard | Routes call to extension |
 | **Agent Dashboard** | FusionPBX | PostgreSQL, User | Displays call, shows user info |
@@ -261,8 +261,8 @@ sequenceDiagram
 ### 2. **Normal Conversation Loop (Steps 8-31)**
 - Audio captured → Redis buffer
 - Deepgram transcribes → LangGraph processes
-- OpenAI generates response → Tools execute if needed
-- TTS converts to audio → Streamed back to user
+- Claude generates response → Tools execute if needed
+- Deepgram TTS converts to audio → Streamed back to user
 
 ### 3. **Transfer Request (Steps 32-38)**
 - User requests transfer
@@ -282,7 +282,7 @@ sequenceDiagram
 ```bash
 # For WebRTC Voice Assistant
 DEEPGRAM_API_KEY=dg_xxx
-OPENAI_API_KEY=sk_xxx
+ANTHROPIC_API_KEY=sk-ant-xxx
 REDIS_HOST=xxx
 REDIS_PASSWORD=xxx
 

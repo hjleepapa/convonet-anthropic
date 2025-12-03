@@ -190,8 +190,8 @@
                             <div class="flex items-start">
                                 <span class="bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 flex-shrink-0">13-15</span>
                                 <div>
-                                    <h4 class="font-semibold text-gray-800 mb-1">WebRTC Voice Server → LangGraph → OpenAI LLM: Process Intent</h4>
-                                    <p class="text-sm text-gray-700">The transcript enters the LangGraph assistant (Convonet's LangGraph state machine). LangGraph calls OpenAI (LLM) for reasoning and response generation. LLM returns response and tool calls to LangGraph.</p>
+                                    <h4 class="font-semibold text-gray-800 mb-1">WebRTC Voice Server → LangGraph → Claude LLM: Process Intent</h4>
+                                    <p class="text-sm text-gray-700">The transcript enters the LangGraph assistant (Convonet's LangGraph state machine). LangGraph calls Claude (LLM) for reasoning and response generation. LLM returns response and tool calls to LangGraph.</p>
                                 </div>
                             </div>
                         </div>
@@ -207,7 +207,7 @@
                                         <li><strong>Calendar Operations:</strong> Google Calendar/OAuth workflows</li>
                                         <li><strong>PBX Metadata:</strong> FusionPBX lookups for call metadata</li>
                                     </ul>
-                                    <p class="text-sm text-gray-700 mt-2">Tool results are injected back into the LangGraph state, and OpenAI composes the final reply.</p>
+                                    <p class="text-sm text-gray-700 mt-2">Tool results are injected back into the LangGraph state, and Claude composes the final reply.</p>
                                 </div>
                             </div>
                         </div>
@@ -216,8 +216,8 @@
                             <div class="flex items-start">
                                 <span class="bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 flex-shrink-0">22-24</span>
                                 <div>
-                                    <h4 class="font-semibold text-gray-800 mb-1">LangGraph → OpenAI LLM → LangGraph: Generate Final Response</h4>
-                                    <p class="text-sm text-gray-700">LangGraph sends context to OpenAI LLM for final response generation. LLM returns response text to LangGraph, which passes it to the WebRTC Voice Server.</p>
+                                    <h4 class="font-semibold text-gray-800 mb-1">LangGraph → Claude LLM → LangGraph: Generate Final Response</h4>
+                                    <p class="text-sm text-gray-700">LangGraph sends context to Claude LLM for final response generation. LLM returns response text to LangGraph, which passes it to the WebRTC Voice Server.</p>
                                 </div>
                             </div>
                         </div>
@@ -226,8 +226,8 @@
                             <div class="flex items-start">
                                 <span class="bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 flex-shrink-0">25-31</span>
                                 <div>
-                                    <h4 class="font-semibold text-gray-800 mb-1">OpenAI TTS → Redis → WebSocket → User: Audio Response</h4>
-                                    <p class="text-sm text-gray-700">Final text is synthesized via OpenAI TTS (or the configured TTS engine). The audio response is streamed back over Socket.IO to the browser for playback. Audio is buffered in Redis before streaming to ensure smooth playback.</p>
+                                    <h4 class="font-semibold text-gray-800 mb-1">Deepgram TTS → Redis → WebSocket → User: Audio Response</h4>
+                                    <p class="text-sm text-gray-700">Final text is synthesized via Deepgram TTS. The audio response is streamed back over Socket.IO to the browser for playback. Audio is buffered in Redis before streaming to ensure smooth playback.</p>
                                 </div>
                             </div>
                         </div>
@@ -270,8 +270,8 @@
                             <div class="flex items-start">
                                 <span class="bg-yellow-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 flex-shrink-0">33-34</span>
                                 <div>
-                                    <h4 class="font-semibold text-gray-800 mb-1">LangGraph → OpenAI LLM: Detect Transfer Intent → Transfer Command</h4>
-                                    <p class="text-sm text-gray-700">LangGraph detects transfer intent and confirms with OpenAI LLM. LLM returns a transfer command to LangGraph.</p>
+                                    <h4 class="font-semibold text-gray-800 mb-1">LangGraph → Claude LLM: Detect Transfer Intent → Transfer Command</h4>
+                                    <p class="text-sm text-gray-700">LangGraph detects transfer intent and confirms with Claude LLM. LLM returns a transfer command to LangGraph.</p>
                                 </div>
                             </div>
                         </div>
@@ -394,7 +394,7 @@
                     </div>
                     <div class="bg-white p-4 rounded">
                         <h4 class="font-semibold text-gray-800 mb-2">AI Orchestration</h4>
-                        <p class="text-sm text-gray-700">LangGraph coordinates between OpenAI LLM and MCP tools. Tool execution happens before final response generation.</p>
+                        <p class="text-sm text-gray-700">LangGraph coordinates between Claude LLM and MCP tools. Tool execution happens before final response generation.</p>
                     </div>
                     <div class="bg-white p-4 rounded">
                         <h4 class="font-semibold text-gray-800 mb-2">Transfer Mechanism</h4>

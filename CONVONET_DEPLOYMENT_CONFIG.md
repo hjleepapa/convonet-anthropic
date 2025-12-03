@@ -37,7 +37,8 @@ graph LR
     
     subgraph "External Services"
         DEEP[Deepgram STT]
-        OPENAI[OpenAI LLM/TTS]
+        CLAUDE[Claude LLM]
+        DEEPGRAM_TTS[Deepgram TTS]
         TWILIO[Twilio API]
     end
     
@@ -50,8 +51,10 @@ graph LR
     WS -->|Audio Stream| WVS
     WVS -->|Transcribe| DEEP
     DEEP -->|Text| LG
-    LG -->|Process| OPENAI
-    OPENAI -->|Response| LG
+    LG -->|Process| CLAUDE
+    CLAUDE -->|Response| LG
+    LG -->|Text| DEEPGRAM_TTS
+    DEEPGRAM_TTS -->|Audio| UA
     LG -->|Audio| UA
     
     UA -->|Transfer Request| WS
@@ -547,14 +550,15 @@ REDIS_PASSWORD=your-redis-password
 REDIS_DB=0
 ```
 
-### Step 3: Configure OpenAI (for TTS/Whisper)
+### Step 3: Configure LLM and TTS APIs
 
 The voice assistant uses:
-- **Whisper API**: For transcription (if Deepgram unavailable)
-- **TTS API**: For text-to-speech responses
+- **Anthropic Claude API**: For LLM responses
+- **Deepgram Aura-2 TTS**: For text-to-speech responses
 
 ```bash
-OPENAI_API_KEY=sk-your-openai-api-key
+ANTHROPIC_API_KEY=sk-ant-your-anthropic-api-key
+DEEPGRAM_API_KEY=dg-your-deepgram-api-key
 ```
 
 ### Step 4: Configure Voice PIN Authentication
@@ -606,8 +610,11 @@ Create a `.env` file or set these in Render.com:
 FLASK_KEY=your-secret-key-here
 DB_URI=postgresql://user:password@host:5432/dbname
 
-# ===== OPENAI =====
-OPENAI_API_KEY=sk-your-openai-api-key
+# ===== ANTHROPIC CLAUDE =====
+ANTHROPIC_API_KEY=sk-ant-your-anthropic-api-key
+
+# ===== DEEPGRAM (STT & TTS) =====
+DEEPGRAM_API_KEY=dg-your-deepgram-api-key
 
 # ===== GOOGLE OAUTH =====
 GOOGLE_CLIENT_ID=your-google-client-id

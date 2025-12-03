@@ -151,3 +151,9 @@ The external profile error is **not blocking transfers**. Focus on:
 - ✅ Extension 2001 registered
 - ✅ Dialplan action uses correct domain (`pbx.hjlees.com`)
 
+
+
+
+
+
+

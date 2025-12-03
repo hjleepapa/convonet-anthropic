@@ -51,9 +51,10 @@ graph LR
     WS -->|Audio Stream| WVS
     WVS -->|Transcribe| DEEP
     DEEP -->|Text| LG
-    LG -->|Process| OPENAI
-    OPENAI -->|Response| LG
-    LG -->|Audio| UA
+    LG -->|Process| ANTHROPIC
+    ANTHROPIC -->|Response| LG
+    LG -->|Text| DEEPGRAM
+    DEEPGRAM -->|Audio| UA
     
     UA -->|Transfer Request| WS
     WS -->|Initiate Transfer| TWILIO
@@ -563,8 +564,8 @@ ANTHROPIC_API_KEY=sk-ant-your-anthropic-api-key
 # Deepgram API for STT and TTS
 DEEPGRAM_API_KEY=dg_your_deepgram_api_key
 
-# OpenAI API (optional - only for Whisper fallback)
-OPENAI_API_KEY=sk-your-openai-api-key
+# Anthropic Claude API (required for LLM)
+ANTHROPIC_API_KEY=sk-ant-your-anthropic-api-key
 ```
 
 ### Step 4: Configure Voice PIN Authentication
@@ -622,8 +623,8 @@ ANTHROPIC_API_KEY=sk-ant-your-anthropic-api-key
 # ===== DEEPGRAM (STT & TTS) =====
 DEEPGRAM_API_KEY=dg_your_deepgram_api_key
 
-# ===== OPENAI (Optional - Whisper fallback only) =====
-OPENAI_API_KEY=sk-your-openai-api-key
+# ===== ANTHROPIC CLAUDE (Required for LLM) =====
+ANTHROPIC_API_KEY=sk-ant-your-anthropic-api-key
 
 # ===== GOOGLE OAUTH =====
 GOOGLE_CLIENT_ID=your-google-client-id

@@ -12,7 +12,7 @@ sequenceDiagram
     participant WVS as 🎤 WebRTC Voice Server
     participant Deepgram as 🎙️ Deepgram STT
     participant LG as 🤖 LangGraph Agent
-    participant LLM as 🧠 OpenAI LLM
+    participant LLM as 🧠 Claude LLM
     participant Tools as 🛠️ Tools<br/>(DB/Calendar/PBX)
     participant TTS as 🔊 TTS Engine
     participant Twilio as ☁️ Twilio API
@@ -106,9 +106,9 @@ sequenceDiagram
 ### Phase 2: Conversation Loop
 - **Audio Capture**: Browser → WebRTC → Redis buffer
 - **Speech-to-Text**: Deepgram STT (not Twilio)
-- **AI Processing**: LangGraph + OpenAI LLM
+- **AI Processing**: LangGraph + Claude LLM
 - **Tool Execution**: Database, Calendar, PBX operations
-- **Text-to-Speech**: TTS engine → Audio response
+- **Text-to-Speech**: Deepgram TTS → Audio response
 
 ### Phase 3: Transfer Request
 - **Intent Detection**: LangGraph detects transfer request
@@ -129,8 +129,9 @@ sequenceDiagram
 | Database | PostgreSQL (SQLAlchemy) |
 | Cache | Redis |
 | STT | Deepgram |
-| LLM | OpenAI (via LangGraph) |
-| TTS | OpenAI/Deepgram |
+| LLM | Claude (via LangGraph) |
+| TTS | Deepgram |
 | Telephony | Twilio + FusionPBX |
 | Agent Client | JsSIP (WebRTC) |
+
 
