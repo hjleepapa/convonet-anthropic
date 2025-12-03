@@ -123,6 +123,16 @@ def create_app():
     except ImportError as e:
         print(f"⚠️  Call center module not available: {e}")
     
+    # Register Convonet Todo blueprint (main routes including LLM provider API)
+    try:
+        from convonet.routes import convonet_todo_bp
+        app.register_blueprint(convonet_todo_bp)
+        print("✅ Convonet Todo blueprint registered at /anthropic/convonet_todo")
+    except ImportError as e:
+        print(f"⚠️  Convonet Todo routes not available: {e}")
+        import traceback
+        traceback.print_exc()
+    
     # Register tool execution GUI blueprint
     try:
         from convonet.tool_execution_gui import tool_gui_bp
