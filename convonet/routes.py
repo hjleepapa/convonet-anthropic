@@ -21,7 +21,9 @@ from twilio.twiml.voice_response import VoiceResponse, Connect, Gather
 from .state import AgentState
 from .assistant_graph_todo import get_agent, TodoAgent
 from .voice_intent_utils import has_transfer_intent
+from .llm_provider_manager import get_llm_provider_manager, LLMProvider
 from langchain_mcp_adapters.client import MultiServerMCPClient
+from .redis_manager import redis_manager
 
 # Import new authentication and team routes (optional - commented out as api_routes moved to archive)
 # from .api_routes.auth_routes import auth_bp
@@ -34,6 +36,7 @@ logger = logging.getLogger(__name__)
 # Global agent graph cache (initialized on first use)
 _agent_graph_cache = None
 _agent_graph_model = None  # Track which model was used for the cached graph
+_agent_graph_provider = None  # Track which provider was used for the cached graph
 _agent_graph_lock = asyncio.Lock()
 
 convonet_todo_bp = Blueprint(
@@ -761,24 +764,50 @@ def index():
     return "Convonet Todo: Convonet + MCP integration is ready. POST to /anthropic/convonet_todo/run_agent with JSON {prompt: str}."
 
 
-async def _get_agent_graph() -> StateGraph:
-    """Helper to initialize the agent graph with tools (cached for performance)."""
-    global _agent_graph_cache, _agent_graph_model
+async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Optional[str] = None) -> StateGraph:
+    """Helper to initialize the agent graph with tools (cached for performance).
+    
+    Args:
+        provider: LLM provider to use (claude, gemini, openai). If None, gets from user preference or default.
+        user_id: User ID to get provider preference from Redis
+    """
+    global _agent_graph_cache, _agent_graph_model, _agent_graph_provider
+    
+    # Get provider preference
+    if provider is None:
+        if user_id:
+            # Try to get from Redis
+            try:
+                user_pref = redis_manager.get(f"user:{user_id}:llm_provider")
+                if user_pref and user_pref in ["claude", "gemini", "openai"]:
+                    provider = user_pref
+                    print(f"📋 Using user preference for LLM provider: {provider}")
+            except Exception as e:
+                print(f"⚠️ Could not get user provider preference: {e}")
+        
+        # Fallback to environment variable or default
+        if provider is None:
+            provider = os.getenv("LLM_PROVIDER", "claude").lower()
+            if provider not in ["claude", "gemini", "openai"]:
+                provider = "claude"
     
     # Get current model name (from env var or default)
-    # Use actual model ID from Anthropic API
     current_model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
     
-    # Return cached graph if available AND model hasn't changed
-    if _agent_graph_cache is not None and _agent_graph_model == current_model:
-        print(f"♻️ Using cached agent graph (model: {current_model})")
+    # Return cached graph if available AND provider/model hasn't changed
+    if (_agent_graph_cache is not None and 
+        _agent_graph_provider == provider and 
+        _agent_graph_model == current_model):
+        print(f"♻️ Using cached agent graph (provider: {provider}, model: {current_model})")
         return _agent_graph_cache
     
-    # Clear cache if model changed
-    if _agent_graph_cache is not None and _agent_graph_model != current_model:
-        print(f"🔄 Model changed from {_agent_graph_model} to {current_model}, clearing cache")
-        _agent_graph_cache = None
-        _agent_graph_model = None
+    # Clear cache if provider or model changed
+    if _agent_graph_cache is not None:
+        if _agent_graph_provider != provider or _agent_graph_model != current_model:
+            print(f"🔄 Provider/model changed (provider: {_agent_graph_provider}→{provider}, model: {_agent_graph_model}→{current_model}), clearing cache")
+            _agent_graph_cache = None
+            _agent_graph_model = None
+            _agent_graph_provider = None
     
     # Use lock to prevent multiple simultaneous initializations
     async with _agent_graph_lock:
@@ -939,11 +968,12 @@ async def _get_agent_graph() -> StateGraph:
         # This ensures we always try to build the graph, even if MCP tools failed
         try:
             print(f"🔧 Building agent graph with {len(tools)} tools...")
-            print(f"🔧 Using model: {current_model} (from env var or default)")
-            # Explicitly pass the model to ensure it uses the current env var value
-            _agent_graph_cache = TodoAgent(tools=tools, model=current_model).build_graph()
+            print(f"🔧 Using provider: {provider}, model: {current_model}")
+            # Explicitly pass the provider and model
+            _agent_graph_cache = TodoAgent(tools=tools, provider=provider, model=current_model).build_graph()
             _agent_graph_model = current_model  # Store the model used for this cache
-            print(f"✅ Agent graph cached for future requests (model: {current_model})")
+            _agent_graph_provider = provider  # Store the provider used for this cache
+            print(f"✅ Agent graph cached for future requests (provider: {provider}, model: {current_model})")
             return _agent_graph_cache
         except Exception as e:
             print(f"❌ Error building agent graph: {e}")
@@ -952,9 +982,10 @@ async def _get_agent_graph() -> StateGraph:
             # Don't raise - try to build with empty tools as last resort
             print("⚠️ Attempting to build graph with empty tools list as fallback...")
             try:
-                _agent_graph_cache = TodoAgent(tools=[]).build_graph()
+                _agent_graph_cache = TodoAgent(tools=[], provider=provider).build_graph()
                 _agent_graph_model = current_model  # Store the model used for this cache
-                print(f"✅ Agent graph built with empty tools list (fallback, model: {current_model})")
+                _agent_graph_provider = provider  # Store the provider used for this cache
+                print(f"✅ Agent graph built with empty tools list (fallback, provider: {provider}, model: {current_model})")
                 return _agent_graph_cache
             except Exception as fallback_error:
                 print(f"❌ Even fallback graph building failed: {fallback_error}")
@@ -1021,7 +1052,8 @@ async def _run_agent_async(
         reset_thread: If True, starts a new conversation thread (used after timeouts/errors)
     """
     try:
-        agent_graph = await _get_agent_graph()
+        # Get agent graph with user's provider preference
+        agent_graph = await _get_agent_graph(user_id=user_id)
     except Exception as e:
         print(f"❌ Failed to initialize agent: {e}")
         lower_prompt = prompt.lower()
@@ -1283,6 +1315,108 @@ def register_socketio_events(socketio):
         except Exception as e:
             logger.error(f"Error handling stop: {str(e)}", exc_info=True)
             emit('error', {'msg': str(e)})
+
+
+# LLM Provider Management API
+@convonet_todo_bp.route('/api/llm-providers', methods=['GET'])
+def get_llm_providers():
+    """Get list of available LLM providers."""
+    try:
+        provider_manager = get_llm_provider_manager()
+        providers = provider_manager.get_available_providers()
+        return jsonify({
+            'success': True,
+            'providers': providers
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@convonet_todo_bp.route('/api/llm-provider', methods=['GET'])
+def get_user_llm_provider():
+    """Get user's current LLM provider preference."""
+    try:
+        user_id = request.args.get('user_id')
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'error': 'user_id parameter required'
+            }), 400
+        
+        # Get from Redis
+        provider = redis_manager.get(f"user:{user_id}:llm_provider")
+        if not provider:
+            # Default to Claude
+            provider = "claude"
+        
+        provider_manager = get_llm_provider_manager()
+        return jsonify({
+            'success': True,
+            'provider': provider,
+            'available': provider_manager.is_provider_available(provider)
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@convonet_todo_bp.route('/api/llm-provider', methods=['POST'])
+def set_user_llm_provider():
+    """Set user's LLM provider preference."""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        provider = data.get('provider', 'claude').lower()
+        
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'error': 'user_id required in request body'
+            }), 400
+        
+        if provider not in ['claude', 'gemini', 'openai']:
+            return jsonify({
+                'success': False,
+                'error': 'provider must be one of: claude, gemini, openai'
+            }), 400
+        
+        # Validate provider is available
+        provider_manager = get_llm_provider_manager()
+        if not provider_manager.is_provider_available(provider):
+            return jsonify({
+                'success': False,
+                'error': f'Provider {provider} is not available. Please configure the API key.'
+            }), 400
+        
+        # Store in Redis (expires in 30 days)
+        redis_manager.set(
+            f"user:{user_id}:llm_provider",
+            provider,
+            expire=30 * 24 * 60 * 60  # 30 days
+        )
+        
+        # Clear agent graph cache to force reinitialization with new provider
+        global _agent_graph_cache, _agent_graph_provider
+        if _agent_graph_provider != provider:
+            _agent_graph_cache = None
+            _agent_graph_provider = None
+            print(f"🔄 Cleared agent graph cache due to provider change to {provider}")
+        
+        return jsonify({
+            'success': True,
+            'provider': provider,
+            'message': f'LLM provider set to {provider}'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 # Route to check Deepgram status

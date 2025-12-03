@@ -8,11 +8,12 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.graph import StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.checkpoint.memory import InMemorySaver
-from typing import List
+from typing import List, Optional, Literal
 from dotenv import load_dotenv
 
 from .state import AgentState
 from .mcps.local_servers.db_todo import TodoPriority, ReminderImportance
+from .llm_provider_manager import get_llm_provider_manager, LLMProvider
 # Optional Composio imports - app should work without them
 try:
     from .composio_tools import get_all_integration_tools, test_composio_connection
@@ -39,6 +40,7 @@ class TodoAgent:
             self,
             name: str = "Convonet Assistant",
             model: str = None,
+            provider: Optional[LLMProvider] = None,
             tools: List[BaseTool] = [],
             system_prompt: str = """You are a productivity assistant that helps users manage todos, reminders, and calendar events. You MUST use tools to perform actions - never just ask for more information.
 
@@ -253,97 +255,71 @@ class TodoAgent:
             ) -> None:
         self.name = name
         self.system_prompt = system_prompt
-        # Get model from environment variable or use default/parameter
-        # Use model IDs from Anthropic API - these are the actual available models
-        self.model = model or os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
         self.tools = tools
-
-        # List of known valid models from Anthropic API
-        valid_models = [
-            "claude-sonnet-4-20250514",
-            "claude-sonnet-4-5-20250929",
-            "claude-3-7-sonnet-20250219",
-            "claude-3-opus-20240229",
-            "claude-opus-4-20250514",
-            "claude-opus-4-1-20250805",
-            "claude-3-5-haiku-20241022",
-            "claude-3-haiku-20240307",
-            "claude-haiku-4-5-20251001",
-        ]
         
-        # Validate model name - if it's not in the valid list, use default
-        if self.model not in valid_models:
-            print(f"⚠️ WARNING: Model '{self.model}' is not in the list of known valid models.")
-            print(f"⚠️ Valid models: {', '.join(valid_models[:3])}...")
-            print(f"⚠️ Using default model: claude-sonnet-4-20250514")
-            self.model = "claude-sonnet-4-20250514"
+        # Get provider manager
+        provider_manager = get_llm_provider_manager()
         
-        # Validate model name is not truncated
-        if len(self.model) < 10:
-            print(f"⚠️ WARNING: Model name seems truncated: '{self.model}'. Using default.")
-            self.model = "claude-sonnet-4-20250514"
-        
-        print(f"🤖 Using Anthropic model: {self.model}")
-        
-        # Validate API key is present
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
-        
-        # Log API key info (without exposing the key)
-        api_key_prefix = api_key[:10] if len(api_key) > 10 else "***"
-        print(f"🔑 API key present: Yes (prefix: {api_key_prefix}..., length: {len(api_key)})")
-        if not api_key.startswith("sk-ant-"):
-            print(f"⚠️ WARNING: API key doesn't start with 'sk-ant-'. This might be invalid.")
-        
-        # Try multiple model names as fallback
-        # Use actual model IDs from Anthropic API response
-        model_candidates = [
-            self.model,  # Try the specified model first
-            "claude-sonnet-4-20250514",  # Claude Sonnet 4 (confirmed available)
-            "claude-3-7-sonnet-20250219",  # Claude Sonnet 3.7 (confirmed available)
-            "claude-3-opus-20240229",  # Claude Opus 3 (confirmed available)
-            "claude-sonnet-4-5-20250929",  # Claude Sonnet 4.5 (newer, confirmed available)
-            "claude-opus-4-20250514",  # Claude Opus 4 (confirmed available)
-        ]
-        
-        last_error = None
-        for model_name in model_candidates:
-            try:
-                print(f"🔄 Attempting to initialize with model: {model_name}")
-                self.llm = ChatAnthropic(
-                    name=self.name, 
-                    model=model_name,
-                    api_key=api_key,
-                    temperature=0.0,  # Lower temperature for more consistent tool calling
-                ).bind_tools(tools=self.tools)
-                self.model = model_name  # Update to the working model
-                print(f"✅ Anthropic LLM initialized successfully with model: {self.model}")
-                print(f"⚠️ Note: Model will be validated on first API call. If 404 occurs, cache will be cleared and fallback models will be tried.")
-                break
-            except Exception as e:
-                last_error = e
-                error_str = str(e)
-                print(f"⚠️ Failed to initialize with model '{model_name}': {e}")
-                if "not_found_error" in error_str or "404" in error_str or "model:" in error_str.lower():
-                    print(f"⚠️ Model {model_name} not found, trying next model...")
-                    continue  # Try next model
-                else:
-                    # For other errors (auth, etc.), don't try other models
-                    print(f"❌ Non-404 error, stopping fallback attempts")
-                    raise
+        # Determine provider (from parameter, env var, or default)
+        if provider:
+            self.provider = provider
         else:
-            # All models failed
-            print(f"❌ All model candidates failed. Last error: {last_error}")
-            print(f"❌ Model candidates tried: {model_candidates}")
-            print(f"❌ API key present: {'Yes' if api_key else 'No'}")
-            print(f"❌ API key length: {len(api_key) if api_key else 0}")
-            print(f"❌ API key prefix: {api_key[:10] if api_key and len(api_key) > 10 else 'N/A'}")
-            print(f"❌ TROUBLESHOOTING: If all models return 404, please:")
-            print(f"   1. Verify your ANTHROPIC_API_KEY is correct in Render environment variables")
-            print(f"   2. Check that your API key has access to Anthropic models")
-            print(f"   3. Test your API key: curl https://api.anthropic.com/v1/models -H 'x-api-key: YOUR_KEY' -H 'anthropic-version: 2023-06-01'")
-            raise Exception(f"Failed to initialize Anthropic LLM with any model. All models returned 404. Please verify your API key. Last error: {last_error}")
+            # Try to get from environment variable
+            self.provider = os.getenv("LLM_PROVIDER", "claude").lower()
+            if self.provider not in ["claude", "gemini", "openai"]:
+                self.provider = "claude"  # Default to Claude
+        
+        # Get model (provider-specific)
+        self.model = model  # Will be set by provider manager if None
+        
+        # Validate provider is available
+        if not provider_manager.is_provider_available(self.provider):
+            # Fallback to default available provider
+            default_provider = provider_manager.get_default_provider()
+            if default_provider:
+                print(f"⚠️ Provider '{self.provider}' not available, falling back to '{default_provider}'")
+                self.provider = default_provider
+            else:
+                raise ValueError("No LLM providers are available. Please configure at least one API key.")
+        
+        # Create LLM using provider manager
+        try:
+            print(f"🤖 Initializing {provider_manager.providers[self.provider]['name']} with provider: {self.provider}")
+            self.llm = provider_manager.create_llm(
+                provider=self.provider,
+                model=self.model,
+                temperature=0.0,
+                tools=self.tools,
+            )
+            
+            # Get the actual model name used
+            if hasattr(self.llm, 'model_name'):
+                self.model = self.llm.model_name
+            elif hasattr(self.llm, 'model'):
+                self.model = self.llm.model
+            
+            print(f"✅ {provider_manager.providers[self.provider]['name']} initialized successfully")
+            print(f"✅ Model: {self.model}")
+            
+        except Exception as e:
+            print(f"❌ Failed to initialize {self.provider} LLM: {e}")
+            # Try fallback to default provider
+            if self.provider != "claude":
+                print(f"⚠️ Attempting fallback to Claude...")
+                try:
+                    self.provider = "claude"
+                    self.llm = provider_manager.create_llm(
+                        provider="claude",
+                        model=None,
+                        temperature=0.0,
+                        tools=self.tools,
+                    )
+                    print(f"✅ Fallback to Claude successful")
+                except Exception as fallback_error:
+                    raise Exception(f"Failed to initialize LLM with {self.provider} and fallback failed: {str(e)}")
+            else:
+                raise
+        
         self.graph = self.build_graph()
 
     def build_graph(self,) -> CompiledStateGraph:
