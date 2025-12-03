@@ -128,39 +128,39 @@ class LLMProviderManager:
             provider_info["default_model"]
         )
         
-            # Create LLM instance
-            llm_class = provider_info["class"]
-            
-            try:
-                if provider == "claude":
+        # Create LLM instance
+        llm_class = provider_info["class"]
+        
+        try:
+            if provider == "claude":
+                llm = llm_class(
+                    model=model_name,
+                    api_key=api_key,
+                    temperature=temperature,
+                )
+            elif provider == "gemini":
+                # Try google_api_key first, then api_key
+                try:
+                    llm = llm_class(
+                        model=model_name,
+                        google_api_key=api_key,
+                        temperature=temperature,
+                    )
+                except TypeError:
+                    # Fallback to api_key if google_api_key doesn't work
                     llm = llm_class(
                         model=model_name,
                         api_key=api_key,
                         temperature=temperature,
                     )
-                elif provider == "gemini":
-                    # Try google_api_key first, then api_key
-                    try:
-                        llm = llm_class(
-                            model=model_name,
-                            google_api_key=api_key,
-                            temperature=temperature,
-                        )
-                    except TypeError:
-                        # Fallback to api_key if google_api_key doesn't work
-                        llm = llm_class(
-                            model=model_name,
-                            api_key=api_key,
-                            temperature=temperature,
-                        )
-                elif provider == "openai":
-                    llm = llm_class(
-                        model=model_name,
-                        api_key=api_key,
-                        temperature=temperature,
-                    )
-                else:
-                    raise ValueError(f"Unsupported provider: {provider}")
+            elif provider == "openai":
+                llm = llm_class(
+                    model=model_name,
+                    api_key=api_key,
+                    temperature=temperature,
+                )
+            else:
+                raise ValueError(f"Unsupported provider: {provider}")
             
             # Bind tools if provided
             if tools:
