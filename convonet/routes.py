@@ -1339,15 +1339,15 @@ def get_llm_providers():
 def get_user_llm_provider():
     """Get user's current LLM provider preference."""
     try:
-        user_id = request.args.get('user_id')
-        if not user_id:
-            return jsonify({
-                'success': False,
-                'error': 'user_id parameter required'
-            }), 400
+        user_id = request.args.get('user_id', 'default')  # Default to 'default' if not provided
         
         # Get from Redis
-        provider = redis_manager.get(f"user:{user_id}:llm_provider")
+        try:
+            provider = redis_manager.get(f"user:{user_id}:llm_provider")
+        except Exception as redis_error:
+            print(f"⚠️ Redis error getting provider: {redis_error}")
+            provider = None
+        
         if not provider:
             # Default to Claude
             provider = "claude"
@@ -1356,6 +1356,7 @@ def get_user_llm_provider():
         return jsonify({
             'success': True,
             'provider': provider,
+            'user_id': user_id,
             'available': provider_manager.is_provider_available(provider)
         })
     except Exception as e:
