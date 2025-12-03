@@ -167,7 +167,6 @@ class LLMProviderManager:
                 llm = llm.bind_tools(tools=tools)
             
             return llm
-            
         except Exception as e:
             raise ValueError(f"Failed to create {provider} LLM: {str(e)}")
     
