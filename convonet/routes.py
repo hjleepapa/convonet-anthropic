@@ -1000,8 +1000,11 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
         try:
             print(f"🔧 Building agent graph with {len(tools)} tools...")
             print(f"🔧 Using provider: {provider}, model: {current_model}")
-            # Explicitly pass the provider and model
-            _agent_graph_cache = TodoAgent(tools=tools, provider=provider, model=current_model).build_graph()
+            print(f"⏱️ Starting TodoAgent initialization...")
+            todo_agent = TodoAgent(tools=tools, provider=provider, model=current_model)
+            print(f"⏱️ TodoAgent created, graph already built in __init__")
+            # Graph is already built in TodoAgent.__init__, just get it
+            _agent_graph_cache = todo_agent.graph
             _agent_graph_model = current_model  # Store the model used for this cache
             _agent_graph_provider = provider  # Store the provider used for this cache
             print(f"✅ Agent graph cached for future requests (provider: {provider}, model: {current_model})")
@@ -1093,8 +1096,34 @@ async def _run_agent_async(
     monitor = get_agent_monitor()
     
     try:
-        # Get agent graph with user's provider preference
-        agent_graph = await _get_agent_graph(user_id=user_id)
+        print(f"🔧 Getting agent graph for user_id: {user_id}")
+        # Add timeout to agent graph initialization to prevent hanging
+        # Note: _get_agent_graph is async but graph building in TodoAgent.__init__ is sync
+        # So we need to wrap it properly
+        agent_graph = await asyncio.wait_for(
+            _get_agent_graph(user_id=user_id),
+            timeout=15.0  # 15 second timeout for graph initialization (MCP can be slow)
+        )
+        print(f"✅ Agent graph obtained successfully")
+    except asyncio.TimeoutError:
+        print(f"⏱️ Agent graph initialization timed out after 10 seconds")
+        error_msg = "Agent initialization timed out. Please try again."
+        # Track timeout
+        duration_ms = (time.time() - start_time) * 1000
+        monitor.track_interaction(
+            request_id=request_id,
+            user_id=user_id,
+            user_name=user_name,
+            provider=None,
+            model=None,
+            user_prompt=prompt,
+            agent_response=error_msg,
+            tool_calls=[],
+            status=AgentInteractionStatus.TIMEOUT,
+            duration_ms=duration_ms,
+            error="Agent graph initialization timeout"
+        )
+        return error_msg
     except Exception as e:
         print(f"❌ Failed to initialize agent: {e}")
         lower_prompt = prompt.lower()

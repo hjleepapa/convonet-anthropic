@@ -1158,13 +1158,30 @@ def init_socketio(socketio_instance: SocketIO, app):
                 socketio.emit('status', {'message': 'Processing request...'}, namespace='/voice', room=session_id)
                 sentry_capture_voice_event("agent_processing_started", session_id, session.get('user_id'), details={"transcribed_text": transcribed_text})
                 
-                agent_response, transfer_marker = asyncio.run(process_with_agent(
-                    transcribed_text,
-                    session['user_id'],
-                    session['user_name']
-                ))
-                
-                print(f"🤖 Agent response: {agent_response}")
+                print(f"🤖 Starting agent processing for: {transcribed_text[:100]}")
+                try:
+                    # Add timeout wrapper to prevent worker timeout
+                    agent_response, transfer_marker = asyncio.run(
+                        asyncio.wait_for(
+                            process_with_agent(
+                                transcribed_text,
+                                session['user_id'],
+                                session['user_name']
+                            ),
+                            timeout=15.0  # 15 second timeout to prevent worker timeout
+                        )
+                    )
+                    print(f"🤖 Agent response: {agent_response}")
+                except asyncio.TimeoutError:
+                    print(f"⏱️ Agent processing timed out after 15 seconds")
+                    agent_response = "I'm sorry, I'm taking too long to process that request. Please try a simpler request."
+                    transfer_marker = None
+                except Exception as e:
+                    print(f"❌ Error in agent processing: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    agent_response = "I'm sorry, I encountered an error. Please try again."
+                    transfer_marker = None
                 sentry_capture_voice_event("agent_processing_completed", session_id, session.get('user_id'), details={"response_length": len(agent_response)})
                 
                 effective_marker = transfer_marker or (agent_response if isinstance(agent_response, str) and agent_response.startswith("TRANSFER_INITIATED:") else None)
