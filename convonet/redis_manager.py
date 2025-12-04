@@ -293,6 +293,10 @@ class RedisManager:
 # Global Redis manager instance
 redis_manager = RedisManager()
 
+def get_redis_manager() -> RedisManager:
+    """Get the global Redis manager instance"""
+    return redis_manager
+
 # Convenience functions for easy import
 def create_session(session_id: str, session_data: Dict[str, Any], ttl: int = 3600) -> bool:
     """Create a new session"""
