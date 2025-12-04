@@ -1114,6 +1114,8 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
         try:
             print(f"🔧 Building agent graph with {len(tools)} tools...")
             print(f"🔧 Using provider: {provider}, model: {current_model}")
+            if _mcp_tools_cache is not None:
+                print(f"✅ Using {len(_mcp_tools_cache)} cached MCP tools for agent graph")
             print(f"⏱️ Starting TodoAgent initialization (this may take a few seconds)...")
             
             # TodoAgent.__init__ does LLM initialization and graph building synchronously
@@ -1400,7 +1402,12 @@ async def _run_agent_async(
                 return transfer_marker
             return final_response
         
-        return await asyncio.wait_for(process_stream(), timeout=20.0)  # Increased to 20 seconds for multiple tool execution
+        # Use shorter timeout for Gemini (25s) to avoid worker timeout (30s)
+        timeout_seconds = 25.0 if provider == "gemini" else 20.0
+        print(f"⏱️ Starting agent execution with {timeout_seconds}-second timeout (provider: {provider})...")
+        result = await asyncio.wait_for(process_stream(), timeout=timeout_seconds)
+        print(f"✅ Agent execution completed successfully")
+        return result
     except asyncio.TimeoutError:
         # Track timeout
         duration_ms = (time.time() - start_time) * 1000
