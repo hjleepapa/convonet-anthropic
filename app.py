@@ -123,6 +123,14 @@ def create_app():
     except ImportError as e:
         print(f"⚠️  Call center module not available: {e}")
     
+    # Register Agent Monitor blueprint
+    try:
+        from convonet.agent_monitor_gui import agent_monitor_bp
+        app.register_blueprint(agent_monitor_bp)
+        print("✅ Agent Monitor GUI registered at /anthropic/agent-monitor")
+    except ImportError as e:
+        print(f"⚠️  Agent Monitor module not available: {e}")
+    
     # Register Convonet Todo blueprint (main routes including LLM provider API)
     try:
         from convonet.routes import convonet_todo_bp

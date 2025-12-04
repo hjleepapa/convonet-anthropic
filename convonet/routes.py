@@ -24,6 +24,7 @@ from .voice_intent_utils import has_transfer_intent
 from .llm_provider_manager import get_llm_provider_manager, LLMProvider
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from .redis_manager import redis_manager
+import uuid
 
 # Import new authentication and team routes (optional - commented out as api_routes moved to archive)
 # from .api_routes.auth_routes import auth_bp
@@ -1081,6 +1082,13 @@ async def _run_agent_async(
         user_name: User's display name
         reset_thread: If True, starts a new conversation thread (used after timeouts/errors)
     """
+    # Import agent monitor for tracking
+    from .agent_monitor import get_agent_monitor, AgentInteractionStatus, ToolCallInfo
+    
+    request_id = str(uuid.uuid4())
+    start_time = time.time()
+    monitor = get_agent_monitor()
+    
     try:
         # Get agent graph with user's provider preference
         agent_graph = await _get_agent_graph(user_id=user_id)
@@ -1131,6 +1139,7 @@ async def _run_agent_async(
         # Use wait_for to wrap the entire async for loop
         async def process_stream():
             transfer_marker = None
+            tool_calls_info = []
             
             # Check each state update for transfer markers in tool results
             async for state in stream:
@@ -1141,11 +1150,83 @@ async def _run_agent_async(
                             if 'TRANSFER_INITIATED:' in msg.content:
                                 transfer_marker = msg.content
                                 print(f"🔄 Transfer marker detected in tool result: {transfer_marker}")
+                        
+                        # Track tool calls
+                        if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                            for tc in msg.tool_calls:
+                                tool_id = getattr(tc, 'id', getattr(tc, 'tool_call_id', str(uuid.uuid4())))
+                                tool_name = getattr(tc, 'name', getattr(tc, 'functionName', 'unknown'))
+                                args = getattr(tc, 'args', getattr(tc, 'arguments', {}))
+                                
+                                tool_calls_info.append(ToolCallInfo(
+                                    tool_name=tool_name,
+                                    tool_id=tool_id,
+                                    arguments=args if isinstance(args, dict) else {}
+                                ))
+                        
+                        # Track tool results
+                        if hasattr(msg, 'tool_call_id') and hasattr(msg, 'content'):
+                            tool_call_id = msg.tool_call_id
+                            # Find matching tool call and update it
+                            for tc_info in tool_calls_info:
+                                if tc_info.tool_id == tool_call_id:
+                                    tc_info.result = msg.content
+                                    tc_info.status = "success"
+                                    break
             
             # Get final state and last message
             final_state = agent_graph.get_state(config=config)
-            last_message = final_state.values.get("messages")[-1]
-            final_response = getattr(last_message, 'content', "")
+            final_messages = final_state.values.get("messages", [])
+            last_message = final_messages[-1] if final_messages else None
+            final_response = getattr(last_message, 'content', "") if last_message else ""
+            
+            # Extract all tool calls from final state messages
+            for msg in final_messages:
+                # Track tool calls (AIMessage with tool_calls)
+                if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                    for tc in msg.tool_calls:
+                        tool_id = getattr(tc, 'id', getattr(tc, 'tool_call_id', str(uuid.uuid4())))
+                        tool_name = getattr(tc, 'name', getattr(tc, 'functionName', 'unknown'))
+                        args = getattr(tc, 'args', getattr(tc, 'arguments', {}))
+                        
+                        # Check if we already have this tool call
+                        existing = next((t for t in tool_calls_info if t.tool_id == tool_id), None)
+                        if not existing:
+                            tool_calls_info.append(ToolCallInfo(
+                                tool_name=tool_name,
+                                tool_id=tool_id,
+                                arguments=args if isinstance(args, dict) else {}
+                            ))
+                
+                # Track tool results (ToolMessage)
+                if hasattr(msg, 'tool_call_id') and hasattr(msg, 'content'):
+                    tool_call_id = msg.tool_call_id
+                    # Find matching tool call and update it
+                    for tc_info in tool_calls_info:
+                        if tc_info.tool_id == tool_call_id:
+                            tc_info.result = msg.content
+                            tc_info.status = "success"
+                            # Try to extract duration if available
+                            if hasattr(msg, 'additional_kwargs') and 'duration' in msg.additional_kwargs:
+                                tc_info.duration_ms = msg.additional_kwargs['duration'] * 1000
+                            break
+            
+            # Calculate duration
+            duration_ms = (time.time() - start_time) * 1000
+            
+            # Track the interaction
+            monitor.track_interaction(
+                request_id=request_id,
+                user_id=user_id,
+                user_name=user_name,
+                provider=_agent_graph_provider,
+                model=_agent_graph_model,
+                user_prompt=prompt,
+                agent_response=final_response if isinstance(final_response, str) else str(final_response),
+                tool_calls=tool_calls_info,
+                status=AgentInteractionStatus.SUCCESS,
+                duration_ms=duration_ms
+            )
             
             # If transfer marker was found, return it (for WebRTC transfer detection)
             # Otherwise return the final response
@@ -1162,11 +1243,42 @@ async def _run_agent_async(
         
         return await asyncio.wait_for(process_stream(), timeout=20.0)  # Increased to 20 seconds for multiple tool execution
     except asyncio.TimeoutError:
+        # Track timeout
+        duration_ms = (time.time() - start_time) * 1000
+        monitor.track_interaction(
+            request_id=request_id,
+            user_id=user_id,
+            user_name=user_name,
+            provider=_agent_graph_provider,
+            model=_agent_graph_model,
+            user_prompt=prompt,
+            agent_response="AGENT_TIMEOUT: Taking too long to process. Please try a simpler request.",
+            tool_calls=[],
+            status=AgentInteractionStatus.TIMEOUT,
+            duration_ms=duration_ms,
+            error="Agent execution timed out after 20 seconds"
+        )
         # Return a special marker for timeout
         return "AGENT_TIMEOUT: Taking too long to process. Please try a simpler request."
     except Exception as e:
         print(f"Error in agent execution: {e}")
         error_str = str(e)
+        
+        # Track error
+        duration_ms = (time.time() - start_time) * 1000
+        monitor.track_interaction(
+            request_id=request_id,
+            user_id=user_id,
+            user_name=user_name,
+            provider=_agent_graph_provider,
+            model=_agent_graph_model,
+            user_prompt=prompt,
+            agent_response=None,
+            tool_calls=[],
+            status=AgentInteractionStatus.FAILED,
+            duration_ms=duration_ms,
+            error=error_str
+        )
         
         # Check if it's a model 404 error - if so, clear cache and retry once
         # Check for various 404 error patterns
