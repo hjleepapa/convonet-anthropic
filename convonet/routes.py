@@ -954,58 +954,33 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
                     tools = []  # Ensure tools is set to empty list
             
         # Add call transfer tools (non-MCP tools) - optional
-            try:
-                from .mcps.local_servers.call_transfer import get_transfer_tools
-                transfer_tools = get_transfer_tools()
-                tools.extend(transfer_tools)
-                print(f"✅ Added {len(transfer_tools)} call transfer tools")
-            except ImportError as e:
-                print(f"⚠️ Call transfer tools not available: {e}")
-                print("⚠️ Continuing without call transfer tools")
-            except Exception as e:
-                print(f"⚠️ Failed to load call transfer tools: {e}")
-                print("⚠️ Continuing without call transfer tools")
-            
-            # Add Composio integration tools (optional)
-            try:
-                from .composio_tools import get_all_integration_tools, test_composio_connection
-                if test_composio_connection():
-                    composio_tools = get_all_integration_tools()
-                    tools.extend(composio_tools)
-                    print(f"✅ Added {len(composio_tools)} Composio integration tools")
-                else:
-                    print("⚠️ Composio connection test failed, skipping external integrations")
-            except ImportError as e:
-                print(f"⚠️ Composio not available: {e}")
-                print("⚠️ Continuing without external integrations")
-            except Exception as e:
-                print(f"⚠️ Failed to load Composio tools: {e}")
-                print("⚠️ Continuing without external integrations")
-            
-        except asyncio.TimeoutError:
-            print("❌ MCP client initialization timed out after 10 seconds")
-            # Continue with empty tools list instead of raising
-            print("⚠️ Continuing with empty tools list")
-            tools = []
-        except (UnboundLocalError, NameError) as e:
-            # Handle library bug where tools variable is referenced before assignment
-            print(f"❌ MCP library error (UnboundLocalError/NameError): {e}")
-            print("⚠️ Continuing with empty tools list")
-            tools = []  # Ensure tools is set to empty list
+        try:
+            from .mcps.local_servers.call_transfer import get_transfer_tools
+            transfer_tools = get_transfer_tools()
+            tools.extend(transfer_tools)
+            print(f"✅ Added {len(transfer_tools)} call transfer tools")
+        except ImportError as e:
+            print(f"⚠️ Call transfer tools not available: {e}")
+            print("⚠️ Continuing without call transfer tools")
         except Exception as e:
-            error_str = str(e)
-            # Check if the error is related to tools variable
-            if "UnboundLocalError" in error_str or "cannot access local variable 'tools'" in error_str:
-                print(f"❌ MCP library error (wrapped UnboundLocalError): {e}")
-                print("⚠️ Continuing with empty tools list")
-                tools = []  # Ensure tools is set to empty list
+            print(f"⚠️ Failed to load call transfer tools: {e}")
+            print("⚠️ Continuing without call transfer tools")
+        
+        # Add Composio integration tools (optional)
+        try:
+            from .composio_tools import get_all_integration_tools, test_composio_connection
+            if test_composio_connection():
+                composio_tools = get_all_integration_tools()
+                tools.extend(composio_tools)
+                print(f"✅ Added {len(composio_tools)} Composio integration tools")
             else:
-                print(f"❌ Error initializing MCP client: {e}")
-                print(f"❌ Error type: {type(e)}")
-                import traceback
-                print(f"❌ Traceback: {traceback.format_exc()}")
-                print("⚠️ Continuing with empty tools list")
-                tools = []  # Ensure tools is set to empty list
+                print("⚠️ Composio connection test failed, skipping external integrations")
+        except ImportError as e:
+            print(f"⚠️ Composio not available: {e}")
+            print("⚠️ Continuing without external integrations")
+        except Exception as e:
+            print(f"⚠️ Failed to load Composio tools: {e}")
+            print("⚠️ Continuing without external integrations")
         
         # Build agent graph with whatever tools we have (even if empty)
         # This ensures we always try to build the graph, even if MCP tools failed
