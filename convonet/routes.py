@@ -776,7 +776,7 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
     # Get provider preference
     if provider is None:
         if user_id:
-            # Try to get from Redis
+            # Try to get per-user preference from Redis
             try:
                 user_pref = redis_manager.get(f"user:{user_id}:llm_provider")
                 if user_pref and user_pref in ["claude", "gemini", "openai"]:
@@ -784,6 +784,16 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
                     print(f"📋 Using user preference for LLM provider: {provider}")
             except Exception as e:
                 print(f"⚠️ Could not get user provider preference: {e}")
+
+        # If no per-user preference, try global default ('default' user id used by homepage selector)
+        if provider is None:
+            try:
+                global_pref = redis_manager.get("user:default:llm_provider")
+                if global_pref and global_pref in ["claude", "gemini", "openai"]:
+                    provider = global_pref
+                    print(f"📋 Using global default LLM provider from Redis: {provider}")
+            except Exception as e:
+                print(f"⚠️ Could not get global provider preference: {e}")
         
         # Fallback to environment variable or default
         if provider is None:
@@ -1122,7 +1132,9 @@ async def _run_agent_async(
             if include_metadata:
                 return {
                     "response": final_response,
-                    "transfer_marker": transfer_marker
+                    "transfer_marker": transfer_marker,
+                    "provider_used": _agent_graph_provider,
+                    "model_used": _agent_graph_model,
                 }
             if transfer_marker:
                 return transfer_marker
@@ -1205,7 +1217,12 @@ async def _run_agent_async(
                     last_message = final_state.values.get("messages")[-1]
                     final_response = getattr(last_message, 'content', "")
                     if include_metadata:
-                        return {"response": final_response, "transfer_marker": transfer_marker}
+                        return {
+                            "response": final_response,
+                            "transfer_marker": transfer_marker,
+                            "provider_used": _agent_graph_provider,
+                            "model_used": _agent_graph_model,
+                        }
                     if transfer_marker:
                         return transfer_marker
                     return final_response
@@ -1371,6 +1388,12 @@ def set_user_llm_provider():
     """Set user's LLM provider preference."""
     try:
         data = request.get_json()
+        if not isinstance(data, dict):
+            return jsonify({
+                'success': False,
+                'error': 'Invalid JSON body'
+            }), 400
+
         user_id = data.get('user_id')
         provider = data.get('provider', 'claude').lower()
         
@@ -1393,20 +1416,26 @@ def set_user_llm_provider():
                 'success': False,
                 'error': f'Provider {provider} is not available. Please configure the API key.'
             }), 400
+
+        # Store in Redis (expires in 30 days) - best-effort only
+        try:
+            redis_manager.set(
+                f"user:{user_id}:llm_provider",
+                provider,
+                expire=30 * 24 * 60 * 60  # 30 days
+            )
+        except Exception as redis_error:
+            print(f"⚠️ Failed to store LLM provider in Redis: {redis_error}")
         
-        # Store in Redis (expires in 30 days)
-        redis_manager.set(
-            f"user:{user_id}:llm_provider",
-            provider,
-            expire=30 * 24 * 60 * 60  # 30 days
-        )
-        
-        # Clear agent graph cache to force reinitialization with new provider
-        global _agent_graph_cache, _agent_graph_provider
-        if _agent_graph_provider != provider:
-            _agent_graph_cache = None
-            _agent_graph_provider = None
-            print(f"🔄 Cleared agent graph cache due to provider change to {provider}")
+        # Clear agent graph cache to force reinitialization with new provider (best-effort)
+        try:
+            global _agent_graph_cache, _agent_graph_provider
+            if _agent_graph_provider != provider:
+                _agent_graph_cache = None
+                _agent_graph_provider = None
+                print(f"🔄 Cleared agent graph cache due to provider change to {provider}")
+        except Exception as cache_error:
+            print(f"⚠️ Failed to clear agent graph cache: {cache_error}")
         
         return jsonify({
             'success': True,
