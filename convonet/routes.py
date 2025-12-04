@@ -893,13 +893,19 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
         # Initialize tools list to avoid UnboundLocalError
         tools = []
         
-        try:
-            # Initialize MCP client (langchain-mcp-adapters 0.1.0+ does not support context manager)
-            print("🔧 Creating MCP client...")
-            client = MultiServerMCPClient(connections=mcp_config["mcpServers"])
-            print("🔧 Getting tools from MCP client...")
-            # Wrap in a task to better catch exceptions from nested coroutines
+        # Check if we should skip MCP tools for Gemini (can cause hangs)
+        skip_mcp_for_gemini = os.getenv('SKIP_MCP_FOR_GEMINI', 'false').lower() == 'true'
+        
+        if provider == "gemini" and skip_mcp_for_gemini:
+            print("⚠️ Skipping MCP tools for Gemini (SKIP_MCP_FOR_GEMINI=true)")
+            print("⚠️ Tool calls will NOT be available - agent will respond with text only")
+        else:
             try:
+                # Initialize MCP client (langchain-mcp-adapters 0.1.0+ does not support context manager)
+                print("🔧 Creating MCP client...")
+                client = MultiServerMCPClient(connections=mcp_config["mcpServers"])
+                print("🔧 Getting tools from MCP client...")
+                # Wrap in a task to better catch exceptions from nested coroutines
                 # Create a wrapper function to catch any exceptions from nested coroutines
                 async def safe_get_tools():
                     try:
@@ -913,8 +919,14 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
                             raise RuntimeError(f"MCP library UnboundLocalError (wrapped): {e}") from e
                         raise
                 
-                tools = await asyncio.wait_for(safe_get_tools(), timeout=10.0)
+                # Use shorter timeout for Gemini (MCP can hang with Gemini)
+                timeout_seconds = 5.0 if provider == "gemini" else 10.0
+                tools = await asyncio.wait_for(safe_get_tools(), timeout=timeout_seconds)
                 print(f"✅ MCP client initialized successfully with {len(tools)} tools")
+            except asyncio.TimeoutError:
+                print(f"⏱️ MCP get_tools() timed out after {timeout_seconds} seconds")
+                print(f"⚠️ Continuing with empty tools list - tool calls will not be available")
+                tools = []
             except RuntimeError as e:
                 # Catch our wrapped UnboundLocalError
                 if "UnboundLocalError" in str(e):
@@ -941,7 +953,7 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
                     print("⚠️ Continuing with empty tools list")
                     tools = []  # Ensure tools is set to empty list
             
-            # Add call transfer tools (non-MCP tools) - optional
+        # Add call transfer tools (non-MCP tools) - optional
             try:
                 from .mcps.local_servers.call_transfer import get_transfer_tools
                 transfer_tools = get_transfer_tools()
