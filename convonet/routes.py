@@ -1085,6 +1085,9 @@ async def _run_agent_async(
     # Import agent monitor for tracking
     from .agent_monitor import get_agent_monitor, AgentInteractionStatus, ToolCallInfo
     
+    # Declare global variables at the start of the function
+    global _agent_graph_cache, _agent_graph_model, _agent_graph_provider
+    
     request_id = str(uuid.uuid4())
     start_time = time.time()
     monitor = get_agent_monitor()
@@ -1290,7 +1293,6 @@ async def _run_agent_async(
         if is_model_404:
             print("🔄 Model 404 error detected, clearing cache and retrying...")
             print(f"🔄 Error details: {error_str[:200]}")
-            global _agent_graph_cache, _agent_graph_model
             
             # Extract the failed model name from error
             failed_model = None
