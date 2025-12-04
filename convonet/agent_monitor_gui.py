@@ -12,7 +12,8 @@ from .agent_monitor import get_agent_monitor, AgentInteraction
 agent_monitor_bp = Blueprint('agent_monitor', __name__, url_prefix='/agent-monitor')
 
 
-@agent_monitor_bp.route('/')
+@agent_monitor_bp.route('/', strict_slashes=False)
+@agent_monitor_bp.route('', strict_slashes=False)
 def agent_monitor_dashboard():
     """Render the agent monitoring dashboard"""
     return render_template('agent_monitor_dashboard.html')
