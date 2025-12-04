@@ -139,9 +139,14 @@ def create_app():
     
     # Register Convonet Todo blueprint (main routes including LLM provider API)
     try:
-        from convonet.routes import convonet_todo_bp
+        from convonet.routes import convonet_todo_bp, preload_mcp_tools_sync
         app.register_blueprint(convonet_todo_bp)
         print(f"✅ Convonet Todo blueprint registered at {convonet_todo_bp.url_prefix}")
+        
+        # Pre-load MCP tools at startup (for Gemini compatibility)
+        # This caches tools so they're available without blocking requests
+        print("🔧 Pre-loading MCP tools at startup...")
+        preload_mcp_tools_sync()
     except ImportError as e:
         print(f"⚠️  Convonet Todo routes not available: {e}")
         import traceback

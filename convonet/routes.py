@@ -40,6 +40,16 @@ _agent_graph_model = None  # Track which model was used for the cached graph
 _agent_graph_provider = None  # Track which provider was used for the cached graph
 _agent_graph_lock = asyncio.Lock()
 
+# Global MCP tools cache (pre-loaded at startup to avoid hangs during requests)
+_mcp_tools_cache = None
+_mcp_tools_loading = False
+_mcp_tools_lock = asyncio.Lock()
+
+# Global MCP tools cache (loaded at startup to avoid hangs during requests)
+_mcp_tools_cache = None
+_mcp_tools_loading = False
+_mcp_tools_lock = asyncio.Lock()
+
 convonet_todo_bp = Blueprint(
     'convonet_todo',
     __name__,
@@ -893,23 +903,20 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
         # Initialize tools list to avoid UnboundLocalError
         tools = []
         
-        # Check if we should skip MCP tools for Gemini (can cause hangs)
-        # Default to skipping for Gemini since MCP get_tools() hangs with blocking I/O
-        # Set ENABLE_MCP_FOR_GEMINI=true to enable MCP for Gemini (not recommended)
-        enable_mcp_for_gemini = os.getenv('ENABLE_MCP_FOR_GEMINI', 'false').lower() == 'true'
-        skip_mcp_for_gemini = provider == "gemini" and not enable_mcp_for_gemini
-        
-        if skip_mcp_for_gemini:
-            print("⚠️ Skipping MCP tools for Gemini (MCP hangs with Gemini by default)")
-            print("⚠️ Tool calls will NOT be available - agent will respond with text only")
-            print("💡 To enable MCP for Gemini (not recommended), set ENABLE_MCP_FOR_GEMINI=true")
+        # Use cached MCP tools if available (pre-loaded at startup to avoid hangs)
+        global _mcp_tools_cache
+        if _mcp_tools_cache is not None:
+            print(f"✅ Using cached MCP tools ({len(_mcp_tools_cache)} tools)")
+            tools = _mcp_tools_cache.copy()  # Copy to avoid mutation
         else:
+            # Try to load MCP tools (with timeout to prevent hangs)
+            print("🔧 Loading MCP tools (not cached yet)...")
             try:
                 # Initialize MCP client (langchain-mcp-adapters 0.1.0+ does not support context manager)
                 print("🔧 Creating MCP client...")
                 client = MultiServerMCPClient(connections=mcp_config["mcpServers"])
                 print("🔧 Getting tools from MCP client...")
-                # Wrap in a task to better catch exceptions from nested coroutines
+                
                 # Create a wrapper function to catch any exceptions from nested coroutines
                 async def safe_get_tools():
                     try:
@@ -923,13 +930,18 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
                             raise RuntimeError(f"MCP library UnboundLocalError (wrapped): {e}") from e
                         raise
                 
-                # Use shorter timeout for Gemini (MCP can hang with Gemini)
-                timeout_seconds = 5.0 if provider == "gemini" else 10.0
+                # Use timeout to prevent hangs (longer timeout since this is first load)
+                timeout_seconds = 15.0  # 15 seconds for initial load
                 tools = await asyncio.wait_for(safe_get_tools(), timeout=timeout_seconds)
                 print(f"✅ MCP client initialized successfully with {len(tools)} tools")
+                
+                # Cache the tools for future use (including Gemini)
+                _mcp_tools_cache = tools.copy()
+                print(f"✅ MCP tools cached for future requests")
             except asyncio.TimeoutError:
                 print(f"⏱️ MCP get_tools() timed out after {timeout_seconds} seconds")
                 print(f"⚠️ Continuing with empty tools list - tool calls will not be available")
+                print(f"💡 MCP tools will be retried on next request")
                 tools = []
             except RuntimeError as e:
                 # Catch our wrapped UnboundLocalError
