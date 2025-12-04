@@ -187,41 +187,50 @@ class LLMProviderManager:
             if tools:
                 if provider == "gemini":
                     # Gemini tool binding can hang or take a very long time
-                    # Use a timeout and make it optional if it fails
-                    print(f"🔧 Binding {len(tools)} tools to Gemini LLM (this may take a moment)...")
-                    try:
-                        import signal
-                        import threading
-                        
-                        binding_result = {'success': False, 'llm': llm, 'error': None}
-                        
-                        def bind_tools_sync():
-                            """Bind tools synchronously in a thread"""
-                            try:
-                                binding_result['llm'] = llm.bind_tools(tools=tools)
-                                binding_result['success'] = True
-                            except Exception as e:
-                                binding_result['error'] = e
-                        
-                        bind_thread = threading.Thread(target=bind_tools_sync, daemon=True)
-                        bind_thread.start()
-                        bind_thread.join(timeout=8.0)  # 8 second timeout for Gemini tool binding
-                        
-                        if bind_thread.is_alive():
-                            print(f"⏱️ Gemini tool binding timed out after 8 seconds")
-                            print(f"⚠️ Continuing without tool binding - Gemini tool calls may not work")
-                            print(f"⚠️ This is a known issue with Gemini. Tool calls will be disabled for this session.")
-                        elif binding_result['error']:
-                            print(f"⚠️ Gemini tool binding failed: {binding_result['error']}")
+                    # Check if we should skip tool binding entirely (environment variable)
+                    skip_gemini_tools = os.getenv('SKIP_GEMINI_TOOL_BINDING', 'false').lower() == 'true'
+                    
+                    if skip_gemini_tools:
+                        print(f"⚠️ Skipping Gemini tool binding (SKIP_GEMINI_TOOL_BINDING=true)")
+                        print(f"⚠️ Tool calls will NOT be available for Gemini - agent will respond with text only")
+                    else:
+                        # Use a timeout and make it optional if it fails
+                        print(f"🔧 Binding {len(tools)} tools to Gemini LLM (this may take a moment)...")
+                        print(f"💡 If this hangs, set SKIP_GEMINI_TOOL_BINDING=true to skip tool binding")
+                        try:
+                            import threading
+                            
+                            binding_result = {'success': False, 'llm': llm, 'error': None, 'done': False}
+                            
+                            def bind_tools_sync():
+                                """Bind tools synchronously in a thread"""
+                                try:
+                                    binding_result['llm'] = llm.bind_tools(tools=tools)
+                                    binding_result['success'] = True
+                                except Exception as e:
+                                    binding_result['error'] = e
+                                finally:
+                                    binding_result['done'] = True
+                            
+                            bind_thread = threading.Thread(target=bind_tools_sync, daemon=True)
+                            bind_thread.start()
+                            bind_thread.join(timeout=5.0)  # 5 second timeout for Gemini tool binding
+                            
+                            if not binding_result['done']:
+                                print(f"⏱️ Gemini tool binding timed out after 5 seconds")
+                                print(f"⚠️ Continuing without tool binding - Gemini tool calls will be disabled")
+                                print(f"💡 Tip: Set SKIP_GEMINI_TOOL_BINDING=true to skip binding entirely and speed up initialization")
+                            elif binding_result['error']:
+                                print(f"⚠️ Gemini tool binding failed: {binding_result['error']}")
+                                print(f"⚠️ Continuing without tool binding - tool calls may not work properly")
+                            elif binding_result['success']:
+                                llm = binding_result['llm']
+                                print(f"✅ Successfully bound tools to Gemini LLM")
+                            else:
+                                print(f"⚠️ Gemini tool binding returned no result, continuing without binding")
+                        except Exception as tool_error:
+                            print(f"⚠️ Warning: Failed to bind tools to Gemini LLM: {tool_error}")
                             print(f"⚠️ Continuing without tool binding - tool calls may not work properly")
-                        elif binding_result['success']:
-                            llm = binding_result['llm']
-                            print(f"✅ Successfully bound tools to Gemini LLM")
-                        else:
-                            print(f"⚠️ Gemini tool binding returned no result, continuing without binding")
-                    except Exception as tool_error:
-                        print(f"⚠️ Warning: Failed to bind tools to Gemini LLM: {tool_error}")
-                        print(f"⚠️ Continuing without tool binding - tool calls may not work properly")
                 else:
                     # For Claude and OpenAI, tool binding is usually fast and reliable
                     try:
