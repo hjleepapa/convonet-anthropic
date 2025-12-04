@@ -894,11 +894,15 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
         tools = []
         
         # Check if we should skip MCP tools for Gemini (can cause hangs)
-        skip_mcp_for_gemini = os.getenv('SKIP_MCP_FOR_GEMINI', 'false').lower() == 'true'
+        # Default to skipping for Gemini since MCP get_tools() hangs with blocking I/O
+        # Set ENABLE_MCP_FOR_GEMINI=true to enable MCP for Gemini (not recommended)
+        enable_mcp_for_gemini = os.getenv('ENABLE_MCP_FOR_GEMINI', 'false').lower() == 'true'
+        skip_mcp_for_gemini = provider == "gemini" and not enable_mcp_for_gemini
         
-        if provider == "gemini" and skip_mcp_for_gemini:
-            print("⚠️ Skipping MCP tools for Gemini (SKIP_MCP_FOR_GEMINI=true)")
+        if skip_mcp_for_gemini:
+            print("⚠️ Skipping MCP tools for Gemini (MCP hangs with Gemini by default)")
             print("⚠️ Tool calls will NOT be available - agent will respond with text only")
+            print("💡 To enable MCP for Gemini (not recommended), set ENABLE_MCP_FOR_GEMINI=true")
         else:
             try:
                 # Initialize MCP client (langchain-mcp-adapters 0.1.0+ does not support context manager)
