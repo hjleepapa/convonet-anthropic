@@ -775,6 +775,117 @@ def index():
     return "Convonet Todo: Convonet + MCP integration is ready. POST to /convonet_todo/run_agent with JSON {prompt: str}."
 
 
+async def _preload_mcp_tools():
+    """Pre-load MCP tools at startup to cache them for all providers (including Gemini).
+    
+    This prevents hangs during requests by loading tools once at startup.
+    Tools are cached globally and reused for all LLM providers.
+    """
+    global _mcp_tools_cache, _mcp_tools_loading
+    
+    # Skip if already cached or currently loading
+    if _mcp_tools_cache is not None:
+        print(f"✅ MCP tools already cached ({len(_mcp_tools_cache)} tools)")
+        return _mcp_tools_cache
+    
+    if _mcp_tools_loading:
+        print("⏳ MCP tools are currently being loaded, waiting...")
+        # Wait a bit for the other thread to finish
+        await asyncio.sleep(2)
+        if _mcp_tools_cache is not None:
+            return _mcp_tools_cache
+        return []
+    
+    async with _mcp_tools_lock:
+        # Check again after acquiring lock
+        if _mcp_tools_cache is not None:
+            return _mcp_tools_cache
+        
+        _mcp_tools_loading = True
+        try:
+            print("🔧 Pre-loading MCP tools at startup (for Gemini compatibility)...")
+            
+            config_path = os.path.join(os.path.dirname(__file__), 'mcps', 'mcp_config.json')
+            if not os.path.exists(config_path):
+                config_path = os.path.join('convonet', 'mcps', 'mcp_config.json')
+            
+            if not os.path.exists(config_path):
+                print(f"⚠️ MCP config file not found, skipping tool pre-load")
+                return []
+            
+            with open(config_path) as f:
+                mcp_config = json.load(f)
+            
+            # Set working directory to project root for MCP servers
+            project_root = os.path.dirname(os.path.dirname(__file__))
+            original_cwd = os.getcwd()
+            os.chdir(project_root)
+            
+            try:
+                # Update the MCP config with absolute paths and environment variables
+                for server_name, server_config in mcp_config["mcpServers"].items():
+                    if "args" in server_config and len(server_config["args"]) > 0:
+                        relative_path = server_config["args"][0]
+                        if not os.path.isabs(relative_path):
+                            absolute_path = os.path.join(project_root, relative_path)
+                            server_config["args"][0] = absolute_path
+                    
+                    # Handle environment variable substitution
+                    if "env" in server_config:
+                        for env_key, env_value in server_config["env"].items():
+                            if isinstance(env_value, str) and env_value.startswith("${") and env_value.endswith("}"):
+                                env_var_name = env_value[2:-1]
+                                env_var_value = os.getenv(env_var_name)
+                                if env_var_value:
+                                    server_config["env"][env_key] = env_var_value
+                
+                # Initialize MCP client
+                print("🔧 Creating MCP client for pre-load...")
+                client = MultiServerMCPClient(connections=mcp_config["mcpServers"])
+                print("🔧 Getting tools from MCP client (this may take a moment)...")
+                
+                # Use a longer timeout for startup pre-load (30 seconds)
+                tools = await asyncio.wait_for(client.get_tools(), timeout=30.0)
+                _mcp_tools_cache = tools.copy()
+                print(f"✅ MCP tools pre-loaded and cached: {len(_mcp_tools_cache)} tools")
+                print(f"✅ These tools will be available for all LLM providers including Gemini")
+                return _mcp_tools_cache
+            except asyncio.TimeoutError:
+                print(f"⏱️ MCP tools pre-load timed out after 30 seconds")
+                print(f"⚠️ Tools will be loaded on first request instead")
+                return []
+            except Exception as e:
+                print(f"⚠️ Error pre-loading MCP tools: {e}")
+                import traceback
+                print(f"⚠️ Traceback: {traceback.format_exc()}")
+                print(f"⚠️ Tools will be loaded on first request instead")
+                return []
+            finally:
+                os.chdir(original_cwd)
+        finally:
+            _mcp_tools_loading = False
+
+
+def preload_mcp_tools_sync():
+    """Synchronous wrapper to pre-load MCP tools at app startup."""
+    try:
+        # Try to run in existing event loop, or create new one
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # If loop is running, schedule as task
+                asyncio.create_task(_preload_mcp_tools())
+            else:
+                # If loop exists but not running, run it
+                loop.run_until_complete(_preload_mcp_tools())
+        except RuntimeError:
+            # No event loop, create one
+            asyncio.run(_preload_mcp_tools())
+    except Exception as e:
+        print(f"⚠️ Could not pre-load MCP tools: {e}")
+        print(f"⚠️ Tools will be loaded on first request instead")
+
+
 async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Optional[str] = None) -> StateGraph:
     """Helper to initialize the agent graph with tools (cached for performance).
     
