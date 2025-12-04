@@ -118,7 +118,7 @@ def twilio_call_webhook():
     
     # Fallback if no speech is detected
     response.say("I didn't hear anything. Please try again.", voice='Polly.Amy')
-            response.redirect('/convonet_todo/twilio/call?is_continuation=true&authenticated=true')
+    response.redirect('/convonet_todo/twilio/call?is_continuation=true&authenticated=true')
     
     print(f"Generated TwiML for incoming call: {str(response)}")
     return Response(str(response), mimetype='text/xml')
