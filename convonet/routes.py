@@ -1422,7 +1422,7 @@ async def _run_agent_async(
             tool_calls=[],
             status=AgentInteractionStatus.TIMEOUT,
             duration_ms=duration_ms,
-            error="Agent execution timed out after 20 seconds"
+            error=f"Agent execution timed out after {timeout_seconds if 'timeout_seconds' in locals() else 20} seconds (provider: {_agent_graph_provider})"
         )
         # Return a special marker for timeout
         return "AGENT_TIMEOUT: Taking too long to process. Please try a simpler request."
