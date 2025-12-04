@@ -127,15 +127,21 @@ def create_app():
     try:
         from convonet.agent_monitor_gui import agent_monitor_bp
         app.register_blueprint(agent_monitor_bp)
-        print("✅ Agent Monitor GUI registered at /anthropic/agent-monitor")
+        print(f"✅ Agent Monitor GUI registered at {agent_monitor_bp.url_prefix}")
     except ImportError as e:
         print(f"⚠️  Agent Monitor module not available: {e}")
+        import traceback
+        traceback.print_exc()
+    except Exception as e:
+        print(f"❌ Error registering Agent Monitor blueprint: {e}")
+        import traceback
+        traceback.print_exc()
     
     # Register Convonet Todo blueprint (main routes including LLM provider API)
     try:
         from convonet.routes import convonet_todo_bp
         app.register_blueprint(convonet_todo_bp)
-        print("✅ Convonet Todo blueprint registered at /anthropic/convonet_todo")
+        print(f"✅ Convonet Todo blueprint registered at {convonet_todo_bp.url_prefix}")
     except ImportError as e:
         print(f"⚠️  Convonet Todo routes not available: {e}")
         import traceback
@@ -145,7 +151,7 @@ def create_app():
     try:
         from convonet.tool_execution_gui import tool_gui_bp
         app.register_blueprint(tool_gui_bp)
-        print("✅ Tool Execution GUI registered at /anthropic/tool-execution")
+        print(f"✅ Tool Execution GUI registered at {tool_gui_bp.url_prefix}")
     except ImportError as e:
         print(f"⚠️  Tool Execution GUI not available: {e}")
 
