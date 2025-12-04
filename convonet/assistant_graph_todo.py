@@ -343,7 +343,22 @@ class TodoAgent:
             
             # Add Gemini-specific instructions for tool calling
             if self.provider == "gemini":
-                gemini_tool_instruction = "\n\nCRITICAL FOR GEMINI: You MUST execute tools immediately when requested. Do not suggest manual execution - actually call the tools. When a user asks you to create, add, or do something, you MUST use the appropriate tool right away."
+                gemini_tool_instruction = """
+
+CRITICAL FOR GEMINI TOOL CALLING:
+1. You MUST use tools when users request actions (create, add, schedule, etc.)
+2. Do NOT just describe what you would do - ACTUALLY CALL THE TOOLS
+3. When user says "create X", immediately call the create_X tool
+4. When user says "add Y", immediately call the appropriate add/create tool
+5. Tools are bound to your model - use them directly, don't ask for permission
+6. If you need to create something, use the tool NOW, not later
+
+EXAMPLE:
+User: "Create a workout event for December 4th at 7PM"
+You: [IMMEDIATELY call create_calendar_event tool with title="workout", event_from="2025-12-04T19:00:00", event_to="2025-12-04T20:00:00"]
+
+DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
+"""
                 system_prompt = system_prompt + gemini_tool_instruction
 
             print(f"🤖 Assistant processing: {state.messages[-1].content if state.messages else 'No messages'}")
@@ -365,23 +380,70 @@ class TodoAgent:
             
             try:
                 response = await self.llm.ainvoke([SystemMessage(content=system_prompt)] + filtered_messages)
-                print(f"🤖 Assistant response: {response.content}")
                 
-                # Check for tool calls - Gemini might use different attribute names
+                # Log response details for debugging
+                print(f"🤖 Assistant response type: {type(response)}")
+                print(f"🤖 Assistant response content: {response.content}")
+                
+                # Check for tool calls - Gemini might use different attribute names/structures
                 tool_calls = None
-                if hasattr(response, 'tool_calls'):
-                    tool_calls = response.tool_calls
-                elif hasattr(response, 'tool_calls') and response.tool_calls:
-                    tool_calls = response.tool_calls
+                tool_call_count = 0
                 
-                if tool_calls:
-                    print(f"🤖 Tool calls detected: {len(tool_calls)} calls")
+                # Method 1: Check tool_calls attribute (standard LangChain)
+                if hasattr(response, 'tool_calls') and response.tool_calls:
+                    tool_calls = response.tool_calls
+                    tool_call_count = len(tool_calls)
+                    print(f"🤖 Found tool_calls attribute with {tool_call_count} calls")
+                
+                # Method 2: Check if response.content contains tool_use (Gemini format)
+                elif self.provider == "gemini" and hasattr(response, 'content'):
+                    # Gemini might return tool_use in content as a list
+                    if isinstance(response.content, list):
+                        for item in response.content:
+                            if hasattr(item, 'type') and item.type == 'tool_use':
+                                if tool_calls is None:
+                                    tool_calls = []
+                                tool_calls.append(item)
+                                tool_call_count += 1
+                        if tool_call_count > 0:
+                            print(f"🤖 Found {tool_call_count} tool_use items in Gemini response content")
+                
+                # Method 3: Check response.additional_kwargs for Gemini tool calls
+                if tool_call_count == 0 and hasattr(response, 'additional_kwargs'):
+                    additional = response.additional_kwargs
+                    if 'candidates' in additional:
+                        candidates = additional['candidates']
+                        if candidates and 'content' in candidates[0]:
+                            content = candidates[0]['content']
+                            if 'parts' in content:
+                                for part in content['parts']:
+                                    if 'functionCall' in part:
+                                        tool_call_count += 1
+                                        if tool_calls is None:
+                                            tool_calls = []
+                                        tool_calls.append(part['functionCall'])
+                        if tool_call_count > 0:
+                            print(f"🤖 Found {tool_call_count} functionCall items in Gemini additional_kwargs")
+                
+                if tool_calls and tool_call_count > 0:
+                    print(f"✅ Tool calls detected: {tool_call_count} calls")
                     for i, tc in enumerate(tool_calls):
-                        print(f"🤖   Tool call {i+1}: {tc.get('name', 'unknown') if isinstance(tc, dict) else getattr(tc, 'name', 'unknown')}")
+                        if isinstance(tc, dict):
+                            name = tc.get('name', tc.get('functionName', 'unknown'))
+                            print(f"🤖   Tool call {i+1}: {name}")
+                        elif hasattr(tc, 'name'):
+                            print(f"🤖   Tool call {i+1}: {tc.name}")
+                        elif hasattr(tc, 'functionName'):
+                            print(f"🤖   Tool call {i+1}: {tc.functionName}")
+                        else:
+                            print(f"🤖   Tool call {i+1}: {tc}")
                 else:
-                    print(f"🤖 Tool calls: None (provider: {self.provider})")
+                    print(f"⚠️ No tool calls detected (provider: {self.provider})")
                     if self.provider == "gemini":
-                        print(f"⚠️ WARNING: Gemini returned no tool calls. This is a known issue with Gemini tool calling.")
+                        print(f"⚠️ WARNING: Gemini returned no tool calls.")
+                        print(f"⚠️ Response attributes: {dir(response)}")
+                        if hasattr(response, 'additional_kwargs'):
+                            print(f"⚠️ Additional kwargs keys: {list(response.additional_kwargs.keys())}")
                 
                 print(f"🤖 Available tools: {len(self.tools)}")
                 print(f"🤖 Tool names: {[tool.name for tool in self.tools[:5]]}...")  # Show first 5 tools

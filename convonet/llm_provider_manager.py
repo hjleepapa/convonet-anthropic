@@ -139,20 +139,41 @@ class LLMProviderManager:
                     temperature=temperature,
                 )
             elif provider == "gemini":
+                print(f"🤖 Initializing Gemini (Google) with provider: {provider}")
+                print(f"🤖 Gemini model: {model_name}")
+                print(f"🤖 Gemini API key present: {bool(api_key)}")
+                
                 # Try google_api_key first, then api_key
                 try:
                     llm = llm_class(
                         model=model_name,
                         google_api_key=api_key,
                         temperature=temperature,
+                        # Force tool calling for Gemini
+                        convert_system_message_to_human=True,  # Some Gemini models need this
                     )
-                except TypeError:
+                    print(f"✅ Gemini LLM created successfully with google_api_key")
+                except TypeError as e:
+                    print(f"⚠️ google_api_key failed, trying api_key: {e}")
                     # Fallback to api_key if google_api_key doesn't work
-                    llm = llm_class(
-                        model=model_name,
-                        api_key=api_key,
-                        temperature=temperature,
-                    )
+                    try:
+                        llm = llm_class(
+                            model=model_name,
+                            api_key=api_key,
+                            temperature=temperature,
+                            convert_system_message_to_human=True,
+                        )
+                        print(f"✅ Gemini LLM created successfully with api_key")
+                    except Exception as e2:
+                        print(f"❌ Both google_api_key and api_key failed: {e2}")
+                        import traceback
+                        print(f"❌ Traceback: {traceback.format_exc()}")
+                        raise
+                except Exception as e:
+                    print(f"❌ Failed to create Gemini LLM: {e}")
+                    import traceback
+                    print(f"❌ Traceback: {traceback.format_exc()}")
+                    raise
             elif provider == "openai":
                 llm = llm_class(
                     model=model_name,
