@@ -775,34 +775,54 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
     
     # Get provider preference
     if provider is None:
+        print(f"🔍 Looking up LLM provider preference (user_id: {user_id})")
         if user_id:
             # Try to get per-user preference from Redis
             try:
-                user_pref = redis_manager.get(f"user:{user_id}:llm_provider")
+                redis_key = f"user:{user_id}:llm_provider"
+                user_pref = redis_manager.get(redis_key)
+                print(f"🔍 Redis lookup '{redis_key}': {user_pref}")
                 if user_pref and user_pref in ["claude", "gemini", "openai"]:
                     provider = user_pref
                     print(f"📋 Using user preference for LLM provider: {provider}")
+                else:
+                    print(f"⚠️ User preference not found or invalid: {user_pref}")
             except Exception as e:
                 print(f"⚠️ Could not get user provider preference: {e}")
+                import traceback
+                print(f"⚠️ Traceback: {traceback.format_exc()}")
 
         # If no per-user preference, try global default ('default' user id used by homepage selector)
         if provider is None:
             try:
                 global_pref = redis_manager.get("user:default:llm_provider")
+                print(f"🔍 Redis lookup 'user:default:llm_provider': {global_pref}")
                 if global_pref and global_pref in ["claude", "gemini", "openai"]:
                     provider = global_pref
                     print(f"📋 Using global default LLM provider from Redis: {provider}")
+                else:
+                    print(f"⚠️ Global default preference not found or invalid: {global_pref}")
             except Exception as e:
                 print(f"⚠️ Could not get global provider preference: {e}")
+                import traceback
+                print(f"⚠️ Traceback: {traceback.format_exc()}")
         
         # Fallback to environment variable or default
         if provider is None:
             provider = os.getenv("LLM_PROVIDER", "claude").lower()
             if provider not in ["claude", "gemini", "openai"]:
                 provider = "claude"
+            print(f"📋 Using environment/default LLM provider: {provider}")
     
-    # Get current model name (from env var or default)
-    current_model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+    # Get current model name based on provider
+    if provider == "gemini":
+        current_model = os.getenv("GOOGLE_MODEL", "gemini-3-pro-preview")
+    elif provider == "openai":
+        current_model = os.getenv("OPENAI_MODEL", "gpt-4o")
+    else:  # claude
+        current_model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+    
+    print(f"🔧 Selected provider: {provider}, model: {current_model}")
     
     # Return cached graph if available AND provider/model hasn't changed
     if (_agent_graph_cache is not None and 
