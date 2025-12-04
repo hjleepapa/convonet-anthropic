@@ -1285,16 +1285,23 @@ async def _run_agent_async(
 
     # Stream through the graph to execute the agent logic with timeout
     try:
+        print(f"🚀 Starting agent execution with {len(tools) if 'tools' in locals() else 'unknown'} tools")
+        print(f"🚀 Provider: {provider if 'provider' in locals() else 'unknown'}, Model: {current_model if 'current_model' in locals() else 'unknown'}")
+        
         # Create the async iterator first
+        print(f"📡 Creating agent graph stream...")
         stream = agent_graph.astream(input=input_state, stream_mode="values", config=config)
+        print(f"✅ Agent graph stream created, starting execution...")
         
         # Use wait_for to wrap the entire async for loop
         async def process_stream():
             transfer_marker = None
             tool_calls_info = []
             
+            print(f"🔄 Processing agent stream...")
             # Check each state update for transfer markers in tool results
             async for state in stream:
+                print(f"📊 Received state update from agent graph")
                 if "messages" in state:
                     for msg in state["messages"]:
                         # Check for TRANSFER_INITIATED in tool message content
