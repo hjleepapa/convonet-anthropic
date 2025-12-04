@@ -1000,9 +1000,15 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
         try:
             print(f"🔧 Building agent graph with {len(tools)} tools...")
             print(f"🔧 Using provider: {provider}, model: {current_model}")
-            print(f"⏱️ Starting TodoAgent initialization...")
+            print(f"⏱️ Starting TodoAgent initialization (this may take a few seconds)...")
+            
+            # TodoAgent.__init__ does LLM initialization and graph building synchronously
+            # This can take time, especially for Gemini with tool binding
+            # Note: This is synchronous, so it will block until complete
+            # The timeout wrapper in _run_agent_async will catch if this takes too long
             todo_agent = TodoAgent(tools=tools, provider=provider, model=current_model)
-            print(f"⏱️ TodoAgent created, graph already built in __init__")
+            print(f"⏱️ TodoAgent created successfully, graph already built in __init__")
+            
             # Graph is already built in TodoAgent.__init__, just get it
             _agent_graph_cache = todo_agent.graph
             _agent_graph_model = current_model  # Store the model used for this cache
