@@ -5,6 +5,7 @@ Handles session management, caching, and pub/sub for real-time features
 
 import json
 import os
+import time
 import redis
 from typing import Optional, Dict, Any, List
 import logging
@@ -176,6 +177,36 @@ class RedisManager:
             return False
         except Exception as e:
             logger.error(f"❌ Failed to invalidate cache: {e}")
+            return False
+    
+    # Simple key-value operations
+    def get(self, key: str) -> Optional[str]:
+        """Get a value by key"""
+        try:
+            if self.redis_client:
+                return self.redis_client.get(key)
+            else:
+                # Fallback to in-memory storage
+                return self._fallback_storage.get(key)
+        except Exception as e:
+            logger.error(f"❌ Failed to get key {key}: {e}")
+            return None
+    
+    def set(self, key: str, value: str, expire: int = None) -> bool:
+        """Set a key-value pair with optional expiration"""
+        try:
+            if self.redis_client:
+                if expire:
+                    self.redis_client.setex(key, expire, value)
+                else:
+                    self.redis_client.set(key, value)
+                return True
+            else:
+                # Fallback to in-memory storage
+                self._fallback_storage[key] = value
+                return True
+        except Exception as e:
+            logger.error(f"❌ Failed to set key {key}: {e}")
             return False
     
     # Pub/Sub for Real-time Notifications
