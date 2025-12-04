@@ -302,7 +302,11 @@ class TodoAgent:
             print(f"✅ Model: {self.model}")
             
         except Exception as e:
-            print(f"❌ Failed to initialize {self.provider} LLM: {e}")
+            error_msg = f"❌ Failed to initialize {self.provider} LLM: {e}"
+            print(error_msg)
+            import traceback
+            print(f"❌ Full traceback:\n{traceback.format_exc()}")
+            
             # Try fallback to default provider
             if self.provider != "claude":
                 print(f"⚠️ Attempting fallback to Claude...")
@@ -315,6 +319,7 @@ class TodoAgent:
                         tools=self.tools,
                     )
                     print(f"✅ Fallback to Claude successful")
+                    print(f"⚠️ WARNING: Requested {self.provider} but using Claude due to initialization failure")
                 except Exception as fallback_error:
                     raise Exception(f"Failed to initialize LLM with {self.provider} and fallback failed: {str(e)}")
             else:
@@ -327,11 +332,19 @@ class TodoAgent:
 
         async def assistant(state: AgentState):
             """The main assistant node that uses the LLM to generate responses."""
+            # Log which provider is actually being used
+            print(f"🤖 Using LLM provider: {self.provider}, model: {self.model}")
+            
             # inject todo priorities and reminder importance into the system prompt
             system_prompt = self.system_prompt.format(
                 todo_priorities=", ".join([p.value for p in TodoPriority]),
                 reminder_importance=", ".join([i.value for i in ReminderImportance])
                 )
+            
+            # Add Gemini-specific instructions for tool calling
+            if self.provider == "gemini":
+                gemini_tool_instruction = "\n\nCRITICAL FOR GEMINI: You MUST execute tools immediately when requested. Do not suggest manual execution - actually call the tools. When a user asks you to create, add, or do something, you MUST use the appropriate tool right away."
+                system_prompt = system_prompt + gemini_tool_instruction
 
             print(f"🤖 Assistant processing: {state.messages[-1].content if state.messages else 'No messages'}")
             print(f"🤖 Message count: {len(state.messages)}")
@@ -353,7 +366,23 @@ class TodoAgent:
             try:
                 response = await self.llm.ainvoke([SystemMessage(content=system_prompt)] + filtered_messages)
                 print(f"🤖 Assistant response: {response.content}")
-                print(f"🤖 Tool calls: {response.tool_calls if hasattr(response, 'tool_calls') else 'None'}")
+                
+                # Check for tool calls - Gemini might use different attribute names
+                tool_calls = None
+                if hasattr(response, 'tool_calls'):
+                    tool_calls = response.tool_calls
+                elif hasattr(response, 'tool_calls') and response.tool_calls:
+                    tool_calls = response.tool_calls
+                
+                if tool_calls:
+                    print(f"🤖 Tool calls detected: {len(tool_calls)} calls")
+                    for i, tc in enumerate(tool_calls):
+                        print(f"🤖   Tool call {i+1}: {tc.get('name', 'unknown') if isinstance(tc, dict) else getattr(tc, 'name', 'unknown')}")
+                else:
+                    print(f"🤖 Tool calls: None (provider: {self.provider})")
+                    if self.provider == "gemini":
+                        print(f"⚠️ WARNING: Gemini returned no tool calls. This is a known issue with Gemini tool calling.")
+                
                 print(f"🤖 Available tools: {len(self.tools)}")
                 print(f"🤖 Tool names: {[tool.name for tool in self.tools[:5]]}...")  # Show first 5 tools
                 

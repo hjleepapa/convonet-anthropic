@@ -164,11 +164,24 @@ class LLMProviderManager:
             
             # Bind tools if provided
             if tools:
-                llm = llm.bind_tools(tools=tools)
+                try:
+                    print(f"🔧 Binding {len(tools)} tools to {provider} LLM...")
+                    llm = llm.bind_tools(tools=tools)
+                    print(f"✅ Successfully bound tools to {provider} LLM")
+                except Exception as tool_error:
+                    print(f"⚠️ Warning: Failed to bind tools to {provider} LLM: {tool_error}")
+                    print(f"⚠️ Continuing without tool binding - tool calls may not work properly")
+                    # For Gemini, this is a known issue - continue anyway
+                    if provider == "gemini":
+                        print(f"⚠️ Note: Gemini has known issues with tool calling. Consider using gemini-2.5-flash or gemini-3-pro-preview")
             
             return llm
         except Exception as e:
-            raise ValueError(f"Failed to create {provider} LLM: {str(e)}")
+            error_msg = f"Failed to create {provider} LLM: {str(e)}"
+            print(f"❌ {error_msg}")
+            import traceback
+            print(f"❌ Traceback: {traceback.format_exc()}")
+            raise ValueError(error_msg)
     
     def get_default_provider(self) -> Optional[LLMProvider]:
         """Get the default provider (first available)."""
