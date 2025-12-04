@@ -422,7 +422,7 @@
             loading.style.display = 'block';
             sessionsGrid.innerHTML = '';
             
-            fetch('/anthropic/audio-player/api/sessions')
+            fetch('/audio-player/api/sessions')
                 .then(response => response.json())
                 .then(data => {
                     loading.style.display = 'none';
@@ -508,7 +508,7 @@
         }
         
         function showSessionInfo(sessionId) {
-            fetch(`/anthropic/audio-player/api/session/${sessionId}/info`)
+            fetch(`/audio-player/api/session/${sessionId}/info`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -524,7 +524,7 @@
         }
         
         function analyzeAudio(sessionId) {
-            fetch(`/anthropic/audio-player/api/session/${sessionId}/analyze`)
+            fetch(`/audio-player/api/session/${sessionId}/analyze`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -589,7 +589,7 @@
         }
         
         function downloadAudio(sessionId) {
-            window.open(`/anthropic/audio-player/api/session/${sessionId}/download`, '_blank');
+            window.open(`/audio-player/api/session/${sessionId}/download`, '_blank');
         }
         
         function showAlert(message, type) {

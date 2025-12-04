@@ -20,7 +20,7 @@ except ImportError:
     print("⚠️ Redis not available")
 
 # Create blueprint
-audio_player_bp = Blueprint('audio_player', __name__, url_prefix='/anthropic/audio-player')
+audio_player_bp = Blueprint('audio_player', __name__, url_prefix='/audio-player')
 
 def get_active_sessions():
     """Get list of active sessions from Redis"""

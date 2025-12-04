@@ -113,7 +113,7 @@
                         <div class="text-center mt-4">
                             <p class="text-muted">
                                 Already have an account? 
-                                <a href="/anthropic/team-dashboard" class="text-decoration-none">
+                                <a href="/team-dashboard" class="text-decoration-none">
                                     <i class="fas fa-sign-in-alt"></i> Sign In
                                 </a>
                             </p>
@@ -195,7 +195,7 @@
                 if (response.ok) {
                     showAlert('Account created successfully! Redirecting to login...', 'success');
                     setTimeout(() => {
-                        window.location.href = '/anthropic/team-dashboard';
+                        window.location.href = '/team-dashboard';
                     }, 2000);
                 } else {
                     showAlert('Registration failed: ' + data.error, 'danger');

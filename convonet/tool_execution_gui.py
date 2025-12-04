@@ -16,7 +16,7 @@ from .tool_execution_viewer import (
     get_tracker
 )
 
-tool_gui_bp = Blueprint('tool_gui', __name__, url_prefix='/anthropic/tool-execution')
+tool_gui_bp = Blueprint('tool_gui', __name__, url_prefix='/tool-execution')
 
 
 @tool_gui_bp.route('/')

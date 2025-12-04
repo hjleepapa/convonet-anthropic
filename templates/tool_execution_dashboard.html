@@ -405,7 +405,7 @@
         
         async function loadStats() {
             try {
-                const response = await fetch('/anthropic/tool-execution/api/stats');
+                const response = await fetch('/tool-execution/api/stats');
                 const data = await response.json();
                 
                 if (data.success) {
@@ -425,7 +425,7 @@
         
         async function loadTrackers() {
             try {
-                const response = await fetch('/anthropic/tool-execution/api/trackers');
+                const response = await fetch('/tool-execution/api/trackers');
                 const data = await response.json();
                 
                 if (data.success) {
@@ -485,7 +485,7 @@
             loadTrackers(); // Refresh to show selected state
             
             try {
-                const response = await fetch(`/anthropic/tool-execution/api/tracker/${requestId}`);
+                const response = await fetch(`/tool-execution/api/tracker/${requestId}`);
                 const data = await response.json();
                 
                 if (data.success) {

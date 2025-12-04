@@ -198,12 +198,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load available providers
     async function loadProviders() {
         try {
-            const response = await fetch('/anthropic/convonet_todo/api/llm-providers');
+            const response = await fetch('/convonet_todo/api/llm-providers');
             const data = await response.json();
             
             if (data.success) {
                 // Get current provider
-                const currentResponse = await fetch(`/anthropic/convonet_todo/api/llm-provider?user_id=${userId}`);
+                const currentResponse = await fetch(`/convonet_todo/api/llm-provider?user_id=${userId}`);
                 const currentData = await currentResponse.json();
                 if (currentData.success) {
                     currentProvider = currentData.provider;
@@ -248,7 +248,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Select provider
     window.selectProvider = async function(providerId) {
         try {
-            const response = await fetch('/anthropic/convonet_todo/api/llm-provider', {
+            const response = await fetch('/convonet_todo/api/llm-provider', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

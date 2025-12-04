@@ -387,7 +387,7 @@
         
         async function loadStats() {
             try {
-                const response = await fetch('/anthropic/agent-monitor/api/stats');
+                const response = await fetch('/agent-monitor/api/stats');
                 const data = await response.json();
                 
                 if (data.success) {
@@ -449,8 +449,8 @@
         async function loadInteractions() {
             try {
                 const url = currentFilter === 'all' 
-                    ? '/anthropic/agent-monitor/api/interactions?limit=50'
-                    : `/anthropic/agent-monitor/api/interactions?limit=50&provider=${currentFilter}`;
+                    ? '/agent-monitor/api/interactions?limit=50'
+                    : `/agent-monitor/api/interactions?limit=50&provider=${currentFilter}`;
                 
                 const response = await fetch(url);
                 const data = await response.json();

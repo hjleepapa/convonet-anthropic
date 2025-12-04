@@ -60,7 +60,7 @@ except ImportError as e:
 ENABLE_TEST_PIN = os.getenv('ENABLE_TEST_PIN', 'false').lower() == 'true'
 TEST_VOICE_PIN = os.getenv('TEST_VOICE_PIN', '1234')
 
-webrtc_bp = Blueprint('webrtc_voice', __name__, url_prefix='/anthropic/webrtc')
+webrtc_bp = Blueprint('webrtc_voice', __name__, url_prefix='/webrtc')
 
 # Initialize Deepgram service for STT and TTS
 # Note: Using Deepgram for both STT and TTS, Claude for LLM
@@ -212,7 +212,7 @@ def initiate_agent_transfer(session_id: str, extension: str, department: str, re
 
     # For WebRTC transfers, we directly dial the FusionPBX extension
     # The WebRTC user can't join a Twilio conference, so we just connect the agent
-    transfer_url = f"{base_url.rstrip('/')}/anthropic/convonet_todo/twilio/voice_assistant/transfer_bridge?extension={quote(extension)}"
+    transfer_url = f"{base_url.rstrip('/')}/convonet_todo/twilio/voice_assistant/transfer_bridge?extension={quote(extension)}"
 
     client = Client(account_sid, auth_token)
     response_details = {
@@ -251,7 +251,7 @@ def initiate_agent_transfer(session_id: str, extension: str, department: str, re
     # 2. The user needs to manually call the agent or use a different method
     # Instead, we provide instructions to the user via the WebRTC interface
     print(f"ℹ️ WebRTC transfer: Agent call initiated to extension {extension}. User should contact agent separately or use call center dashboard.")
-    response_details['user_instructions'] = f"Please contact extension {extension} via the call center dashboard at {base_url}/anthropic/call-center/"
+    response_details['user_instructions'] = f"Please contact extension {extension} via the call center dashboard at {base_url}/call-center/"
 
     return True, response_details
 

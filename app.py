@@ -208,18 +208,18 @@ def create_app():
         """Renders the System Architecture Diagram page for Convonet."""
         return render_template('convonet_system_architecture.html')
     
-    @app.route('/anthropic/convonet-sequence-diagram')
+    @app.route('/convonet-sequence-diagram')
     def convonet_sequence_diagram():
         """Renders the Sequence Diagram page for Convonet."""
         return render_template('convonet_sequence_diagram.html')
     
-    @app.route('/anthropic/team-dashboard')
+    @app.route('/team-dashboard')
     def team_dashboard():
         """Renders the team collaboration dashboard."""
         return render_template('team_dashboard.html')
     
     
-    @app.route('/anthropic/register')
+    @app.route('/register')
     def register():
         """Renders the user registration page."""
         return render_template('register.html')

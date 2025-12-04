@@ -9,7 +9,7 @@ import json
 
 from .agent_monitor import get_agent_monitor, AgentInteraction
 
-agent_monitor_bp = Blueprint('agent_monitor', __name__, url_prefix='/anthropic/agent-monitor')
+agent_monitor_bp = Blueprint('agent_monitor', __name__, url_prefix='/agent-monitor')
 
 
 @agent_monitor_bp.route('/')
