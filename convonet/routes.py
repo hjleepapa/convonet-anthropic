@@ -1517,6 +1517,7 @@ async def _run_agent_async(
                 """Run graph execution in separate thread with its own event loop"""
                 import sys
                 import asyncio
+                import time
                 try:
                     print(f"🧵 Thread: Starting graph execution...", flush=True)
                     sys.stdout.flush()
