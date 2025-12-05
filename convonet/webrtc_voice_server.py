@@ -1077,13 +1077,17 @@ def init_socketio(socketio_instance: SocketIO, app):
                 sentry_capture_voice_event("transcription_completed", session_id, session.get('user_id'), details={"text_length": len(transcribed_text), "method": "deepgram"})
                 
                 # Send transcription to client
+                print(f"📤 Sending transcription to client...")
                 socketio.emit('transcription', {
                     'success': True,
                     'text': transcribed_text,
                     'method': 'assemblyai'
                 }, namespace='/voice', room=session_id)
+                print(f"✅ Transcription sent to client")
                 
+                print(f"🔍 Checking for transfer intent...")
                 transfer_requested = has_transfer_intent(transcribed_text)
+                print(f"✅ Transfer intent check complete: {transfer_requested}")
                 
                 def start_transfer_flow(target_extension: str, department: str, reason: str, source: str = "agent"):
                     print(f"🔄 Transfer requested: Extension={target_extension}, Department={department}, Reason={reason}")
@@ -1166,19 +1170,24 @@ def init_socketio(socketio_instance: SocketIO, app):
                 sentry_capture_voice_event("agent_processing_started", session_id, session.get('user_id'), details={"transcribed_text": transcribed_text})
                 
                 print(f"🤖 Starting agent processing for: {transcribed_text[:100]}")
+                print(f"🔧 About to call process_with_agent in separate thread...")
                 try:
-                    # Use ThreadPoolExecutor to run async code in separate thread
-                    # This prevents blocking eventlet workers and allows timeouts to work
+                    # Use eventlet's spawn_n to run async code in completely separate greenlet
+                    # This prevents blocking the main eventlet worker
+                    import eventlet
                     from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
-                    import threading
+                    
+                    result_container = {'response': None, 'transfer': None, 'error': None, 'done': False}
                     
                     def run_async_in_thread():
                         """Run async function in a new thread with its own event loop"""
+                        print(f"🧵 Thread started for async execution")
                         # Create new event loop for this thread
                         new_loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(new_loop)
                         try:
-                            return new_loop.run_until_complete(
+                            print(f"🔄 Running process_with_agent in thread...")
+                            result = new_loop.run_until_complete(
                                 asyncio.wait_for(
                                     process_with_agent(
                                         transcribed_text,
@@ -1188,21 +1197,45 @@ def init_socketio(socketio_instance: SocketIO, app):
                                     timeout=18.0  # 18 second timeout (well below 30s worker timeout)
                                 )
                             )
+                            print(f"✅ process_with_agent completed in thread")
+                            result_container['response'] = result[0]
+                            result_container['transfer'] = result[1]
+                            result_container['done'] = True
+                            return result
+                        except asyncio.TimeoutError:
+                            print(f"⏱️ Async timeout in thread after 18 seconds")
+                            result_container['error'] = 'timeout'
+                            result_container['done'] = True
+                            raise
+                        except Exception as e:
+                            print(f"❌ Error in thread: {e}")
+                            result_container['error'] = str(e)
+                            result_container['done'] = True
+                            raise
                         finally:
                             new_loop.close()
+                            print(f"🧵 Thread event loop closed")
                     
                     # Run in thread pool with timeout
+                    print(f"🚀 Submitting to ThreadPoolExecutor...")
                     with ThreadPoolExecutor(max_workers=1) as executor:
                         future = executor.submit(run_async_in_thread)
                         try:
+                            print(f"⏳ Waiting for result with 20s timeout...")
                             agent_response, transfer_marker = future.result(timeout=20.0)  # 20s total timeout
-                            print(f"🤖 Agent response: {agent_response}")
+                            print(f"🤖 Agent response received: {agent_response[:100] if agent_response else 'None'}")
                         except FutureTimeoutError:
-                            print(f"⏱️ Agent processing timed out after 20 seconds (thread timeout)")
+                            print(f"⏱️ ThreadPoolExecutor timed out after 20 seconds")
                             agent_response = "I'm sorry, I'm taking too long to process that request. Please try a simpler request."
                             transfer_marker = None
                             # Cancel the future if possible
                             future.cancel()
+                        except Exception as e:
+                            print(f"❌ Exception in ThreadPoolExecutor: {e}")
+                            import traceback
+                            traceback.print_exc()
+                            agent_response = "I'm sorry, I encountered an error. Please try again."
+                            transfer_marker = None
                 except asyncio.TimeoutError:
                     print(f"⏱️ Agent processing timed out after 18 seconds (async timeout)")
                     agent_response = "I'm sorry, I'm taking too long to process that request. Please try a simpler request."
