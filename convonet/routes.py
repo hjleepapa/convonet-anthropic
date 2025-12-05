@@ -1378,15 +1378,23 @@ async def _run_agent_async(
         current_provider = _agent_graph_provider
         current_model = _agent_graph_model
         
-        print(f"🚀 Starting agent execution")
-        print(f"🚀 Provider: {current_provider}, Model: {current_model}")
+        print(f"🚀 Starting agent execution", flush=True)
+        sys.stdout.flush()
+        print(f"🚀 Provider: {current_provider}, Model: {current_model}", flush=True)
+        sys.stdout.flush()
         
         # Create the async iterator first
-        print(f"📡 Creating agent graph stream...")
+        print(f"📡 Creating agent graph stream...", flush=True)
+        sys.stdout.flush()
         stream = agent_graph.astream(input=input_state, stream_mode="values", config=config)
-        print(f"✅ Agent graph stream created, starting execution...")
+        print(f"✅ Agent graph stream created, starting execution...", flush=True)
+        sys.stdout.flush()
         
-        # Use wait_for to wrap the entire async for loop
+        # Use wait_for to wrap the entire async for loop with timeout for Gemini
+        execution_timeout = 20.0 if is_gemini else 30.0
+        print(f"⏱️ Using {execution_timeout}s timeout for graph execution (Gemini: {is_gemini})", flush=True)
+        sys.stdout.flush()
+        
         async def process_stream():
             transfer_marker = None
             tool_calls_info = []
