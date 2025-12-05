@@ -1383,13 +1383,6 @@ async def _run_agent_async(
         print(f"🚀 Provider: {current_provider}, Model: {current_model}", flush=True)
         sys.stdout.flush()
         
-        # Create the async iterator first
-        print(f"📡 Creating agent graph stream...", flush=True)
-        sys.stdout.flush()
-        stream = agent_graph.astream(input=input_state, stream_mode="values", config=config)
-        print(f"✅ Agent graph stream created, starting execution...", flush=True)
-        sys.stdout.flush()
-        
         # Use wait_for to wrap the entire async for loop with timeout for Gemini
         execution_timeout = 20.0 if is_gemini else 30.0
         print(f"⏱️ Using {execution_timeout}s timeout for graph execution (Gemini: {is_gemini})", flush=True)
@@ -1399,7 +1392,15 @@ async def _run_agent_async(
             transfer_marker = None
             tool_calls_info = []
             
-            print(f"🔄 Processing agent stream...")
+            # Create stream inside async function so it's in the right event loop context
+            print(f"📡 Creating agent graph stream inside process_stream...", flush=True)
+            sys.stdout.flush()
+            stream = agent_graph.astream(input=input_state, stream_mode="values", config=config)
+            print(f"✅ Agent graph stream created, starting execution...", flush=True)
+            sys.stdout.flush()
+            
+            print(f"🔄 Processing agent stream...", flush=True)
+            sys.stdout.flush()
             # Check each state update for transfer markers in tool results
             async for state in stream:
                 print(f"📊 Received state update from agent graph")
