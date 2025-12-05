@@ -1192,16 +1192,31 @@ def init_socketio(socketio_instance: SocketIO, app):
                         print(f"❌ Error generating TTS for transfer: {e}")
                 
                 if transfer_requested:
+                    print(f"🔄 Transfer requested, starting transfer flow...", flush=True)
+                    sys.stdout.flush()
                     start_transfer_flow('2001', 'support', 'User requested transfer to human agent', source="caller_intent")
                     return
 
                 # Step 2: Process with agent
+                print(f"🚀 About to emit status message...", flush=True)
+                sys.stdout.flush()
                 socketio.emit('status', {'message': 'Processing request...'}, namespace='/voice', room=session_id)
-                sentry_capture_voice_event("agent_processing_started", session_id, session.get('user_id'), details={"transcribed_text": transcribed_text})
+                print(f"✅ Status message emitted", flush=True)
+                sys.stdout.flush()
                 
-                print(f"🤖 Starting agent processing for: {transcribed_text[:100]}")
-                print(f"🔧 About to call process_with_agent in separate thread...")
+                print(f"📝 About to call sentry_capture_voice_event for agent_processing_started...", flush=True)
+                sys.stdout.flush()
+                sentry_capture_voice_event("agent_processing_started", session_id, session.get('user_id'), details={"transcribed_text": transcribed_text})
+                print(f"✅ sentry_capture_voice_event for agent_processing_started completed", flush=True)
+                sys.stdout.flush()
+                
+                print(f"🤖 Starting agent processing for: {transcribed_text[:100]}", flush=True)
+                sys.stdout.flush()
+                print(f"🔧 About to call process_with_agent in separate thread...", flush=True)
+                sys.stdout.flush()
                 try:
+                    print(f"🔧 Setting up ThreadPoolExecutor...", flush=True)
+                    sys.stdout.flush()
                     # Use eventlet's spawn_n to run async code in completely separate greenlet
                     # This prevents blocking the main eventlet worker
                     import eventlet
@@ -1209,6 +1224,8 @@ def init_socketio(socketio_instance: SocketIO, app):
                     
                     result_container = {'response': None, 'transfer': None, 'error': None, 'done': False}
                     
+                    print(f"🔧 Defining run_async_in_thread function...", flush=True)
+                    sys.stdout.flush()
                     def run_async_in_thread():
                         """Run async function in a new thread with its own event loop"""
                         print(f"🧵 Thread started for async execution")
@@ -1247,8 +1264,11 @@ def init_socketio(socketio_instance: SocketIO, app):
                             print(f"🧵 Thread event loop closed")
                     
                     # Run in thread pool with timeout
-                    print(f"🚀 Submitting to ThreadPoolExecutor...")
+                    print(f"🚀 Submitting to ThreadPoolExecutor...", flush=True)
+                    sys.stdout.flush()
                     with ThreadPoolExecutor(max_workers=1) as executor:
+                        print(f"✅ ThreadPoolExecutor created, submitting task...", flush=True)
+                        sys.stdout.flush()
                         future = executor.submit(run_async_in_thread)
                         try:
                             print(f"⏳ Waiting for result with 20s timeout...")
