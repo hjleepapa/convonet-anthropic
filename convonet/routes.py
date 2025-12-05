@@ -1123,15 +1123,62 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
             print(f"⏱️ Starting TodoAgent initialization (this may take a few seconds)...", flush=True)
             sys.stdout.flush()
             
-            # TodoAgent.__init__ does LLM initialization and graph building synchronously
-            # This can take time, especially for Gemini with tool binding
-            # Note: This is synchronous, so it will block until complete
-            # The timeout wrapper in _run_agent_async will catch if this takes too long
-            print(f"🚀 About to create TodoAgent instance...", flush=True)
+            # CRITICAL FIX: TodoAgent.__init__ is synchronous and blocks the event loop
+            # For Gemini, bind_tools() can hang indefinitely
+            # Run TodoAgent creation in a separate thread with timeout to prevent blocking
+            print(f"🚀 About to create TodoAgent instance in separate thread...", flush=True)
             sys.stdout.flush()
-            todo_agent = TodoAgent(tools=tools, provider=provider, model=current_model)
-            print(f"✅ TodoAgent created successfully, graph already built in __init__", flush=True)
+            
+            import threading
+            import time
+            
+            todo_agent_result = {'agent': None, 'error': None, 'done': False}
+            
+            def create_todo_agent():
+                """Create TodoAgent in separate thread to prevent blocking"""
+                import sys
+                try:
+                    print(f"🧵 Thread: Starting TodoAgent creation...", flush=True)
+                    sys.stdout.flush()
+                    start_time = time.time()
+                    todo_agent_result['agent'] = TodoAgent(tools=tools, provider=provider, model=current_model)
+                    elapsed = time.time() - start_time
+                    print(f"🧵 Thread: TodoAgent created successfully in {elapsed:.2f}s", flush=True)
+                    sys.stdout.flush()
+                except Exception as e:
+                    print(f"🧵 Thread: TodoAgent creation failed: {e}", flush=True)
+                    sys.stdout.flush()
+                    import traceback
+                    traceback.print_exc()
+                    todo_agent_result['error'] = e
+                finally:
+                    todo_agent_result['done'] = True
+                    print(f"🧵 Thread: TodoAgent creation thread finished", flush=True)
+                    sys.stdout.flush()
+            
+            # Use aggressive timeout for Gemini (8s) vs others (12s)
+            timeout_seconds = 8.0 if provider == "gemini" else 12.0
+            print(f"⏱️ Creating TodoAgent with {timeout_seconds}s timeout...", flush=True)
             sys.stdout.flush()
+            
+            agent_thread = threading.Thread(target=create_todo_agent, daemon=True)
+            agent_thread.start()
+            agent_thread.join(timeout=timeout_seconds)
+            
+            if not todo_agent_result['done']:
+                print(f"⏱️ TodoAgent creation timed out after {timeout_seconds} seconds", flush=True)
+                sys.stdout.flush()
+                raise TimeoutError(f"TodoAgent initialization timed out after {timeout_seconds}s - likely Gemini bind_tools() hang")
+            elif todo_agent_result['error']:
+                print(f"❌ TodoAgent creation failed: {todo_agent_result['error']}", flush=True)
+                sys.stdout.flush()
+                raise todo_agent_result['error']
+            elif todo_agent_result['agent']:
+                todo_agent = todo_agent_result['agent']
+                print(f"✅ TodoAgent created successfully, graph already built in __init__", flush=True)
+                sys.stdout.flush()
+            else:
+                raise Exception("TodoAgent creation returned no result")
             
             # Graph is already built in TodoAgent.__init__, just get it
             _agent_graph_cache = todo_agent.graph
