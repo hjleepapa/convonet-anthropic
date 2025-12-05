@@ -13,6 +13,13 @@ from uuid import UUID
 from urllib.parse import quote
 from flask import Blueprint, render_template, request, jsonify
 from flask_socketio import SocketIO, emit, join_room, leave_room
+
+# Apply nest_asyncio to allow nested event loops (needed for eventlet compatibility)
+try:
+    import nest_asyncio
+    nest_asyncio.apply()
+except ImportError:
+    pass  # nest_asyncio not available, may cause issues with eventlet
 # Note: OpenAI import removed - using Claude LLM and Deepgram TTS
 from convonet.assistant_graph_todo import get_agent
 from convonet.state import AgentState
@@ -1161,10 +1168,7 @@ def init_socketio(socketio_instance: SocketIO, app):
                 print(f"🤖 Starting agent processing for: {transcribed_text[:100]}")
                 try:
                     # Use eventlet-compatible async execution
-                    # asyncio.run() blocks eventlet workers, so we use nest_asyncio or thread pool
-                    import nest_asyncio
-                    nest_asyncio.apply()
-                    
+                    # asyncio.run() blocks eventlet workers, so we use nest_asyncio
                     # Get or create event loop
                     try:
                         loop = asyncio.get_event_loop()
@@ -1173,6 +1177,7 @@ def init_socketio(socketio_instance: SocketIO, app):
                         asyncio.set_event_loop(loop)
                     
                     # Run with timeout in the existing loop
+                    # This allows the timeout to work properly in eventlet context
                     agent_response, transfer_marker = loop.run_until_complete(
                         asyncio.wait_for(
                             process_with_agent(
