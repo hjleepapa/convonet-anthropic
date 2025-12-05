@@ -1310,6 +1310,10 @@ async def _run_agent_async(
             print(f"⏱️ Agent graph initialization timed out after {timeout_seconds} seconds", flush=True)
             sys.stdout.flush()
             raise
+        
+        # Now execute the graph - this is where Gemini might hang
+        print(f"🚀 About to execute agent graph with prompt...", flush=True)
+        sys.stdout.flush()
     except asyncio.TimeoutError:
         print(f"⏱️ Agent graph initialization timed out after 10 seconds")
         error_msg = "Agent initialization timed out. Please try again."
