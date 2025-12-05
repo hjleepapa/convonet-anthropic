@@ -1403,14 +1403,18 @@ async def _run_agent_async(
             return final_response
         
         # Use shorter timeout for Gemini (25s) to avoid worker timeout (30s)
-        timeout_seconds = 25.0 if provider == "gemini" else 20.0
-        print(f"⏱️ Starting agent execution with {timeout_seconds}-second timeout (provider: {provider})...")
+        timeout_seconds = 25.0 if current_provider == "gemini" else 20.0
+        print(f"⏱️ Starting agent execution with {timeout_seconds}-second timeout (provider: {current_provider})...")
         result = await asyncio.wait_for(process_stream(), timeout=timeout_seconds)
         print(f"✅ Agent execution completed successfully")
         return result
     except asyncio.TimeoutError:
         # Track timeout
         duration_ms = (time.time() - start_time) * 1000
+        current_provider = _agent_graph_provider
+        timeout_seconds = 25.0 if current_provider == "gemini" else 20.0
+        print(f"⏱️ Agent execution timed out after {timeout_seconds} seconds")
+        print(f"⏱️ Provider: {current_provider}, This likely means Gemini LLM is hanging during tool calling or response generation")
         monitor.track_interaction(
             request_id=request_id,
             user_id=user_id,
@@ -1422,7 +1426,7 @@ async def _run_agent_async(
             tool_calls=[],
             status=AgentInteractionStatus.TIMEOUT,
             duration_ms=duration_ms,
-            error=f"Agent execution timed out after {timeout_seconds if 'timeout_seconds' in locals() else 20} seconds (provider: {_agent_graph_provider})"
+            error=f"Agent execution timed out after {timeout_seconds} seconds (provider: {current_provider})"
         )
         # Return a special marker for timeout
         return "AGENT_TIMEOUT: Taking too long to process. Please try a simpler request."
