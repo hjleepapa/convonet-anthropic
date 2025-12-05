@@ -195,42 +195,72 @@ class LLMProviderManager:
                         print(f"⚠️ Tool calls will NOT be available for Gemini - agent will respond with text only")
                     else:
                         # Use a timeout and make it optional if it fails
-                        print(f"🔧 Binding {len(tools)} tools to Gemini LLM (this may take a moment)...")
-                        print(f"💡 If this hangs, set SKIP_GEMINI_TOOL_BINDING=true to skip tool binding")
+                        import sys
+                        print(f"🔧 Binding {len(tools)} tools to Gemini LLM (this may take a moment)...", flush=True)
+                        sys.stdout.flush()
+                        print(f"💡 If this hangs, set SKIP_GEMINI_TOOL_BINDING=true to skip tool binding", flush=True)
+                        sys.stdout.flush()
                         try:
                             import threading
+                            import time
                             
                             binding_result = {'success': False, 'llm': llm, 'error': None, 'done': False}
                             
                             def bind_tools_sync():
                                 """Bind tools synchronously in a thread"""
+                                import sys
                                 try:
+                                    print(f"🧵 Thread: About to call llm.bind_tools()...", flush=True)
+                                    sys.stdout.flush()
+                                    start_time = time.time()
                                     binding_result['llm'] = llm.bind_tools(tools=tools)
+                                    elapsed = time.time() - start_time
+                                    print(f"🧵 Thread: bind_tools() completed in {elapsed:.2f}s", flush=True)
+                                    sys.stdout.flush()
                                     binding_result['success'] = True
                                 except Exception as e:
+                                    print(f"🧵 Thread: bind_tools() raised exception: {e}", flush=True)
+                                    sys.stdout.flush()
                                     binding_result['error'] = e
                                 finally:
                                     binding_result['done'] = True
+                                    print(f"🧵 Thread: bind_tools_sync() finished, done=True", flush=True)
+                                    sys.stdout.flush()
                             
+                            print(f"🚀 Starting bind_tools thread...", flush=True)
+                            sys.stdout.flush()
                             bind_thread = threading.Thread(target=bind_tools_sync, daemon=True)
                             bind_thread.start()
+                            print(f"⏳ Waiting for bind_tools with 5s timeout...", flush=True)
+                            sys.stdout.flush()
                             bind_thread.join(timeout=5.0)  # 5 second timeout for Gemini tool binding
                             
                             if not binding_result['done']:
-                                print(f"⏱️ Gemini tool binding timed out after 5 seconds")
-                                print(f"⚠️ Continuing without tool binding - Gemini tool calls will be disabled")
-                                print(f"💡 Tip: Set SKIP_GEMINI_TOOL_BINDING=true to skip binding entirely and speed up initialization")
+                                print(f"⏱️ Gemini tool binding timed out after 5 seconds", flush=True)
+                                sys.stdout.flush()
+                                print(f"⚠️ Continuing without tool binding - Gemini tool calls will be disabled", flush=True)
+                                sys.stdout.flush()
+                                print(f"💡 Tip: Set SKIP_GEMINI_TOOL_BINDING=true to skip binding entirely and speed up initialization", flush=True)
+                                sys.stdout.flush()
                             elif binding_result['error']:
-                                print(f"⚠️ Gemini tool binding failed: {binding_result['error']}")
-                                print(f"⚠️ Continuing without tool binding - tool calls may not work properly")
+                                print(f"⚠️ Gemini tool binding failed: {binding_result['error']}", flush=True)
+                                sys.stdout.flush()
+                                print(f"⚠️ Continuing without tool binding - tool calls may not work properly", flush=True)
+                                sys.stdout.flush()
                             elif binding_result['success']:
                                 llm = binding_result['llm']
-                                print(f"✅ Successfully bound tools to Gemini LLM")
+                                print(f"✅ Successfully bound tools to Gemini LLM", flush=True)
+                                sys.stdout.flush()
                             else:
-                                print(f"⚠️ Gemini tool binding returned no result, continuing without binding")
+                                print(f"⚠️ Gemini tool binding returned no result, continuing without binding", flush=True)
+                                sys.stdout.flush()
                         except Exception as tool_error:
-                            print(f"⚠️ Warning: Failed to bind tools to Gemini LLM: {tool_error}")
-                            print(f"⚠️ Continuing without tool binding - tool calls may not work properly")
+                            print(f"⚠️ Warning: Failed to bind tools to Gemini LLM: {tool_error}", flush=True)
+                            sys.stdout.flush()
+                            import traceback
+                            traceback.print_exc()
+                            print(f"⚠️ Continuing without tool binding - tool calls may not work properly", flush=True)
+                            sys.stdout.flush()
                 else:
                     # For Claude and OpenAI, tool binding is usually fast and reliable
                     try:

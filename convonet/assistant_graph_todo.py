@@ -284,13 +284,19 @@ class TodoAgent:
         
         # Create LLM using provider manager
         try:
-            print(f"🤖 Initializing {provider_manager.providers[self.provider]['name']} with provider: {self.provider}")
+            import sys
+            print(f"🤖 Initializing {provider_manager.providers[self.provider]['name']} with provider: {self.provider}", flush=True)
+            sys.stdout.flush()
+            print(f"🚀 About to call provider_manager.create_llm()...", flush=True)
+            sys.stdout.flush()
             self.llm = provider_manager.create_llm(
                 provider=self.provider,
                 model=self.model,
                 temperature=0.0,
                 tools=self.tools,
             )
+            print(f"✅ provider_manager.create_llm() returned successfully", flush=True)
+            sys.stdout.flush()
             
             # Get the actual model name used
             if hasattr(self.llm, 'model_name'):
@@ -298,8 +304,10 @@ class TodoAgent:
             elif hasattr(self.llm, 'model'):
                 self.model = self.llm.model
             
-            print(f"✅ {provider_manager.providers[self.provider]['name']} initialized successfully")
-            print(f"✅ Model: {self.model}")
+            print(f"✅ {provider_manager.providers[self.provider]['name']} initialized successfully", flush=True)
+            sys.stdout.flush()
+            print(f"✅ Model: {self.model}", flush=True)
+            sys.stdout.flush()
             
         except Exception as e:
             error_msg = f"❌ Failed to initialize {self.provider} LLM: {e}"

@@ -1112,18 +1112,26 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
         # Build agent graph with whatever tools we have (even if empty)
         # This ensures we always try to build the graph, even if MCP tools failed
         try:
-            print(f"🔧 Building agent graph with {len(tools)} tools...")
-            print(f"🔧 Using provider: {provider}, model: {current_model}")
+            import sys
+            print(f"🔧 Building agent graph with {len(tools)} tools...", flush=True)
+            sys.stdout.flush()
+            print(f"🔧 Using provider: {provider}, model: {current_model}", flush=True)
+            sys.stdout.flush()
             if _mcp_tools_cache is not None:
-                print(f"✅ Using {len(_mcp_tools_cache)} cached MCP tools for agent graph")
-            print(f"⏱️ Starting TodoAgent initialization (this may take a few seconds)...")
+                print(f"✅ Using {len(_mcp_tools_cache)} cached MCP tools for agent graph", flush=True)
+                sys.stdout.flush()
+            print(f"⏱️ Starting TodoAgent initialization (this may take a few seconds)...", flush=True)
+            sys.stdout.flush()
             
             # TodoAgent.__init__ does LLM initialization and graph building synchronously
             # This can take time, especially for Gemini with tool binding
             # Note: This is synchronous, so it will block until complete
             # The timeout wrapper in _run_agent_async will catch if this takes too long
+            print(f"🚀 About to create TodoAgent instance...", flush=True)
+            sys.stdout.flush()
             todo_agent = TodoAgent(tools=tools, provider=provider, model=current_model)
-            print(f"⏱️ TodoAgent created successfully, graph already built in __init__")
+            print(f"✅ TodoAgent created successfully, graph already built in __init__", flush=True)
+            sys.stdout.flush()
             
             # Graph is already built in TodoAgent.__init__, just get it
             _agent_graph_cache = todo_agent.graph
@@ -1218,7 +1226,9 @@ async def _run_agent_async(
     monitor = get_agent_monitor()
     
     try:
-        print(f"🔧 Getting agent graph for user_id: {user_id}")
+        print(f"🔧 Getting agent graph for user_id: {user_id}", flush=True)
+        import sys
+        sys.stdout.flush()
         # Add aggressive timeout to agent graph initialization to prevent hanging
         # Use shorter timeout for Gemini (8s) vs others (12s)
         try:
@@ -1231,19 +1241,27 @@ async def _run_agent_async(
                 if not user_pref:
                     user_pref = redis_mgr.get("user:default:llm_provider")
                 is_gemini = (user_pref == "gemini")
-            except:
-                pass
+                print(f"🔍 Provider preference check: user_pref={user_pref}, is_gemini={is_gemini}", flush=True)
+                sys.stdout.flush()
+            except Exception as e:
+                print(f"⚠️ Error checking provider preference: {e}", flush=True)
+                sys.stdout.flush()
             
             timeout_seconds = 8.0 if is_gemini else 12.0
-            print(f"⏱️ Using {timeout_seconds}s timeout for agent graph initialization (Gemini: {is_gemini})")
+            print(f"⏱️ Using {timeout_seconds}s timeout for agent graph initialization (Gemini: {is_gemini})", flush=True)
+            sys.stdout.flush()
             
+            print(f"🚀 About to call _get_agent_graph() with timeout...", flush=True)
+            sys.stdout.flush()
             agent_graph = await asyncio.wait_for(
                 _get_agent_graph(user_id=user_id),
                 timeout=timeout_seconds
             )
-            print(f"✅ Agent graph obtained successfully")
+            print(f"✅ Agent graph obtained successfully", flush=True)
+            sys.stdout.flush()
         except asyncio.TimeoutError:
-            print(f"⏱️ Agent graph initialization timed out after {timeout_seconds} seconds")
+            print(f"⏱️ Agent graph initialization timed out after {timeout_seconds} seconds", flush=True)
+            sys.stdout.flush()
             raise
     except asyncio.TimeoutError:
         print(f"⏱️ Agent graph initialization timed out after 10 seconds")
