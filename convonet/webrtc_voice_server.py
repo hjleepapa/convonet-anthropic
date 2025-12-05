@@ -1160,20 +1160,32 @@ def init_socketio(socketio_instance: SocketIO, app):
                 
                 print(f"🤖 Starting agent processing for: {transcribed_text[:100]}")
                 try:
-                    # Add timeout wrapper to prevent worker timeout
-                    agent_response, transfer_marker = asyncio.run(
+                    # Use eventlet-compatible async execution
+                    # asyncio.run() blocks eventlet workers, so we use nest_asyncio or thread pool
+                    import nest_asyncio
+                    nest_asyncio.apply()
+                    
+                    # Get or create event loop
+                    try:
+                        loop = asyncio.get_event_loop()
+                    except RuntimeError:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                    
+                    # Run with timeout in the existing loop
+                    agent_response, transfer_marker = loop.run_until_complete(
                         asyncio.wait_for(
                             process_with_agent(
                                 transcribed_text,
                                 session['user_id'],
                                 session['user_name']
                             ),
-                            timeout=15.0  # 15 second timeout to prevent worker timeout
+                            timeout=20.0  # 20 second timeout (reduced from 25s to avoid worker timeout)
                         )
                     )
                     print(f"🤖 Agent response: {agent_response}")
                 except asyncio.TimeoutError:
-                    print(f"⏱️ Agent processing timed out after 15 seconds")
+                    print(f"⏱️ Agent processing timed out after 20 seconds")
                     agent_response = "I'm sorry, I'm taking too long to process that request. Please try a simpler request."
                     transfer_marker = None
                 except Exception as e:
