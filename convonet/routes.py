@@ -1389,6 +1389,7 @@ async def _run_agent_async(
         sys.stdout.flush()
         
         async def process_stream():
+            import time  # Import time here for duration calculation
             transfer_marker = None
             tool_calls_info = []
             
@@ -1403,7 +1404,8 @@ async def _run_agent_async(
             sys.stdout.flush()
             # Check each state update for transfer markers in tool results
             async for state in stream:
-                print(f"📊 Received state update from agent graph")
+                print(f"📊 Received state update from agent graph", flush=True)
+                sys.stdout.flush()
                 if "messages" in state:
                     for msg in state["messages"]:
                         # Check for TRANSFER_INITIATED in tool message content
