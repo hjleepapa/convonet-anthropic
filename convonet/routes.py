@@ -1272,10 +1272,12 @@ async def _run_agent_async(
     start_time = time.time()
     monitor = get_agent_monitor()
     
+    # Add early logging to track provider selection
+    print(f"🔧 Getting agent graph for user_id: {user_id}", flush=True)
+    import sys
+    sys.stdout.flush()
+    
     try:
-        print(f"🔧 Getting agent graph for user_id: {user_id}", flush=True)
-        import sys
-        sys.stdout.flush()
         # Add aggressive timeout to agent graph initialization to prevent hanging
         # Use shorter timeout for Gemini (8s) vs others (12s)
         try:
@@ -1525,7 +1527,7 @@ async def _run_agent_async(
                 """Run graph execution in separate thread with its own event loop"""
                 import sys
                 import asyncio
-                import time
+                import time as thread_time_module  # Use alias to avoid conflicts
                 try:
                     print(f"🧵 Thread: Starting graph execution...", flush=True)
                     sys.stdout.flush()
@@ -1533,10 +1535,10 @@ async def _run_agent_async(
                     new_loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(new_loop)
                     
-                    start_time = time.time()
+                    thread_start_time = thread_time_module.time()
                     # Run process_stream in this thread's event loop
                     result = new_loop.run_until_complete(process_stream())
-                    elapsed = time.time() - start_time
+                    elapsed = thread_time_module.time() - thread_start_time
                     
                     print(f"🧵 Thread: Graph execution completed in {elapsed:.2f}s", flush=True)
                     sys.stdout.flush()
