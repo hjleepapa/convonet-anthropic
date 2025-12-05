@@ -1389,15 +1389,12 @@ async def _run_agent_async(
         sys.stdout.flush()
         
         async def process_stream():
-            # Import time at the very beginning - CRITICAL for scoping
-            # Must import before any usage to avoid "local variable" error
-            import time as time_module
+            # Capture start_time from outer scope IMMEDIATELY
+            # This must happen before any other code to avoid scoping issues
+            # Use module-level 'time' import (line 10) - don't reimport here
+            process_start_time = start_time
             transfer_marker = None
             tool_calls_info = []
-            
-            # Capture start_time from outer scope for duration calculation
-            # start_time is defined in _run_agent_async() outer function
-            process_start_time = start_time
             
             # Create stream inside async function so it's in the right event loop context
             print(f"📡 Creating agent graph stream inside process_stream...", flush=True)
@@ -1481,7 +1478,8 @@ async def _run_agent_async(
                             break
             
             # Calculate duration using captured start_time
-            duration_ms = (time_module.time() - process_start_time) * 1000
+            # Use module-level 'time' import - it's available in this scope
+            duration_ms = (time.time() - process_start_time) * 1000
             
             # Track the interaction
             monitor.track_interaction(
