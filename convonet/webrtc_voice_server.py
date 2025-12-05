@@ -1228,12 +1228,19 @@ def init_socketio(socketio_instance: SocketIO, app):
                     sys.stdout.flush()
                     def run_async_in_thread():
                         """Run async function in a new thread with its own event loop"""
-                        print(f"🧵 Thread started for async execution")
+                        import sys
+                        print(f"🧵 Thread started for async execution", flush=True)
+                        sys.stdout.flush()
                         # Create new event loop for this thread
+                        print(f"🔧 Creating new event loop in thread...", flush=True)
+                        sys.stdout.flush()
                         new_loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(new_loop)
+                        print(f"✅ Event loop created and set", flush=True)
+                        sys.stdout.flush()
                         try:
-                            print(f"🔄 Running process_with_agent in thread...")
+                            print(f"🔄 Running process_with_agent in thread...", flush=True)
+                            sys.stdout.flush()
                             result = new_loop.run_until_complete(
                                 asyncio.wait_for(
                                     process_with_agent(
@@ -1244,24 +1251,32 @@ def init_socketio(socketio_instance: SocketIO, app):
                                     timeout=18.0  # 18 second timeout (well below 30s worker timeout)
                                 )
                             )
-                            print(f"✅ process_with_agent completed in thread")
+                            print(f"✅ process_with_agent completed in thread", flush=True)
+                            sys.stdout.flush()
                             result_container['response'] = result[0]
                             result_container['transfer'] = result[1]
                             result_container['done'] = True
                             return result
                         except asyncio.TimeoutError:
-                            print(f"⏱️ Async timeout in thread after 18 seconds")
+                            print(f"⏱️ Async timeout in thread after 18 seconds", flush=True)
+                            sys.stdout.flush()
                             result_container['error'] = 'timeout'
                             result_container['done'] = True
                             raise
                         except Exception as e:
-                            print(f"❌ Error in thread: {e}")
+                            print(f"❌ Error in thread: {e}", flush=True)
+                            sys.stdout.flush()
+                            import traceback
+                            traceback.print_exc()
                             result_container['error'] = str(e)
                             result_container['done'] = True
                             raise
                         finally:
+                            print(f"🧵 Closing event loop...", flush=True)
+                            sys.stdout.flush()
                             new_loop.close()
-                            print(f"🧵 Thread event loop closed")
+                            print(f"🧵 Thread event loop closed", flush=True)
+                            sys.stdout.flush()
                     
                     # Run in thread pool with timeout
                     print(f"🚀 Submitting to ThreadPoolExecutor...", flush=True)
