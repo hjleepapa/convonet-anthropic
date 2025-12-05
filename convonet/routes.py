@@ -1369,7 +1369,9 @@ async def _run_agent_async(
     )
     
     # Use timestamped thread ID after errors to start fresh conversation
-    thread_suffix = f"-{int(time.time())}" if reset_thread else ""
+    # Use module-level time import to avoid scoping issues
+    import time as time_for_thread
+    thread_suffix = f"-{int(time_for_thread.time())}" if reset_thread else ""
     thread_id = f"user-{user_id}{thread_suffix}" if user_id else f"flask-thread-1{thread_suffix}"
     config = {"configurable": {"thread_id": thread_id}}
     
