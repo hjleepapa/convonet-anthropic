@@ -1021,18 +1021,24 @@ def init_socketio(socketio_instance: SocketIO, app):
     
     def process_audio_async(session_id, audio_buffer):
         """Process audio in background task"""
-        print(f"🚀 process_audio_async STARTED for session: {session_id}, buffer size: {len(audio_buffer)}")
+        import sys
+        print(f"🚀 process_audio_async STARTED for session: {session_id}, buffer size: {len(audio_buffer)}", flush=True)
+        sys.stdout.flush()
         # Use the stored Flask app instance for application context
-        print(f"🔧 Entering Flask app context...")
+        print(f"🔧 Entering Flask app context...", flush=True)
+        sys.stdout.flush()
         with flask_app.app_context():
-            print(f"✅ Flask app context entered")
+            print(f"✅ Flask app context entered", flush=True)
+            sys.stdout.flush()
             try:
                 # Get session data
-                print(f"🔍 Getting session data from Redis/memory...")
+                print(f"🔍 Getting session data from Redis/memory...", flush=True)
+                sys.stdout.flush()
                 session = None
                 session_record = None
                 if redis_manager.is_available():
-                    print(f"📦 Redis is available, getting session from Redis...")
+                    print(f"📦 Redis is available, getting session from Redis...", flush=True)
+                    sys.stdout.flush()
                     session_data = get_session(session_id)
                     if not session_data:
                         sentry_capture_voice_event("session_not_found_processing", session_id, details={"operation": "audio_processing"})
@@ -1061,19 +1067,24 @@ def init_socketio(socketio_instance: SocketIO, app):
                 print(f"🎧 Deepgram: Processing audio buffer: {len(audio_buffer)} bytes")
                 
                 # Use Deepgram integration
-                print(f"🔧 About to call transcribe_audio_with_deepgram_webrtc...")
+                import sys
+                print(f"🔧 About to call transcribe_audio_with_deepgram_webrtc...", flush=True)
+                sys.stdout.flush()
                 try:
                     transcribed_text = transcribe_audio_with_deepgram_webrtc(audio_buffer, language="en")
-                    print(f"✅ transcribe_audio_with_deepgram_webrtc returned: {transcribed_text[:50] if transcribed_text else 'None'}...")
+                    print(f"✅ transcribe_audio_with_deepgram_webrtc returned: {transcribed_text[:50] if transcribed_text else 'None'}...", flush=True)
+                    sys.stdout.flush()
                 except Exception as e:
-                    print(f"❌ Deepgram integration failed: {e}")
+                    print(f"❌ Deepgram integration failed: {e}", flush=True)
+                    sys.stdout.flush()
                     import traceback
                     traceback.print_exc()
                     socketio.emit('error', {'message': 'Deepgram service not available. Please check configuration.'}, namespace='/voice', room=session_id)
                     sentry_capture_voice_event("transcription_failed", session_id, session.get('user_id'), details={"method": "deepgram", "error": str(e)})
                     return
                 
-                print(f"🔍 Checking if transcribed_text is empty...")
+                print(f"🔍 Checking if transcribed_text is empty...", flush=True)
+                sys.stdout.flush()
                 if not transcribed_text:
                     print("❌ Deepgram transcription failed")
                     socketio.emit('error', {
@@ -1083,21 +1094,30 @@ def init_socketio(socketio_instance: SocketIO, app):
                     sentry_capture_voice_event("transcription_failed", session_id, session.get('user_id'), details={"method": "deepgram"})
                     return
                 
-                print(f"✅ Deepgram transcription successful: {transcribed_text}")
+                print(f"✅ Deepgram transcription successful: {transcribed_text}", flush=True)
+                sys.stdout.flush()
+                print(f"📝 About to call sentry_capture_voice_event...", flush=True)
+                sys.stdout.flush()
                 sentry_capture_voice_event("transcription_completed", session_id, session.get('user_id'), details={"text_length": len(transcribed_text), "method": "deepgram"})
+                print(f"✅ sentry_capture_voice_event completed", flush=True)
+                sys.stdout.flush()
                 
                 # Send transcription to client
-                print(f"📤 Sending transcription to client...")
+                print(f"📤 Sending transcription to client...", flush=True)
+                sys.stdout.flush()
                 socketio.emit('transcription', {
                     'success': True,
                     'text': transcribed_text,
                     'method': 'assemblyai'
                 }, namespace='/voice', room=session_id)
-                print(f"✅ Transcription sent to client")
+                print(f"✅ Transcription sent to client", flush=True)
+                sys.stdout.flush()
                 
-                print(f"🔍 Checking for transfer intent...")
+                print(f"🔍 Checking for transfer intent...", flush=True)
+                sys.stdout.flush()
                 transfer_requested = has_transfer_intent(transcribed_text)
-                print(f"✅ Transfer intent check complete: {transfer_requested}")
+                print(f"✅ Transfer intent check complete: {transfer_requested}", flush=True)
+                sys.stdout.flush()
                 
                 def start_transfer_flow(target_extension: str, department: str, reason: str, source: str = "agent"):
                     print(f"🔄 Transfer requested: Extension={target_extension}, Department={department}, Reason={reason}")
