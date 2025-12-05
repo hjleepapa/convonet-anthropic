@@ -1287,8 +1287,12 @@ async def _run_agent_async(
 
     # Stream through the graph to execute the agent logic with timeout
     try:
-        print(f"🚀 Starting agent execution with {len(tools) if 'tools' in locals() else 'unknown'} tools")
-        print(f"🚀 Provider: {provider if 'provider' in locals() else 'unknown'}, Model: {current_model if 'current_model' in locals() else 'unknown'}")
+        # Get provider and model from cached graph (they're set when graph is created)
+        current_provider = _agent_graph_provider
+        current_model = _agent_graph_model
+        
+        print(f"🚀 Starting agent execution")
+        print(f"🚀 Provider: {current_provider}, Model: {current_model}")
         
         # Create the async iterator first
         print(f"📡 Creating agent graph stream...")
