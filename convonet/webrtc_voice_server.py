@@ -1306,25 +1306,42 @@ def init_socketio(socketio_instance: SocketIO, app):
                                 pass
                             raise asyncio.TimeoutError("Agent processing timed out at thread level")
                     
-                    # Run in thread pool with timeout
+                    # Run in thread pool with aggressive timeout for Gemini hackathon
                     print(f"🚀 Submitting to ThreadPoolExecutor...", flush=True)
                     sys.stdout.flush()
                     with ThreadPoolExecutor(max_workers=1) as executor:
                         print(f"✅ ThreadPoolExecutor created, submitting task...", flush=True)
                         sys.stdout.flush()
                         future = executor.submit(run_async_in_thread)
+                        print(f"✅ Task submitted to executor, future created", flush=True)
+                        sys.stdout.flush()
                         try:
-                            print(f"⏳ Waiting for result with 20s timeout...")
-                            agent_response, transfer_marker = future.result(timeout=20.0)  # 20s total timeout
-                            print(f"🤖 Agent response received: {agent_response[:100] if agent_response else 'None'}")
+                            # Use 15s timeout (10s async + 2s buffer + 3s thread overhead)
+                            print(f"⏳ Waiting for result with 15s timeout...", flush=True)
+                            sys.stdout.flush()
+                            agent_response, transfer_marker = future.result(timeout=15.0)
+                            print(f"🤖 Agent response received: {agent_response[:100] if agent_response else 'None'}", flush=True)
+                            sys.stdout.flush()
                         except FutureTimeoutError:
-                            print(f"⏱️ ThreadPoolExecutor timed out after 20 seconds")
-                            agent_response = "I'm sorry, I'm taking too long to process that request. Please try a simpler request."
+                            print(f"⏱️ ThreadPoolExecutor timed out after 15 seconds", flush=True)
+                            sys.stdout.flush()
+                            agent_response = "I'm sorry, I'm taking too long to process that request. Please try a simpler request or switch to Claude model."
                             transfer_marker = None
                             # Cancel the future if possible
-                            future.cancel()
+                            try:
+                                future.cancel()
+                                print(f"✅ Future cancelled", flush=True)
+                                sys.stdout.flush()
+                            except:
+                                pass
+                        except asyncio.TimeoutError as e:
+                            print(f"⏱️ Async timeout: {e}", flush=True)
+                            sys.stdout.flush()
+                            agent_response = "I'm sorry, I'm taking too long to process that request. Please try a simpler request or switch to Claude model."
+                            transfer_marker = None
                         except Exception as e:
-                            print(f"❌ Exception in ThreadPoolExecutor: {e}")
+                            print(f"❌ Exception in ThreadPoolExecutor: {e}", flush=True)
+                            sys.stdout.flush()
                             import traceback
                             traceback.print_exc()
                             agent_response = "I'm sorry, I encountered an error. Please try again."
