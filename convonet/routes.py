@@ -1614,8 +1614,12 @@ async def _run_agent_async(
         # Return a special marker for timeout
         return "AGENT_TIMEOUT: Taking too long to process. Please try a simpler request."
     except Exception as e:
-        print(f"Error in agent execution: {e}")
+        import traceback
         error_str = str(e)
+        error_traceback = traceback.format_exc()
+        print(f"❌ Error in agent execution: {e}")
+        print(f"❌ Full traceback:\n{error_traceback}", flush=True)
+        sys.stdout.flush()
         
         # Track error
         duration_ms = (time.time() - start_time) * 1000
