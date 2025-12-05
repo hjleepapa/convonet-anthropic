@@ -1389,9 +1389,14 @@ async def _run_agent_async(
         sys.stdout.flush()
         
         async def process_stream():
-            import time  # Import time here for duration calculation
+            # Import time at the very beginning - CRITICAL for scoping
+            import time
             transfer_marker = None
             tool_calls_info = []
+            
+            # Capture start_time from outer scope for duration calculation
+            # start_time is defined in _run_agent_async() outer function
+            process_start_time = start_time
             
             # Create stream inside async function so it's in the right event loop context
             print(f"📡 Creating agent graph stream inside process_stream...", flush=True)
@@ -1474,8 +1479,8 @@ async def _run_agent_async(
                                 tc_info.duration_ms = msg.additional_kwargs['duration'] * 1000
                             break
             
-            # Calculate duration
-            duration_ms = (time.time() - start_time) * 1000
+            # Calculate duration using captured start_time
+            duration_ms = (time.time() - process_start_time) * 1000
             
             # Track the interaction
             monitor.track_interaction(
