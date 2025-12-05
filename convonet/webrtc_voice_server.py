@@ -1229,8 +1229,11 @@ def init_socketio(socketio_instance: SocketIO, app):
                     def run_async_in_thread():
                         """Run async function in a new thread with its own event loop"""
                         import sys
+                        import threading
+                        import time
                         print(f"🧵 Thread started for async execution", flush=True)
                         sys.stdout.flush()
+                        
                         # Create new event loop for this thread
                         print(f"🔧 Creating new event loop in thread...", flush=True)
                         sys.stdout.flush()
@@ -1238,45 +1241,70 @@ def init_socketio(socketio_instance: SocketIO, app):
                         asyncio.set_event_loop(new_loop)
                         print(f"✅ Event loop created and set", flush=True)
                         sys.stdout.flush()
-                        try:
-                            print(f"🔄 Running process_with_agent in thread...", flush=True)
-                            sys.stdout.flush()
-                            result = new_loop.run_until_complete(
-                                asyncio.wait_for(
-                                    process_with_agent(
-                                        transcribed_text,
-                                        session['user_id'],
-                                        session['user_name']
-                                    ),
-                                    timeout=18.0  # 18 second timeout (well below 30s worker timeout)
+                        
+                        # Use a shorter timeout for Gemini (10s) to avoid worker timeout
+                        timeout_seconds = 10.0
+                        result_value = None
+                        exception_value = None
+                        completed = threading.Event()
+                        
+                        def run_async():
+                            """Run the async code"""
+                            nonlocal result_value, exception_value
+                            try:
+                                print(f"🔄 Running process_with_agent in thread...", flush=True)
+                                sys.stdout.flush()
+                                result_value = new_loop.run_until_complete(
+                                    asyncio.wait_for(
+                                        process_with_agent(
+                                            transcribed_text,
+                                            session['user_id'],
+                                            session['user_name']
+                                        ),
+                                        timeout=timeout_seconds
+                                    )
                                 )
-                            )
-                            print(f"✅ process_with_agent completed in thread", flush=True)
-                            sys.stdout.flush()
-                            result_container['response'] = result[0]
-                            result_container['transfer'] = result[1]
+                                print(f"✅ process_with_agent completed in thread", flush=True)
+                                sys.stdout.flush()
+                            except asyncio.TimeoutError:
+                                print(f"⏱️ Async timeout in thread after {timeout_seconds} seconds", flush=True)
+                                sys.stdout.flush()
+                                exception_value = asyncio.TimeoutError("Agent processing timed out")
+                            except Exception as e:
+                                print(f"❌ Error in thread: {e}", flush=True)
+                                sys.stdout.flush()
+                                import traceback
+                                traceback.print_exc()
+                                exception_value = e
+                            finally:
+                                completed.set()
+                        
+                        # Run async code in a separate thread within this thread
+                        async_thread = threading.Thread(target=run_async, daemon=True)
+                        async_thread.start()
+                        
+                        # Wait for completion with timeout
+                        if completed.wait(timeout=timeout_seconds + 2.0):  # Give 2s buffer
+                            # Check if there was an exception
+                            if exception_value:
+                                if isinstance(exception_value, asyncio.TimeoutError):
+                                    raise asyncio.TimeoutError("Agent processing timed out")
+                                raise exception_value
+                            # Return the result
+                            result_container['response'] = result_value[0]
+                            result_container['transfer'] = result_value[1]
                             result_container['done'] = True
-                            return result
-                        except asyncio.TimeoutError:
-                            print(f"⏱️ Async timeout in thread after 18 seconds", flush=True)
+                            return result_value
+                        else:
+                            # Timeout - force stop the event loop
+                            print(f"⏱️ Thread-level timeout after {timeout_seconds + 2.0} seconds - forcing stop", flush=True)
                             sys.stdout.flush()
-                            result_container['error'] = 'timeout'
-                            result_container['done'] = True
-                            raise
-                        except Exception as e:
-                            print(f"❌ Error in thread: {e}", flush=True)
-                            sys.stdout.flush()
-                            import traceback
-                            traceback.print_exc()
-                            result_container['error'] = str(e)
-                            result_container['done'] = True
-                            raise
-                        finally:
-                            print(f"🧵 Closing event loop...", flush=True)
-                            sys.stdout.flush()
-                            new_loop.close()
-                            print(f"🧵 Thread event loop closed", flush=True)
-                            sys.stdout.flush()
+                            # Try to stop the loop
+                            try:
+                                new_loop.call_soon_threadsafe(new_loop.stop)
+                            except:
+                                pass
+                            raise asyncio.TimeoutError("Agent processing timed out at thread level")
                     
                     # Run in thread pool with timeout
                     print(f"🚀 Submitting to ThreadPoolExecutor...", flush=True)

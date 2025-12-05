@@ -1219,14 +1219,32 @@ async def _run_agent_async(
     
     try:
         print(f"🔧 Getting agent graph for user_id: {user_id}")
-        # Add timeout to agent graph initialization to prevent hanging
-        # Note: _get_agent_graph is async but graph building in TodoAgent.__init__ is sync
-        # So we need to wrap it properly
-        agent_graph = await asyncio.wait_for(
-            _get_agent_graph(user_id=user_id),
-            timeout=15.0  # 15 second timeout for graph initialization (MCP can be slow)
-        )
-        print(f"✅ Agent graph obtained successfully")
+        # Add aggressive timeout to agent graph initialization to prevent hanging
+        # Use shorter timeout for Gemini (8s) vs others (12s)
+        try:
+            # Check if we're using Gemini
+            from .redis_manager import get_redis_manager
+            redis_mgr = get_redis_manager()
+            is_gemini = False
+            try:
+                user_pref = redis_mgr.get(f"user:{user_id}:llm_provider") if user_id else None
+                if not user_pref:
+                    user_pref = redis_mgr.get("user:default:llm_provider")
+                is_gemini = (user_pref == "gemini")
+            except:
+                pass
+            
+            timeout_seconds = 8.0 if is_gemini else 12.0
+            print(f"⏱️ Using {timeout_seconds}s timeout for agent graph initialization (Gemini: {is_gemini})")
+            
+            agent_graph = await asyncio.wait_for(
+                _get_agent_graph(user_id=user_id),
+                timeout=timeout_seconds
+            )
+            print(f"✅ Agent graph obtained successfully")
+        except asyncio.TimeoutError:
+            print(f"⏱️ Agent graph initialization timed out after {timeout_seconds} seconds")
+            raise
     except asyncio.TimeoutError:
         print(f"⏱️ Agent graph initialization timed out after 10 seconds")
         error_msg = "Agent initialization timed out. Please try again."
