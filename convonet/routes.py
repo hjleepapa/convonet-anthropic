@@ -1390,7 +1390,8 @@ async def _run_agent_async(
         
         async def process_stream():
             # Import time at the very beginning - CRITICAL for scoping
-            import time
+            # Must import before any usage to avoid "local variable" error
+            import time as time_module
             transfer_marker = None
             tool_calls_info = []
             
@@ -1480,7 +1481,7 @@ async def _run_agent_async(
                             break
             
             # Calculate duration using captured start_time
-            duration_ms = (time.time() - process_start_time) * 1000
+            duration_ms = (time_module.time() - process_start_time) * 1000
             
             # Track the interaction
             monitor.track_interaction(
