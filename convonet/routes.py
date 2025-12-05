@@ -895,6 +895,11 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
     """
     global _agent_graph_cache, _agent_graph_model, _agent_graph_provider
     
+    # Add early logging
+    print(f"🔧 _get_agent_graph() called with provider={provider}, user_id={user_id}", flush=True)
+    import sys
+    sys.stdout.flush()
+    
     # Get provider preference
     if provider is None:
         print(f"🔍 Looking up LLM provider preference (user_id: {user_id})")
