@@ -1021,13 +1021,18 @@ def init_socketio(socketio_instance: SocketIO, app):
     
     def process_audio_async(session_id, audio_buffer):
         """Process audio in background task"""
+        print(f"🚀 process_audio_async STARTED for session: {session_id}, buffer size: {len(audio_buffer)}")
         # Use the stored Flask app instance for application context
+        print(f"🔧 Entering Flask app context...")
         with flask_app.app_context():
+            print(f"✅ Flask app context entered")
             try:
                 # Get session data
+                print(f"🔍 Getting session data from Redis/memory...")
                 session = None
                 session_record = None
                 if redis_manager.is_available():
+                    print(f"📦 Redis is available, getting session from Redis...")
                     session_data = get_session(session_id)
                     if not session_data:
                         sentry_capture_voice_event("session_not_found_processing", session_id, details={"operation": "audio_processing"})
