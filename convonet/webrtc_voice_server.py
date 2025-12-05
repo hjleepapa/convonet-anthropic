@@ -1167,30 +1167,44 @@ def init_socketio(socketio_instance: SocketIO, app):
                 
                 print(f"🤖 Starting agent processing for: {transcribed_text[:100]}")
                 try:
-                    # Use eventlet-compatible async execution
-                    # asyncio.run() blocks eventlet workers, so we use nest_asyncio
-                    # Get or create event loop
-                    try:
-                        loop = asyncio.get_event_loop()
-                    except RuntimeError:
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
+                    # Use ThreadPoolExecutor to run async code in separate thread
+                    # This prevents blocking eventlet workers and allows timeouts to work
+                    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+                    import threading
                     
-                    # Run with timeout in the existing loop
-                    # This allows the timeout to work properly in eventlet context
-                    agent_response, transfer_marker = loop.run_until_complete(
-                        asyncio.wait_for(
-                            process_with_agent(
-                                transcribed_text,
-                                session['user_id'],
-                                session['user_name']
-                            ),
-                            timeout=20.0  # 20 second timeout (reduced from 25s to avoid worker timeout)
-                        )
-                    )
-                    print(f"🤖 Agent response: {agent_response}")
+                    def run_async_in_thread():
+                        """Run async function in a new thread with its own event loop"""
+                        # Create new event loop for this thread
+                        new_loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(new_loop)
+                        try:
+                            return new_loop.run_until_complete(
+                                asyncio.wait_for(
+                                    process_with_agent(
+                                        transcribed_text,
+                                        session['user_id'],
+                                        session['user_name']
+                                    ),
+                                    timeout=18.0  # 18 second timeout (well below 30s worker timeout)
+                                )
+                            )
+                        finally:
+                            new_loop.close()
+                    
+                    # Run in thread pool with timeout
+                    with ThreadPoolExecutor(max_workers=1) as executor:
+                        future = executor.submit(run_async_in_thread)
+                        try:
+                            agent_response, transfer_marker = future.result(timeout=20.0)  # 20s total timeout
+                            print(f"🤖 Agent response: {agent_response}")
+                        except FutureTimeoutError:
+                            print(f"⏱️ Agent processing timed out after 20 seconds (thread timeout)")
+                            agent_response = "I'm sorry, I'm taking too long to process that request. Please try a simpler request."
+                            transfer_marker = None
+                            # Cancel the future if possible
+                            future.cancel()
                 except asyncio.TimeoutError:
-                    print(f"⏱️ Agent processing timed out after 20 seconds")
+                    print(f"⏱️ Agent processing timed out after 18 seconds (async timeout)")
                     agent_response = "I'm sorry, I'm taking too long to process that request. Please try a simpler request."
                     transfer_marker = None
                 except Exception as e:
