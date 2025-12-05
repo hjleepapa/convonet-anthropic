@@ -1056,14 +1056,19 @@ def init_socketio(socketio_instance: SocketIO, app):
                 print(f"🎧 Deepgram: Processing audio buffer: {len(audio_buffer)} bytes")
                 
                 # Use Deepgram integration
+                print(f"🔧 About to call transcribe_audio_with_deepgram_webrtc...")
                 try:
                     transcribed_text = transcribe_audio_with_deepgram_webrtc(audio_buffer, language="en")
+                    print(f"✅ transcribe_audio_with_deepgram_webrtc returned: {transcribed_text[:50] if transcribed_text else 'None'}...")
                 except Exception as e:
                     print(f"❌ Deepgram integration failed: {e}")
+                    import traceback
+                    traceback.print_exc()
                     socketio.emit('error', {'message': 'Deepgram service not available. Please check configuration.'}, namespace='/voice', room=session_id)
                     sentry_capture_voice_event("transcription_failed", session_id, session.get('user_id'), details={"method": "deepgram", "error": str(e)})
                     return
                 
+                print(f"🔍 Checking if transcribed_text is empty...")
                 if not transcribed_text:
                     print("❌ Deepgram transcription failed")
                     socketio.emit('error', {
