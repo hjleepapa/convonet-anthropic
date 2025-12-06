@@ -1421,23 +1421,37 @@ async def _run_agent_async(
             sys.stdout.flush()
             # Check each state update for transfer markers in tool results
             # Process stream with per-iteration timeout to prevent hanging
-            # Use very aggressive timeout (12s) to ensure we timeout well before worker timeout (30s)
-            stream_timeout = 12.0  # Much less than execution_timeout to ensure we timeout before worker timeout
+            # Use very aggressive timeout (10s) to ensure we timeout well before worker timeout (30s)
+            stream_timeout = 10.0  # Much less than execution_timeout to ensure we timeout before worker timeout
             stream_iter = stream.__aiter__()
             states_processed = 0
             max_states = 50  # Prevent infinite loops
             
+            # Add watchdog timer - if we don't get a state update within this time, force exit
+            import time as watchdog_time
+            last_state_time = watchdog_time.time()
+            watchdog_timeout = 12.0  # Maximum time between state updates
+            
             try:
                 while states_processed < max_states:
+                    # Check watchdog - if too much time has passed since last state, force exit
+                    current_time = watchdog_time.time()
+                    time_since_last_state = current_time - last_state_time
+                    if time_since_last_state > watchdog_timeout:
+                        print(f"⚠️ Watchdog timeout: {time_since_last_state:.2f}s since last state update - forcing exit", flush=True)
+                        sys.stdout.flush()
+                        break
+                    
                     try:
                         # Get next state with timeout - this prevents hanging on a single iteration
                         # Use asyncio.wait_for with a shorter timeout to catch hangs early
-                        print(f"⏳ Waiting for next state update (timeout: {stream_timeout}s)...", flush=True)
+                        print(f"⏳ Waiting for next state update (timeout: {stream_timeout}s, watchdog: {watchdog_timeout - time_since_last_state:.1f}s remaining)...", flush=True)
                         sys.stdout.flush()
                         state = await asyncio.wait_for(stream_iter.__anext__(), timeout=stream_timeout)
                         print(f"✅ Received state update in time", flush=True)
                         sys.stdout.flush()
                         states_processed += 1
+                        last_state_time = watchdog_time.time()  # Update watchdog timer
                         print(f"📊 Received state update #{states_processed} from agent graph", flush=True)
                         sys.stdout.flush()
                         
