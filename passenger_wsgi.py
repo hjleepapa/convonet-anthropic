@@ -4,14 +4,17 @@ WSGI entry point for Flask-SocketIO with gevent support
 Gevent is more robust for I/O-bound tasks and handles threading conflicts better than eventlet
 """
 
-# CRITICAL: Monkey patch MUST be the very first thing
-# But we need to patch select=False to avoid blocking issues with gunicorn
-import gevent
-from gevent import monkey
-# Monkey patch for gevent (more compatible with threading than eventlet)
-monkey.patch_all(select=False, socket=True, time=True, thread=True)
-
-print("✅ Gevent monkey patch applied (select=False to avoid gunicorn blocking)!")
+# CRITICAL: For gevent worker class, Gunicorn will handle monkey patching
+# We should NOT monkey patch here to avoid conflicts with Gunicorn's gevent worker
+# Gunicorn's gevent worker will automatically call monkey.patch_all() during init_process
+# If we patch here, it conflicts with OpenAI's lazy loading of sounddevice
+# 
+# However, we need to ensure gevent is imported early to avoid import order issues
+try:
+    import gevent
+    print("✅ Gevent imported (Gunicorn gevent worker will handle monkey patching)")
+except ImportError:
+    print("⚠️ Gevent not available - gevent worker class will fail")
 
 import sys
 import os
