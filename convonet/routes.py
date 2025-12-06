@@ -1185,7 +1185,8 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
             print(f"🔧 Using provider: {provider}, model: {current_model}", flush=True)
             sys.stdout.flush()
             if _mcp_tools_cache is not None:
-                print(f"✅ Using {len(_mcp_tools_cache)} cached MCP tools for agent graph", flush=True)
+                # Show actual tools being used, not cached count (may be limited for Gemini)
+                print(f"✅ Using {len(tools)} tools for agent graph (cached: {len(_mcp_tools_cache)} tools)", flush=True)
                 sys.stdout.flush()
             print(f"⏱️ Starting TodoAgent initialization (this may take a few seconds)...", flush=True)
             sys.stdout.flush()
