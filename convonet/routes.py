@@ -1394,7 +1394,8 @@ async def _run_agent_async(
         sys.stdout.flush()
         
         # Use wait_for to wrap the entire async for loop with timeout for Gemini
-        execution_timeout = 20.0 if is_gemini else 30.0
+        # Use very aggressive timeout for Gemini (15s) to prevent worker timeout (30s)
+        execution_timeout = 15.0 if is_gemini else 25.0
         print(f"⏱️ Using {execution_timeout}s timeout for graph execution (Gemini: {is_gemini})", flush=True)
         sys.stdout.flush()
         
@@ -1420,7 +1421,8 @@ async def _run_agent_async(
             sys.stdout.flush()
             # Check each state update for transfer markers in tool results
             # Process stream with per-iteration timeout to prevent hanging
-            stream_timeout = 18.0  # Slightly less than execution_timeout to ensure we timeout before worker timeout
+            # Use very aggressive timeout (12s) to ensure we timeout well before worker timeout (30s)
+            stream_timeout = 12.0  # Much less than execution_timeout to ensure we timeout before worker timeout
             stream_iter = stream.__aiter__()
             states_processed = 0
             max_states = 50  # Prevent infinite loops
@@ -1429,7 +1431,12 @@ async def _run_agent_async(
                 while states_processed < max_states:
                     try:
                         # Get next state with timeout - this prevents hanging on a single iteration
+                        # Use asyncio.wait_for with a shorter timeout to catch hangs early
+                        print(f"⏳ Waiting for next state update (timeout: {stream_timeout}s)...", flush=True)
+                        sys.stdout.flush()
                         state = await asyncio.wait_for(stream_iter.__anext__(), timeout=stream_timeout)
+                        print(f"✅ Received state update in time", flush=True)
+                        sys.stdout.flush()
                         states_processed += 1
                         print(f"📊 Received state update #{states_processed} from agent graph", flush=True)
                         sys.stdout.flush()
