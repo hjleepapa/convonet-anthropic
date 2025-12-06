@@ -1142,12 +1142,13 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
             def create_todo_agent():
                 """Create TodoAgent in separate thread to prevent blocking"""
                 import sys
+                import time as thread_time  # Import time locally to avoid scoping issues
                 try:
                     print(f"🧵 Thread: Starting TodoAgent creation...", flush=True)
                     sys.stdout.flush()
-                    start_time = time.time()
+                    start_time = thread_time.time()
                     todo_agent_result['agent'] = TodoAgent(tools=tools, provider=provider, model=current_model)
-                    elapsed = time.time() - start_time
+                    elapsed = thread_time.time() - start_time
                     print(f"🧵 Thread: TodoAgent created successfully in {elapsed:.2f}s", flush=True)
                     sys.stdout.flush()
                 except Exception as e:
