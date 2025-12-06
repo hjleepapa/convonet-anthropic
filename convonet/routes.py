@@ -1445,7 +1445,7 @@ async def _run_agent_async(
                     # Extract tool calls from final state
                     tool_calls_info = []
                     for msg in final_messages:
-                    if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                        if hasattr(msg, 'tool_calls') and msg.tool_calls:
                         for tc in msg.tool_calls:
                             tool_id = getattr(tc, 'id', getattr(tc, 'tool_call_id', str(uuid.uuid4())))
                             tool_name = getattr(tc, 'name', getattr(tc, 'functionName', 'unknown'))
