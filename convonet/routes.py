@@ -1412,14 +1412,15 @@ async def _run_agent_async(
             transfer_marker = None
             tool_calls_info = []
             
-            # For Gemini, use invoke() instead of astream() to avoid blocking HTTP calls
+            # For Gemini, use ainvoke() instead of astream() to avoid blocking HTTP calls
             # Gemini's astream() uses blocking HTTP that can't be interrupted
+            # ainvoke() is async but doesn't stream, so it's more reliable
             if is_gemini:
-                print(f"⚠️ Using invoke() instead of astream() for Gemini to avoid blocking...", flush=True)
+                print(f"⚠️ Using ainvoke() instead of astream() for Gemini to avoid blocking...", flush=True)
                 sys.stdout.flush()
-                # Use invoke() which is more reliable for Gemini
-                final_state = agent_graph.invoke(input=input_state, config=config)
-                print(f"✅ Gemini invoke() completed", flush=True)
+                # Use ainvoke() which is async but doesn't stream, more reliable for Gemini
+                final_state = await agent_graph.ainvoke(input=input_state, config=config)
+                print(f"✅ Gemini ainvoke() completed", flush=True)
                 sys.stdout.flush()
                 
                 # Process final state
