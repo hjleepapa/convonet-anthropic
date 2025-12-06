@@ -1435,7 +1435,7 @@ async def _run_agent_async(
                         sys.stdout.flush()
                         
                         if "messages" in state:
-                        for msg in state["messages"]:
+                            for msg in state["messages"]:
                             # Check for TRANSFER_INITIATED in tool message content
                             if hasattr(msg, 'content') and isinstance(msg.content, str):
                                 if 'TRANSFER_INITIATED:' in msg.content:
@@ -1479,6 +1479,12 @@ async def _run_agent_async(
             final_messages = final_state.values.get("messages", [])
             last_message = final_messages[-1] if final_messages else None
             final_response = getattr(last_message, 'content', "") if last_message else ""
+            
+            # Ensure we have a response - if empty, provide a fallback message
+            if not final_response or final_response.strip() == "":
+                print(f"⚠️ Final response is empty, using fallback message", flush=True)
+                sys.stdout.flush()
+                final_response = "I'm processing your request. Please wait a moment and try again if you don't see a response."
             
             # Extract all tool calls from final state messages
             for msg in final_messages:
