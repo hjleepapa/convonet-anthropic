@@ -1419,18 +1419,22 @@ async def _run_agent_async(
             print(f"🔄 Processing agent stream...", flush=True)
             sys.stdout.flush()
             # Check each state update for transfer markers in tool results
-            # Use a timeout wrapper around the entire stream iteration to prevent hanging
+            # Process stream with per-iteration timeout to prevent hanging
             stream_timeout = 18.0  # Slightly less than execution_timeout to ensure we timeout before worker timeout
+            stream_iter = stream.__aiter__()
+            states_processed = 0
+            max_states = 50  # Prevent infinite loops
+            
             try:
-                # Process stream with timeout - iterate through states with timeout protection
-                async def process_stream_with_timeout():
-                    async for state in stream:
-                        yield state
-                
-                async for state in asyncio.wait_for(process_stream_with_timeout(), timeout=stream_timeout):
-                    print(f"📊 Received state update from agent graph", flush=True)
-                    sys.stdout.flush()
-                    if "messages" in state:
+                while states_processed < max_states:
+                    try:
+                        # Get next state with timeout - this prevents hanging on a single iteration
+                        state = await asyncio.wait_for(stream_iter.__anext__(), timeout=stream_timeout)
+                        states_processed += 1
+                        print(f"📊 Received state update #{states_processed} from agent graph", flush=True)
+                        sys.stdout.flush()
+                        
+                        if "messages" in state:
                         for msg in state["messages"]:
                             # Check for TRANSFER_INITIATED in tool message content
                             if hasattr(msg, 'content') and isinstance(msg.content, str):
