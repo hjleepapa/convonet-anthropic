@@ -1445,13 +1445,11 @@ async def _run_agent_async(
                 if not final_response or final_response.strip() == "":
                     final_response = "I'm processing your request. Please wait a moment and try again if you don't see a response."
                 
-                # For Gemini with invoke(), we need to continue to the end of the function
-                # to return the proper structure. The final_response and tool_calls_info
-                # are already set, so we'll fall through to the return statement at the end.
-                # Skip the streaming logic below for Gemini.
-                pass  # Continue to end of function
-            
-            # For non-Gemini providers, use astream() as normal
+                # For Gemini with invoke(), skip streaming and go directly to return
+                # The final_response and tool_calls_info are already set
+                # We'll continue to the end of the function to return properly
+            else:
+                # For non-Gemini providers, use astream() as normal
             # Create stream inside async function so it's in the right event loop context
             print(f"📡 Creating agent graph stream inside process_stream...", flush=True)
             sys.stdout.flush()
