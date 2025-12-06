@@ -47,10 +47,10 @@ class LLMProviderManager:
                 "name": "Gemini (Google)",
                 "api_key_env": "GOOGLE_API_KEY",
                 "model_env": "GOOGLE_MODEL",
-                # Default to latest model: gemini-3-pro-preview (Nov 2025)
+                # Default to gemini-2.5-flash (more memory-efficient than gemini-3-pro-preview)
                 # See https://ai.google.dev/gemini-api/docs/models for all available models
-                # Other options: gemini-2.5-flash, gemini-2.0-flash, gemini-2.0-flash-lite
-                "default_model": "gemini-3-pro-preview",
+                # Other options: gemini-3-pro-preview (more powerful but higher memory), gemini-2.0-flash, gemini-2.0-flash-lite
+                "default_model": "gemini-2.5-flash",
                 "available": bool(os.getenv("GOOGLE_API_KEY")),
             }
         except ImportError:
