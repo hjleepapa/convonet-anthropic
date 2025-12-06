@@ -1405,12 +1405,57 @@ async def _run_agent_async(
             # Use 'import time' at function start to ensure it's available
             import time as time_module
             import asyncio
+            import uuid
             # Capture start_time from outer scope IMMEDIATELY
             # This must happen before any other code to avoid scoping issues
             process_start_time = start_time
             transfer_marker = None
             tool_calls_info = []
             
+            # For Gemini, use invoke() instead of astream() to avoid blocking HTTP calls
+            # Gemini's astream() uses blocking HTTP that can't be interrupted
+            if is_gemini:
+                print(f"⚠️ Using invoke() instead of astream() for Gemini to avoid blocking...", flush=True)
+                sys.stdout.flush()
+                # Use invoke() which is more reliable for Gemini
+                final_state = agent_graph.invoke(input=input_state, config=config)
+                print(f"✅ Gemini invoke() completed", flush=True)
+                sys.stdout.flush()
+                
+                # Process final state
+                final_messages = final_state.get("messages", [])
+                last_message = final_messages[-1] if final_messages else None
+                final_response = getattr(last_message, 'content', "") if last_message else ""
+                
+                # Extract tool calls from final state
+                tool_calls_info = []
+                for msg in final_messages:
+                    if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                        for tc in msg.tool_calls:
+                            tool_id = getattr(tc, 'id', getattr(tc, 'tool_call_id', str(uuid.uuid4())))
+                            tool_name = getattr(tc, 'name', getattr(tc, 'functionName', 'unknown'))
+                            args = getattr(tc, 'args', getattr(tc, 'arguments', {}))
+                            tool_calls_info.append(ToolCallInfo(
+                                tool_name=tool_name,
+                                tool_id=tool_id,
+                                arguments=args if isinstance(args, dict) else {}
+                            ))
+                
+                # Set final_response if empty
+                if not final_response or final_response.strip() == "":
+                    final_response = "I'm processing your request. Please wait a moment and try again if you don't see a response."
+                
+                # Return structure that matches what the rest of the code expects
+                # The function should return the response string, not a dict
+                # But we need to track tool calls and transfer marker
+                # Store them in the outer scope variables
+                transfer_marker = None  # No transfer for invoke()
+                
+                # The response will be returned at the end of the function
+                # We just need to set final_response and tool_calls_info
+                # Continue to the end of the function to return properly
+            
+            # For non-Gemini providers, use astream() as normal
             # Create stream inside async function so it's in the right event loop context
             print(f"📡 Creating agent graph stream inside process_stream...", flush=True)
             sys.stdout.flush()
