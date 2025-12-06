@@ -1,36 +1,18 @@
 #!/usr/bin/env python3
 """
-WSGI entry point for Flask-SocketIO with gevent support
-Gevent is more robust for I/O-bound tasks and handles threading conflicts better than eventlet
+WSGI entry point for Flask-SocketIO with eventlet support
+Eventlet handles async I/O efficiently without thread conflicts when using await directly
 """
 
-# CRITICAL: Prevent OpenAI from trying to load sounddevice during gevent monkey patching
-# This must be done BEFORE any imports that might trigger OpenAI's proxy
+# CRITICAL: Monkey patch MUST be the very first thing
+# But we need to patch select=False to avoid blocking issues with gunicorn
+import eventlet
+eventlet.monkey_patch(select=False, socket=True, time=True, thread=True)
+
+print("✅ Eventlet monkey patch applied (select=False to avoid gunicorn blocking)!")
+
 import sys
 import os
-
-# Mock sounddevice before gevent's monkey patching to prevent PortAudio errors
-# OpenAI's lazy proxy tries to import sounddevice during monkey patching, which fails
-# because PortAudio isn't available on Render.com
-class SoundDeviceMock:
-    """Mock sounddevice to prevent PortAudio import errors during gevent monkey patching"""
-    def __getattr__(self, name):
-        raise ImportError("sounddevice is not available (PortAudio not installed)")
-
-# Insert mock into sys.modules before any OpenAI imports
-sys.modules['sounddevice'] = SoundDeviceMock()
-
-# CRITICAL: For gevent worker class, Gunicorn will handle monkey patching
-# We should NOT monkey patch here to avoid conflicts with Gunicorn's gevent worker
-# Gunicorn's gevent worker will automatically call monkey.patch_all() during init_process
-# If we patch here, it conflicts with OpenAI's lazy loading of sounddevice
-# 
-# However, we need to ensure gevent is imported early to avoid import order issues
-try:
-    import gevent
-    print("✅ Gevent imported (Gunicorn gevent worker will handle monkey patching)")
-except ImportError:
-    print("⚠️ Gevent not available - gevent worker class will fail")
 
 # Add the project directory to the Python path
 sys.path.insert(0, os.path.dirname(__file__))

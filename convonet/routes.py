@@ -1671,93 +1671,18 @@ async def _run_agent_async(
                 return transfer_marker
             return final_response
         
-        # CRITICAL FIX: For Gemini, run graph execution in separate thread
-        # Gemini's LLM calls block the event loop, so asyncio.wait_for() can't interrupt them
-        if is_gemini:
-            import threading
-            # Don't import time here - import it locally in run_graph_execution() to avoid scoping conflicts
-            
-            print(f"🚀 Running Gemini graph execution in separate thread to prevent blocking...", flush=True)
-            sys.stdout.flush()
-            
-            execution_result = {'result': None, 'error': None, 'done': False}
-            
-            def run_graph_execution():
-                """Run graph execution in separate thread with its own event loop"""
-                import sys
-                import asyncio
-                import time as thread_time_module  # Import time locally to avoid scoping conflicts
-                try:
-                    print(f"🧵 Thread: Starting graph execution...", flush=True)
-                    sys.stdout.flush()
-                    # Create new event loop for this thread
-                    new_loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(new_loop)
-                    
-                    thread_start_time = thread_time_module.time()
-                    # Run process_stream in this thread's event loop
-                    result = new_loop.run_until_complete(process_stream())
-                    elapsed = thread_time_module.time() - thread_start_time
-                    
-                    print(f"🧵 Thread: Graph execution completed in {elapsed:.2f}s", flush=True)
-                    sys.stdout.flush()
-                    execution_result['result'] = result
-                except Exception as e:
-                    print(f"🧵 Thread: Graph execution failed: {e}", flush=True)
-                    sys.stdout.flush()
-                    import traceback
-                    traceback.print_exc()
-                    execution_result['error'] = e
-                finally:
-                    execution_result['done'] = True
-                    print(f"🧵 Thread: Graph execution thread finished", flush=True)
-                    sys.stdout.flush()
-                    try:
-                        new_loop.close()
-                    except:
-                        pass
-            
-            exec_thread = threading.Thread(target=run_graph_execution, daemon=True)
-            exec_thread.start()
-            
-            # Use aggressive timeout - if thread doesn't complete, we'll timeout
-            # For daemon threads, if main thread exits, daemon threads are killed
-            thread_joined = exec_thread.join(timeout=execution_timeout)
-            
-            # Force check - if thread is still alive after timeout, something is blocking
-            if exec_thread.is_alive():
-                print(f"⚠️ CRITICAL: Thread is still alive after {execution_timeout}s timeout - Gemini is blocking!", flush=True)
-                sys.stdout.flush()
-                print(f"⚠️ This means Gemini's API call is blocking and cannot be interrupted", flush=True)
-                sys.stdout.flush()
-                # Thread is daemon, so it will be killed when main thread exits
-                # But we need to raise timeout error now
-                if not execution_result['done']:
-                    execution_result['error'] = TimeoutError(f"Graph execution timed out after {execution_timeout}s - Gemini blocking detected")
-                    execution_result['done'] = True
-            
-            if not execution_result['done']:
-                print(f"⏱️ Graph execution timed out after {execution_timeout} seconds", flush=True)
-                sys.stdout.flush()
-                raise asyncio.TimeoutError(f"Graph execution timed out after {execution_timeout}s")
-            elif execution_result['error']:
-                print(f"❌ Graph execution failed: {execution_result['error']}", flush=True)
-                sys.stdout.flush()
-                raise execution_result['error']
-            else:
-                result = execution_result['result']
-                print(f"✅ Agent execution completed successfully", flush=True)
-                sys.stdout.flush()
-                return result
-        else:
-            # For non-Gemini providers, use normal async timeout
-            timeout_seconds = 20.0
-            print(f"⏱️ Starting agent execution with {timeout_seconds}-second timeout (provider: {current_provider})...", flush=True)
-            sys.stdout.flush()
-            result = await asyncio.wait_for(process_stream(), timeout=timeout_seconds)
-            print(f"✅ Agent execution completed successfully", flush=True)
-            sys.stdout.flush()
-            return result
+        # For all providers (including Gemini), use async directly with eventlet
+        # Eventlet handles async I/O efficiently without thread conflicts when using await
+        # No need for separate threads - eventlet's greenlets handle concurrency
+        timeout_seconds = execution_timeout
+        print(f"⏱️ Starting agent execution with {timeout_seconds}-second timeout (provider: {current_provider})...", flush=True)
+        sys.stdout.flush()
+        print(f"🔄 Using async/await directly - eventlet will handle I/O efficiently", flush=True)
+        sys.stdout.flush()
+        result = await asyncio.wait_for(process_stream(), timeout=timeout_seconds)
+        print(f"✅ Agent execution completed successfully", flush=True)
+        sys.stdout.flush()
+        return result
     except asyncio.TimeoutError:
         # Track timeout
         duration_ms = (time.time() - start_time) * 1000
