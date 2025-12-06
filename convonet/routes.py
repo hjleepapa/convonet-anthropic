@@ -944,6 +944,15 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
     # Get current model name based on provider
     if provider == "gemini":
         current_model = os.getenv("GOOGLE_MODEL", "gemini-2.5-flash")
+        # Force clear cache if old default model (gemini-3-pro-preview) is cached
+        if (_agent_graph_cache is not None and 
+            _agent_graph_provider == "gemini" and 
+            _agent_graph_model == "gemini-3-pro-preview" and
+            current_model == "gemini-2.5-flash"):
+            print(f"🔄 Clearing cache: default Gemini model changed from gemini-3-pro-preview to gemini-2.5-flash", flush=True)
+            _agent_graph_cache = None
+            _agent_graph_model = None
+            _agent_graph_provider = None
     elif provider == "openai":
         current_model = os.getenv("OPENAI_MODEL", "gpt-4o")
     else:  # claude
