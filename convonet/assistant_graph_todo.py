@@ -374,17 +374,54 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
             
             # Filter messages to ensure proper tool_use/tool_result pairing
             # Anthropic requires that every tool_use is immediately followed by tool_result
+            # If a tool_use doesn't have all its tool_result messages, skip it to avoid API errors
             filtered_messages = []
-            for i, msg in enumerate(state.messages):
-                filtered_messages.append(msg)
-                # Check if this is a tool_use message and verify next message is tool_result
+            i = 0
+            while i < len(state.messages):
+                msg = state.messages[i]
+                
+                # Check if this is a tool_use message (has tool_calls)
                 if hasattr(msg, 'tool_calls') and msg.tool_calls:
-                    print(f"🤖 Found {len(msg.tool_calls)} tool calls in message {i}")
-                    # Verify next message(s) contain tool results for these calls
-                    if i + 1 < len(state.messages):
-                        next_msg = state.messages[i + 1]
-                        if hasattr(next_msg, 'tool_call_id'):
-                            print(f"🤖 Next message has tool_call_id: {next_msg.tool_call_id}")
+                    tool_call_ids = {getattr(tc, 'id', getattr(tc, 'tool_call_id', None)) for tc in msg.tool_calls}
+                    tool_call_ids = {tid for tid in tool_call_ids if tid}  # Remove None values
+                    
+                    print(f"🤖 Found {len(msg.tool_calls)} tool calls in message {i}: {[getattr(tc, 'name', 'unknown') for tc in msg.tool_calls]}")
+                    
+                    # Check if all tool calls have corresponding tool_result messages immediately after
+                    result_ids = set()
+                    j = i + 1
+                    while j < len(state.messages):
+                        next_msg = state.messages[j]
+                        # Check if this is a tool result message
+                        if hasattr(next_msg, 'tool_call_id') and next_msg.tool_call_id:
+                            result_ids.add(next_msg.tool_call_id)
+                            print(f"🤖 Found tool_result for tool_call_id: {next_msg.tool_call_id}")
+                        elif hasattr(next_msg, 'tool_calls') and next_msg.tool_calls:
+                            # If we hit another tool_use message, stop looking for results
+                            break
+                        elif not hasattr(next_msg, 'tool_call_id'):
+                            # If this is a regular message (not tool_result), stop looking
+                            break
+                        j += 1
+                    
+                    # Check if all tool calls have results
+                    missing_results = tool_call_ids - result_ids
+                    if missing_results:
+                        print(f"⚠️ Skipping tool_use message {i}: missing tool_result for {missing_results}")
+                        # Skip this tool_use message and its results, move to next non-tool message
+                        i = j
+                        continue
+                    else:
+                        print(f"✅ All tool calls have results, including message {i} and results")
+                        # Include the tool_use message and all its tool_result messages
+                        for k in range(i, j):
+                            filtered_messages.append(state.messages[k])
+                        i = j
+                        continue
+                
+                # Regular message (not tool_use), include it
+                filtered_messages.append(msg)
+                i += 1
             
             try:
                 response = await self.llm.ainvoke([SystemMessage(content=system_prompt)] + filtered_messages)
