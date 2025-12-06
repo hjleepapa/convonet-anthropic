@@ -1240,8 +1240,11 @@ def init_socketio(socketio_instance: SocketIO, app):
                         print(f"✅ Event loop created and set", flush=True)
                         sys.stdout.flush()
                         
-                        # Use aggressive 10s timeout for Gemini hackathon
-                        timeout_seconds = 10.0
+                        # Use timeout that matches routes.py execution_timeout (15s for Claude/OpenAI, 12s for Gemini)
+# Add buffer for tool execution which can be slow (MCP calls, API calls, etc.)
+# Total timeout: execution_timeout (15s) + buffer (5s) = 20s for Claude/OpenAI
+# This gives tools time to complete while still failing fast if truly hanging
+                        timeout_seconds = 20.0  # Increased from 10s to allow tool execution time
                         try:
                             print(f"🔄 Running process_with_agent in thread (timeout: {timeout_seconds}s)...", flush=True)
                             sys.stdout.flush()
@@ -1300,16 +1303,18 @@ def init_socketio(socketio_instance: SocketIO, app):
                         print(f"✅ Task submitted to executor, future created", flush=True)
                         sys.stdout.flush()
                         try:
-                            # Use 15s timeout (10s async + 2s buffer + 3s thread overhead)
-                            print(f"⏳ Waiting for result with 15s timeout...", flush=True)
+                            # Use 25s timeout (20s async + 5s buffer for thread overhead and tool execution)
+                            # Tool execution (MCP calls, API calls) can take time, so we need a longer timeout
+                            executor_timeout = 25.0
+                            print(f"⏳ Waiting for result with {executor_timeout}s timeout...", flush=True)
                             sys.stdout.flush()
-                            agent_response, transfer_marker = future.result(timeout=15.0)
+                            agent_response, transfer_marker = future.result(timeout=executor_timeout)
                             print(f"🤖 Agent response received: {agent_response[:100] if agent_response else 'None'}", flush=True)
                             sys.stdout.flush()
                         except FutureTimeoutError:
-                            print(f"⏱️ ThreadPoolExecutor timed out after 15 seconds", flush=True)
+                            print(f"⏱️ ThreadPoolExecutor timed out after {executor_timeout} seconds", flush=True)
                             sys.stdout.flush()
-                            agent_response = "I'm sorry, I'm taking too long to process that request. Please try a simpler request or switch to Claude model."
+                            agent_response = "I'm sorry, I'm taking too long to process that request. Please try a simpler request or try again."
                             transfer_marker = None
                             # Cancel the future if possible
                             try:
