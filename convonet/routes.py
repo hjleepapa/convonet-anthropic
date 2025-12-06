@@ -1033,32 +1033,8 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
         if _mcp_tools_cache is not None:
             print(f"✅ Using cached MCP tools ({len(_mcp_tools_cache)} tools)")
             tools = _mcp_tools_cache.copy()  # Copy to avoid mutation
-            
-            # For Gemini, optionally limit the number of tools to reduce memory usage
-            if provider == "gemini":
-                max_gemini_tools = int(os.getenv("GEMINI_MAX_TOOLS", "0"))  # 0 = no limit
-                if max_gemini_tools > 0 and len(tools) > max_gemini_tools:
-                    # Prioritize create_xxx tools (most commonly requested actions)
-                    priority_tool_names = [
-                        "create_calendar_event",
-                        "create_todo",
-                        "create_reminder",
-                        "create_team",
-                        "create_team_todo"
-                    ]
-                    
-                    # Separate priority and other tools
-                    priority_tools = [t for t in tools if hasattr(t, 'name') and t.name in priority_tool_names]
-                    other_tools = [t for t in tools if not (hasattr(t, 'name') and t.name in priority_tool_names)]
-                    
-                    # Take priority tools first, then fill remaining slots with other tools
-                    tools = priority_tools[:max_gemini_tools]
-                    remaining_slots = max_gemini_tools - len(tools)
-                    if remaining_slots > 0:
-                        tools.extend(other_tools[:remaining_slots])
-                    
-                    print(f"⚠️ Limited Gemini tools to {len(tools)} (from {len(_mcp_tools_cache)}) to reduce memory usage", flush=True)
-                    sys.stdout.flush()
+            # Note: Tool limiting for Gemini happens AFTER all tools are added (transfer + composio)
+            # This ensures we limit the final tool count, not just MCP tools
         else:
             # Try to load MCP tools (with timeout to prevent hangs)
             print("🔧 Loading MCP tools (not cached yet)...")
