@@ -1524,7 +1524,7 @@ async def _run_agent_async(
         # Gemini's LLM calls block the event loop, so asyncio.wait_for() can't interrupt them
         if is_gemini:
             import threading
-            import time
+            # Don't import time here - import it locally in run_graph_execution() to avoid scoping conflicts
             
             print(f"🚀 Running Gemini graph execution in separate thread to prevent blocking...", flush=True)
             sys.stdout.flush()
@@ -1535,7 +1535,7 @@ async def _run_agent_async(
                 """Run graph execution in separate thread with its own event loop"""
                 import sys
                 import asyncio
-                import time as thread_time_module  # Use alias to avoid conflicts
+                import time as thread_time_module  # Import time locally to avoid scoping conflicts
                 try:
                     print(f"🧵 Thread: Starting graph execution...", flush=True)
                     sys.stdout.flush()
