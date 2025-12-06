@@ -1143,6 +1143,32 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
         # This ensures we always try to build the graph, even if MCP tools failed
         try:
             import sys
+            # For Gemini, optionally limit the number of tools to reduce memory usage
+            if provider == "gemini":
+                max_gemini_tools = int(os.getenv("GEMINI_MAX_TOOLS", "0"))  # 0 = no limit
+                if max_gemini_tools > 0 and len(tools) > max_gemini_tools:
+                    # Prioritize commonly used tools (calendar, todos, reminders)
+                    priority_tool_names = [
+                        "create_calendar_event", "get_calendar_events", "delete_calendar_event",
+                        "create_todo", "get_todos", "complete_todo", "delete_todo",
+                        "create_reminder", "get_reminders", "delete_reminder",
+                        "create_team", "get_teams", "create_team_todo"
+                    ]
+                    
+                    # Separate priority and other tools
+                    priority_tools = [t for t in tools if hasattr(t, 'name') and t.name in priority_tool_names]
+                    other_tools = [t for t in tools if not (hasattr(t, 'name') and t.name in priority_tool_names)]
+                    
+                    # Take priority tools first, then fill remaining slots with other tools
+                    limited_tools = priority_tools[:max_gemini_tools]
+                    remaining_slots = max_gemini_tools - len(limited_tools)
+                    if remaining_slots > 0:
+                        limited_tools.extend(other_tools[:remaining_slots])
+                    
+                    print(f"⚠️ Limited Gemini tools to {len(limited_tools)} (from {len(tools)}) to reduce memory usage", flush=True)
+                    sys.stdout.flush()
+                    tools = limited_tools
+            
             print(f"🔧 Building agent graph with {len(tools)} tools...", flush=True)
             sys.stdout.flush()
             print(f"🔧 Using provider: {provider}, model: {current_model}", flush=True)
