@@ -1436,34 +1436,34 @@ async def _run_agent_async(
                         
                         if "messages" in state:
                             for msg in state["messages"]:
-                            # Check for TRANSFER_INITIATED in tool message content
-                            if hasattr(msg, 'content') and isinstance(msg.content, str):
-                                if 'TRANSFER_INITIATED:' in msg.content:
-                                    transfer_marker = msg.content
-                                    print(f"🔄 Transfer marker detected in tool result: {transfer_marker}")
-                            
-                            # Track tool calls
-                            if hasattr(msg, 'tool_calls') and msg.tool_calls:
-                                for tc in msg.tool_calls:
-                                    tool_id = getattr(tc, 'id', getattr(tc, 'tool_call_id', str(uuid.uuid4())))
-                                    tool_name = getattr(tc, 'name', getattr(tc, 'functionName', 'unknown'))
-                                    args = getattr(tc, 'args', getattr(tc, 'arguments', {}))
-                                    
-                                    tool_calls_info.append(ToolCallInfo(
-                                        tool_name=tool_name,
-                                        tool_id=tool_id,
-                                        arguments=args if isinstance(args, dict) else {}
-                                    ))
-                            
-                            # Track tool results
-                            if hasattr(msg, 'tool_call_id') and hasattr(msg, 'content'):
-                                tool_call_id = msg.tool_call_id
-                                # Find matching tool call and update it
-                                for tc_info in tool_calls_info:
-                                    if tc_info.tool_id == tool_call_id:
-                                        tc_info.result = msg.content
-                                        tc_info.status = "success"
-                                        break
+                                # Check for TRANSFER_INITIATED in tool message content
+                                if hasattr(msg, 'content') and isinstance(msg.content, str):
+                                    if 'TRANSFER_INITIATED:' in msg.content:
+                                        transfer_marker = msg.content
+                                        print(f"🔄 Transfer marker detected in tool result: {transfer_marker}")
+                                
+                                # Track tool calls
+                                if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                                    for tc in msg.tool_calls:
+                                        tool_id = getattr(tc, 'id', getattr(tc, 'tool_call_id', str(uuid.uuid4())))
+                                        tool_name = getattr(tc, 'name', getattr(tc, 'functionName', 'unknown'))
+                                        args = getattr(tc, 'args', getattr(tc, 'arguments', {}))
+                                        
+                                        tool_calls_info.append(ToolCallInfo(
+                                            tool_name=tool_name,
+                                            tool_id=tool_id,
+                                            arguments=args if isinstance(args, dict) else {}
+                                        ))
+                                
+                                # Track tool results
+                                if hasattr(msg, 'tool_call_id') and hasattr(msg, 'content'):
+                                    tool_call_id = msg.tool_call_id
+                                    # Find matching tool call and update it
+                                    for tc_info in tool_calls_info:
+                                        if tc_info.tool_id == tool_call_id:
+                                            tc_info.result = msg.content
+                                            tc_info.status = "success"
+                                            break
             except asyncio.TimeoutError:
                 print(f"⏱️ Stream iteration timed out after {stream_timeout}s - Gemini may be hanging", flush=True)
                 sys.stdout.flush()
