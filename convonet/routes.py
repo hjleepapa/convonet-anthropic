@@ -1446,15 +1446,15 @@ async def _run_agent_async(
                     tool_calls_info = []
                     for msg in final_messages:
                         if hasattr(msg, 'tool_calls') and msg.tool_calls:
-                        for tc in msg.tool_calls:
-                            tool_id = getattr(tc, 'id', getattr(tc, 'tool_call_id', str(uuid.uuid4())))
-                            tool_name = getattr(tc, 'name', getattr(tc, 'functionName', 'unknown'))
-                            args = getattr(tc, 'args', getattr(tc, 'arguments', {}))
-                            tool_calls_info.append(ToolCallInfo(
-                                tool_name=tool_name,
-                                tool_id=tool_id,
-                                arguments=args if isinstance(args, dict) else {}
-                            ))
+                            for tc in msg.tool_calls:
+                                tool_id = getattr(tc, 'id', getattr(tc, 'tool_call_id', str(uuid.uuid4())))
+                                tool_name = getattr(tc, 'name', getattr(tc, 'functionName', 'unknown'))
+                                args = getattr(tc, 'args', getattr(tc, 'arguments', {}))
+                                tool_calls_info.append(ToolCallInfo(
+                                    tool_name=tool_name,
+                                    tool_id=tool_id,
+                                    arguments=args if isinstance(args, dict) else {}
+                                ))
                 
                 # Set final_response if empty
                 if not final_response or final_response.strip() == "":
