@@ -1302,17 +1302,17 @@ def init_socketio(socketio_instance: SocketIO, app):
                         future = executor.submit(run_async_in_thread)
                         print(f"✅ Task submitted to executor, future created", flush=True)
                         sys.stdout.flush()
+                        # Use 25s timeout (20s async + 5s buffer for thread overhead and tool execution)
+                        # Tool execution (MCP calls, API calls) can take time, so we need a longer timeout
+                        executor_timeout = 25.0
                         try:
-                            # Use 25s timeout (20s async + 5s buffer for thread overhead and tool execution)
-                            # Tool execution (MCP calls, API calls) can take time, so we need a longer timeout
-                            executor_timeout = 25.0
                             print(f"⏳ Waiting for result with {executor_timeout}s timeout...", flush=True)
                             sys.stdout.flush()
                             agent_response, transfer_marker = future.result(timeout=executor_timeout)
                             print(f"🤖 Agent response received: {agent_response[:100] if agent_response else 'None'}", flush=True)
                             sys.stdout.flush()
                         except FutureTimeoutError:
-                            print(f"⏱️ ThreadPoolExecutor timed out after 25 seconds", flush=True)
+                            print(f"⏱️ ThreadPoolExecutor timed out after {executor_timeout} seconds", flush=True)
                             sys.stdout.flush()
                             agent_response = "I'm sorry, I'm taking too long to process that request. Please try a simpler request or try again."
                             transfer_marker = None
