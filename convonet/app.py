@@ -80,8 +80,6 @@ def create_app():
     # Use 'eventlet' for production (Gunicorn compatibility)
     # Use 'threading' for local development
     socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
-    else:
-        socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
     # --- Register Blueprints ---
     # Import and register blueprints after all extensions are fully configured.
