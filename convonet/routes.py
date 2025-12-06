@@ -1434,16 +1434,17 @@ async def _run_agent_async(
                     # Set error response and continue to end of function
                     final_response = "I'm sorry, the request is taking too long. Please try again or use a different provider."
                     tool_calls_info = []
-                    # Continue to end of function to return properly
-                
-                # Process final state
-                final_messages = final_state.get("messages", [])
-                last_message = final_messages[-1] if final_messages else None
-                final_response = getattr(last_message, 'content', "") if last_message else ""
-                
-                # Extract tool calls from final state
-                tool_calls_info = []
-                for msg in final_messages:
+                    # Skip processing final state since ainvoke() timed out
+                    final_state = None
+                else:
+                    # Process final state only if ainvoke() succeeded
+                    final_messages = final_state.get("messages", [])
+                    last_message = final_messages[-1] if final_messages else None
+                    final_response = getattr(last_message, 'content', "") if last_message else ""
+                    
+                    # Extract tool calls from final state
+                    tool_calls_info = []
+                    for msg in final_messages:
                     if hasattr(msg, 'tool_calls') and msg.tool_calls:
                         for tc in msg.tool_calls:
                             tool_id = getattr(tc, 'id', getattr(tc, 'tool_call_id', str(uuid.uuid4())))
