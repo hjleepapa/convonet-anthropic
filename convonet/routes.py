@@ -1464,10 +1464,16 @@ async def _run_agent_async(
                                             tc_info.result = msg.content
                                             tc_info.status = "success"
                                             break
-            except asyncio.TimeoutError:
-                print(f"⏱️ Stream iteration timed out after {stream_timeout}s - Gemini may be hanging", flush=True)
-                sys.stdout.flush()
-                # Break out of loop and try to get final state
+                    except asyncio.TimeoutError:
+                        print(f"⏱️ Stream iteration timed out after {stream_timeout}s waiting for next state - Gemini may be hanging", flush=True)
+                        sys.stdout.flush()
+                        # Break out of loop and try to get final state
+                        break
+                    except StopAsyncIteration:
+                        # Stream is complete
+                        print(f"✅ Stream completed after {states_processed} state updates", flush=True)
+                        sys.stdout.flush()
+                        break
             except Exception as e:
                 print(f"❌ Error processing stream: {e}", flush=True)
                 sys.stdout.flush()
