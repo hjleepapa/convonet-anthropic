@@ -1402,6 +1402,7 @@ async def _run_agent_async(
             # Import time module explicitly to avoid scoping issues
             # Use 'import time' at function start to ensure it's available
             import time as time_module
+            import asyncio
             # Capture start_time from outer scope IMMEDIATELY
             # This must happen before any other code to avoid scoping issues
             process_start_time = start_time
@@ -1418,10 +1419,18 @@ async def _run_agent_async(
             print(f"🔄 Processing agent stream...", flush=True)
             sys.stdout.flush()
             # Check each state update for transfer markers in tool results
-            async for state in stream:
-                print(f"📊 Received state update from agent graph", flush=True)
-                sys.stdout.flush()
-                if "messages" in state:
+            # Use a timeout wrapper around the entire stream iteration to prevent hanging
+            stream_timeout = 18.0  # Slightly less than execution_timeout to ensure we timeout before worker timeout
+            try:
+                # Process stream with timeout - iterate through states with timeout protection
+                async def process_stream_with_timeout():
+                    async for state in stream:
+                        yield state
+                
+                async for state in asyncio.wait_for(process_stream_with_timeout(), timeout=stream_timeout):
+                    print(f"📊 Received state update from agent graph", flush=True)
+                    sys.stdout.flush()
+                    if "messages" in state:
                     for msg in state["messages"]:
                         # Check for TRANSFER_INITIATED in tool message content
                         if hasattr(msg, 'content') and isinstance(msg.content, str):
