@@ -1431,7 +1431,7 @@ async def _run_agent_async(
                     print(f"📊 Received state update from agent graph", flush=True)
                     sys.stdout.flush()
                     if "messages" in state:
-                    for msg in state["messages"]:
+                        for msg in state["messages"]:
                         # Check for TRANSFER_INITIATED in tool message content
                         if hasattr(msg, 'content') and isinstance(msg.content, str):
                             if 'TRANSFER_INITIATED:' in msg.content:
@@ -1460,6 +1460,15 @@ async def _run_agent_async(
                                     tc_info.result = msg.content
                                     tc_info.status = "success"
                                     break
+            except asyncio.TimeoutError:
+                print(f"⏱️ Stream iteration timed out after {stream_timeout}s - Gemini may be hanging", flush=True)
+                sys.stdout.flush()
+                # Break out of loop and try to get final state
+            except Exception as e:
+                print(f"❌ Error processing stream: {e}", flush=True)
+                sys.stdout.flush()
+                import traceback
+                traceback.print_exc()
             
             # Get final state and last message
             final_state = agent_graph.get_state(config=config)
