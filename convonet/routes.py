@@ -1431,7 +1431,8 @@ async def _run_agent_async(
             # Add watchdog timer - if we don't get a state update within this time, force exit
             import time as watchdog_time
             last_state_time = watchdog_time.time()
-            watchdog_timeout = 12.0  # Maximum time between state updates
+            # Use very aggressive watchdog (8s) to catch hangs early before worker timeout (30s)
+            watchdog_timeout = 8.0  # Maximum time between state updates
             
             try:
                 while states_processed < max_states:
