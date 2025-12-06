@@ -1433,9 +1433,9 @@ async def _run_agent_async(
         sys.stdout.flush()
         
         # Use wait_for to wrap the entire async for loop with timeout for Gemini
-        # Use very aggressive timeout for Gemini (12s) to prevent worker timeout (30s)
-        # This gives us 12s for processing + 12s buffer before worker timeout
-        execution_timeout = 12.0 if is_gemini else 25.0
+        # Use aggressive timeout for Gemini (12s) to prevent worker timeout (30s)
+        # Use shorter timeout for Claude/OpenAI (15s) for faster user feedback
+        execution_timeout = 12.0 if is_gemini else 15.0
         print(f"⏱️ Using {execution_timeout}s timeout for graph execution (Gemini: {is_gemini})", flush=True)
         sys.stdout.flush()
         
@@ -1515,8 +1515,8 @@ async def _run_agent_async(
                 sys.stdout.flush()
                 # Check each state update for transfer markers in tool results
                 # Process stream with per-iteration timeout to prevent hanging
-                # Use very aggressive timeout (10s) to ensure we timeout well before worker timeout (30s)
-                stream_timeout = 10.0  # Much less than execution_timeout to ensure we timeout before worker timeout
+                # Use aggressive timeout (8s for Claude/OpenAI, 10s for Gemini) to ensure we timeout before worker timeout
+                stream_timeout = 8.0 if not is_gemini else 10.0  # Much less than execution_timeout to ensure we timeout before worker timeout
                 stream_iter = stream.__aiter__()
                 states_processed = 0
                 max_states = 50  # Prevent infinite loops
@@ -1524,8 +1524,8 @@ async def _run_agent_async(
                 # Add watchdog timer - if we don't get a state update within this time, force exit
                 import time as watchdog_time
                 last_state_time = watchdog_time.time()
-                # Use very aggressive watchdog (8s) to catch hangs early before worker timeout (30s)
-                watchdog_timeout = 8.0  # Maximum time between state updates
+                # Use aggressive watchdog (6s for Claude/OpenAI, 8s for Gemini) to catch hangs early
+                watchdog_timeout = 6.0 if not is_gemini else 8.0  # Maximum time between state updates
                 
                 try:
                     while states_processed < max_states:
@@ -1560,10 +1560,15 @@ async def _run_agent_async(
                                     
                                     # Track tool calls
                                     if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                                        print(f"🔧 Detected {len(msg.tool_calls)} tool call(s) in state update #{states_processed}", flush=True)
+                                        sys.stdout.flush()
                                         for tc in msg.tool_calls:
                                             tool_id = getattr(tc, 'id', getattr(tc, 'tool_call_id', str(uuid.uuid4())))
                                             tool_name = getattr(tc, 'name', getattr(tc, 'functionName', 'unknown'))
                                             args = getattr(tc, 'args', getattr(tc, 'arguments', {}))
+                                            
+                                            print(f"  → Tool: {tool_name} (id: {tool_id[:20]}...)", flush=True)
+                                            sys.stdout.flush()
                                             
                                             tool_calls_info.append(ToolCallInfo(
                                                 tool_name=tool_name,
