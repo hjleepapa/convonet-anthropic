@@ -1450,103 +1450,104 @@ async def _run_agent_async(
                 # We'll continue to the end of the function to return properly
             else:
                 # For non-Gemini providers, use astream() as normal
-            # Create stream inside async function so it's in the right event loop context
-            print(f"📡 Creating agent graph stream inside process_stream...", flush=True)
-            sys.stdout.flush()
-            stream = agent_graph.astream(input=input_state, stream_mode="values", config=config)
-            print(f"✅ Agent graph stream created, starting execution...", flush=True)
-            sys.stdout.flush()
-            
-            print(f"🔄 Processing agent stream...", flush=True)
-            sys.stdout.flush()
-            # Check each state update for transfer markers in tool results
-            # Process stream with per-iteration timeout to prevent hanging
-            # Use very aggressive timeout (10s) to ensure we timeout well before worker timeout (30s)
-            stream_timeout = 10.0  # Much less than execution_timeout to ensure we timeout before worker timeout
-            stream_iter = stream.__aiter__()
-            states_processed = 0
-            max_states = 50  # Prevent infinite loops
-            
-            # Add watchdog timer - if we don't get a state update within this time, force exit
-            import time as watchdog_time
-            last_state_time = watchdog_time.time()
-            # Use very aggressive watchdog (8s) to catch hangs early before worker timeout (30s)
-            watchdog_timeout = 8.0  # Maximum time between state updates
-            
-            try:
-                while states_processed < max_states:
-                    # Check watchdog - if too much time has passed since last state, force exit
-                    current_time = watchdog_time.time()
-                    time_since_last_state = current_time - last_state_time
-                    if time_since_last_state > watchdog_timeout:
-                        print(f"⚠️ Watchdog timeout: {time_since_last_state:.2f}s since last state update - forcing exit", flush=True)
-                        sys.stdout.flush()
-                        break
-                    
-                    try:
-                        # Get next state with timeout - this prevents hanging on a single iteration
-                        # Use asyncio.wait_for with a shorter timeout to catch hangs early
-                        print(f"⏳ Waiting for next state update (timeout: {stream_timeout}s, watchdog: {watchdog_timeout - time_since_last_state:.1f}s remaining)...", flush=True)
-                        sys.stdout.flush()
-                        state = await asyncio.wait_for(stream_iter.__anext__(), timeout=stream_timeout)
-                        print(f"✅ Received state update in time", flush=True)
-                        sys.stdout.flush()
-                        states_processed += 1
-                        last_state_time = watchdog_time.time()  # Update watchdog timer
-                        print(f"📊 Received state update #{states_processed} from agent graph", flush=True)
-                        sys.stdout.flush()
-                        
-                        if "messages" in state:
-                            for msg in state["messages"]:
-                                # Check for TRANSFER_INITIATED in tool message content
-                                if hasattr(msg, 'content') and isinstance(msg.content, str):
-                                    if 'TRANSFER_INITIATED:' in msg.content:
-                                        transfer_marker = msg.content
-                                        print(f"🔄 Transfer marker detected in tool result: {transfer_marker}")
-                                
-                                # Track tool calls
-                                if hasattr(msg, 'tool_calls') and msg.tool_calls:
-                                    for tc in msg.tool_calls:
-                                        tool_id = getattr(tc, 'id', getattr(tc, 'tool_call_id', str(uuid.uuid4())))
-                                        tool_name = getattr(tc, 'name', getattr(tc, 'functionName', 'unknown'))
-                                        args = getattr(tc, 'args', getattr(tc, 'arguments', {}))
-                                        
-                                        tool_calls_info.append(ToolCallInfo(
-                                            tool_name=tool_name,
-                                            tool_id=tool_id,
-                                            arguments=args if isinstance(args, dict) else {}
-                                        ))
-                                
-                                # Track tool results
-                                if hasattr(msg, 'tool_call_id') and hasattr(msg, 'content'):
-                                    tool_call_id = msg.tool_call_id
-                                    # Find matching tool call and update it
-                                    for tc_info in tool_calls_info:
-                                        if tc_info.tool_id == tool_call_id:
-                                            tc_info.result = msg.content
-                                            tc_info.status = "success"
-                                            break
-                    except asyncio.TimeoutError:
-                        print(f"⏱️ Stream iteration timed out after {stream_timeout}s waiting for next state - Gemini may be hanging", flush=True)
-                        sys.stdout.flush()
-                        # Break out of loop and try to get final state
-                        break
-                    except StopAsyncIteration:
-                        # Stream is complete
-                        print(f"✅ Stream completed after {states_processed} state updates", flush=True)
-                        sys.stdout.flush()
-                        break
-            except Exception as e:
-                print(f"❌ Error processing stream: {e}", flush=True)
+                # Create stream inside async function so it's in the right event loop context
+                print(f"📡 Creating agent graph stream inside process_stream...", flush=True)
                 sys.stdout.flush()
-                import traceback
-                traceback.print_exc()
+                stream = agent_graph.astream(input=input_state, stream_mode="values", config=config)
+                print(f"✅ Agent graph stream created, starting execution...", flush=True)
+                sys.stdout.flush()
             
-            # Get final state and last message
-            final_state = agent_graph.get_state(config=config)
-            final_messages = final_state.values.get("messages", [])
-            last_message = final_messages[-1] if final_messages else None
-            final_response = getattr(last_message, 'content', "") if last_message else ""
+                print(f"🔄 Processing agent stream...", flush=True)
+                sys.stdout.flush()
+                # Check each state update for transfer markers in tool results
+                # Process stream with per-iteration timeout to prevent hanging
+                # Use very aggressive timeout (10s) to ensure we timeout well before worker timeout (30s)
+                stream_timeout = 10.0  # Much less than execution_timeout to ensure we timeout before worker timeout
+                stream_iter = stream.__aiter__()
+                states_processed = 0
+                max_states = 50  # Prevent infinite loops
+                
+                # Add watchdog timer - if we don't get a state update within this time, force exit
+                import time as watchdog_time
+                last_state_time = watchdog_time.time()
+                # Use very aggressive watchdog (8s) to catch hangs early before worker timeout (30s)
+                watchdog_timeout = 8.0  # Maximum time between state updates
+                
+                try:
+                    while states_processed < max_states:
+                        # Check watchdog - if too much time has passed since last state, force exit
+                        current_time = watchdog_time.time()
+                        time_since_last_state = current_time - last_state_time
+                        if time_since_last_state > watchdog_timeout:
+                            print(f"⚠️ Watchdog timeout: {time_since_last_state:.2f}s since last state update - forcing exit", flush=True)
+                            sys.stdout.flush()
+                            break
+                        
+                        try:
+                            # Get next state with timeout - this prevents hanging on a single iteration
+                            # Use asyncio.wait_for with a shorter timeout to catch hangs early
+                            print(f"⏳ Waiting for next state update (timeout: {stream_timeout}s, watchdog: {watchdog_timeout - time_since_last_state:.1f}s remaining)...", flush=True)
+                            sys.stdout.flush()
+                            state = await asyncio.wait_for(stream_iter.__anext__(), timeout=stream_timeout)
+                            print(f"✅ Received state update in time", flush=True)
+                            sys.stdout.flush()
+                            states_processed += 1
+                            last_state_time = watchdog_time.time()  # Update watchdog timer
+                            print(f"📊 Received state update #{states_processed} from agent graph", flush=True)
+                            sys.stdout.flush()
+                            
+                            if "messages" in state:
+                                for msg in state["messages"]:
+                                    # Check for TRANSFER_INITIATED in tool message content
+                                    if hasattr(msg, 'content') and isinstance(msg.content, str):
+                                        if 'TRANSFER_INITIATED:' in msg.content:
+                                            transfer_marker = msg.content
+                                            print(f"🔄 Transfer marker detected in tool result: {transfer_marker}")
+                                    
+                                    # Track tool calls
+                                    if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                                        for tc in msg.tool_calls:
+                                            tool_id = getattr(tc, 'id', getattr(tc, 'tool_call_id', str(uuid.uuid4())))
+                                            tool_name = getattr(tc, 'name', getattr(tc, 'functionName', 'unknown'))
+                                            args = getattr(tc, 'args', getattr(tc, 'arguments', {}))
+                                            
+                                            tool_calls_info.append(ToolCallInfo(
+                                                tool_name=tool_name,
+                                                tool_id=tool_id,
+                                                arguments=args if isinstance(args, dict) else {}
+                                            ))
+                                    
+                                    # Track tool results
+                                    if hasattr(msg, 'tool_call_id') and hasattr(msg, 'content'):
+                                        tool_call_id = msg.tool_call_id
+                                        # Find matching tool call and update it
+                                        for tc_info in tool_calls_info:
+                                            if tc_info.tool_id == tool_call_id:
+                                                tc_info.result = msg.content
+                                                tc_info.status = "success"
+                                                break
+                        except asyncio.TimeoutError:
+                            print(f"⏱️ Stream iteration timed out after {stream_timeout}s waiting for next state - Gemini may be hanging", flush=True)
+                            sys.stdout.flush()
+                            # Break out of loop and try to get final state
+                            break
+                        except StopAsyncIteration:
+                            # Stream is complete
+                            print(f"✅ Stream completed after {states_processed} state updates", flush=True)
+                            sys.stdout.flush()
+                            break
+                except Exception as e:
+                    print(f"❌ Error processing stream: {e}", flush=True)
+                    sys.stdout.flush()
+                    import traceback
+                    traceback.print_exc()
+                
+                # Get final state and last message (only if we used astream, not invoke)
+                if not is_gemini:  # Only get final state if we used astream
+                    final_state = agent_graph.get_state(config=config)
+                    final_messages = final_state.values.get("messages", [])
+                    last_message = final_messages[-1] if final_messages else None
+                    final_response = getattr(last_message, 'content', "") if last_message else ""
             
             # Ensure we have a response - if empty, provide a fallback message
             if not final_response or final_response.strip() == "":
