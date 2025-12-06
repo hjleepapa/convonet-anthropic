@@ -1445,15 +1445,11 @@ async def _run_agent_async(
                 if not final_response or final_response.strip() == "":
                     final_response = "I'm processing your request. Please wait a moment and try again if you don't see a response."
                 
-                # Return structure that matches what the rest of the code expects
-                # The function should return the response string, not a dict
-                # But we need to track tool calls and transfer marker
-                # Store them in the outer scope variables
-                transfer_marker = None  # No transfer for invoke()
-                
-                # The response will be returned at the end of the function
-                # We just need to set final_response and tool_calls_info
-                # Continue to the end of the function to return properly
+                # For Gemini with invoke(), we need to continue to the end of the function
+                # to return the proper structure. The final_response and tool_calls_info
+                # are already set, so we'll fall through to the return statement at the end.
+                # Skip the streaming logic below for Gemini.
+                pass  # Continue to end of function
             
             # For non-Gemini providers, use astream() as normal
             # Create stream inside async function so it's in the right event loop context
