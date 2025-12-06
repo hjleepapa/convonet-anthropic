@@ -1412,16 +1412,29 @@ async def _run_agent_async(
             transfer_marker = None
             tool_calls_info = []
             
-            # For Gemini, use ainvoke() instead of astream() to avoid blocking HTTP calls
+            # For Gemini, use ainvoke() with timeout instead of astream() to avoid blocking HTTP calls
             # Gemini's astream() uses blocking HTTP that can't be interrupted
-            # ainvoke() is async but doesn't stream, so it's more reliable
+            # ainvoke() is async but still needs a timeout wrapper
             if is_gemini:
-                print(f"⚠️ Using ainvoke() instead of astream() for Gemini to avoid blocking...", flush=True)
+                print(f"⚠️ Using ainvoke() with timeout instead of astream() for Gemini to avoid blocking...", flush=True)
                 sys.stdout.flush()
-                # Use ainvoke() which is async but doesn't stream, more reliable for Gemini
-                final_state = await agent_graph.ainvoke(input=input_state, config=config)
-                print(f"✅ Gemini ainvoke() completed", flush=True)
-                sys.stdout.flush()
+                # Use ainvoke() with aggressive timeout (10s) to prevent worker timeout (30s)
+                # This gives us 10s for processing + 20s buffer before worker timeout
+                ainvoke_timeout = 10.0
+                try:
+                    final_state = await asyncio.wait_for(
+                        agent_graph.ainvoke(input=input_state, config=config),
+                        timeout=ainvoke_timeout
+                    )
+                    print(f"✅ Gemini ainvoke() completed within {ainvoke_timeout}s", flush=True)
+                    sys.stdout.flush()
+                except asyncio.TimeoutError:
+                    print(f"⏱️ Gemini ainvoke() timed out after {ainvoke_timeout}s", flush=True)
+                    sys.stdout.flush()
+                    # Set error response and continue to end of function
+                    final_response = "I'm sorry, the request is taking too long. Please try again or use a different provider."
+                    tool_calls_info = []
+                    # Continue to end of function to return properly
                 
                 # Process final state
                 final_messages = final_state.get("messages", [])
