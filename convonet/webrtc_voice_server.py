@@ -1312,7 +1312,7 @@ def init_socketio(socketio_instance: SocketIO, app):
                             print(f"🤖 Agent response received: {agent_response[:100] if agent_response else 'None'}", flush=True)
                             sys.stdout.flush()
                         except FutureTimeoutError:
-                            print(f"⏱️ ThreadPoolExecutor timed out after {executor_timeout} seconds", flush=True)
+                            print(f"⏱️ ThreadPoolExecutor timed out after 25 seconds", flush=True)
                             sys.stdout.flush()
                             agent_response = "I'm sorry, I'm taking too long to process that request. Please try a simpler request or try again."
                             transfer_marker = None
