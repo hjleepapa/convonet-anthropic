@@ -1029,12 +1029,13 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
             if provider == "gemini":
                 max_gemini_tools = int(os.getenv("GEMINI_MAX_TOOLS", "0"))  # 0 = no limit
                 if max_gemini_tools > 0 and len(tools) > max_gemini_tools:
-                    # Prioritize commonly used tools (calendar, todos, reminders)
+                    # Prioritize create_xxx tools (most commonly requested actions)
                     priority_tool_names = [
-                        "create_calendar_event", "get_calendar_events", "delete_calendar_event",
-                        "create_todo", "get_todos", "complete_todo", "delete_todo",
-                        "create_reminder", "get_reminders", "delete_reminder",
-                        "create_team", "get_teams", "create_team_todo"
+                        "create_calendar_event",
+                        "create_todo",
+                        "create_reminder",
+                        "create_team",
+                        "create_team_todo"
                     ]
                     
                     # Separate priority and other tools
@@ -1147,12 +1148,13 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
             if provider == "gemini":
                 max_gemini_tools = int(os.getenv("GEMINI_MAX_TOOLS", "0"))  # 0 = no limit
                 if max_gemini_tools > 0 and len(tools) > max_gemini_tools:
-                    # Prioritize commonly used tools (calendar, todos, reminders)
+                    # Prioritize create_xxx tools (most commonly requested actions)
                     priority_tool_names = [
-                        "create_calendar_event", "get_calendar_events", "delete_calendar_event",
-                        "create_todo", "get_todos", "complete_todo", "delete_todo",
-                        "create_reminder", "get_reminders", "delete_reminder",
-                        "create_team", "get_teams", "create_team_todo"
+                        "create_calendar_event",
+                        "create_todo",
+                        "create_reminder",
+                        "create_team",
+                        "create_team_todo"
                     ]
                     
                     # Separate priority and other tools
