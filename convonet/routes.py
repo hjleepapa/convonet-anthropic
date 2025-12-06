@@ -1624,7 +1624,22 @@ async def _run_agent_async(
             
             exec_thread = threading.Thread(target=run_graph_execution, daemon=True)
             exec_thread.start()
-            exec_thread.join(timeout=execution_timeout)
+            
+            # Use aggressive timeout - if thread doesn't complete, we'll timeout
+            # For daemon threads, if main thread exits, daemon threads are killed
+            thread_joined = exec_thread.join(timeout=execution_timeout)
+            
+            # Force check - if thread is still alive after timeout, something is blocking
+            if exec_thread.is_alive():
+                print(f"⚠️ CRITICAL: Thread is still alive after {execution_timeout}s timeout - Gemini is blocking!", flush=True)
+                sys.stdout.flush()
+                print(f"⚠️ This means Gemini's API call is blocking and cannot be interrupted", flush=True)
+                sys.stdout.flush()
+                # Thread is daemon, so it will be killed when main thread exits
+                # But we need to raise timeout error now
+                if not execution_result['done']:
+                    execution_result['error'] = TimeoutError(f"Graph execution timed out after {execution_timeout}s - Gemini blocking detected")
+                    execution_result['done'] = True
             
             if not execution_result['done']:
                 print(f"⏱️ Graph execution timed out after {execution_timeout} seconds", flush=True)
