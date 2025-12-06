@@ -1394,8 +1394,9 @@ async def _run_agent_async(
         sys.stdout.flush()
         
         # Use wait_for to wrap the entire async for loop with timeout for Gemini
-        # Use very aggressive timeout for Gemini (15s) to prevent worker timeout (30s)
-        execution_timeout = 15.0 if is_gemini else 25.0
+        # Use very aggressive timeout for Gemini (12s) to prevent worker timeout (30s)
+        # This gives us 12s for processing + 12s buffer before worker timeout
+        execution_timeout = 12.0 if is_gemini else 25.0
         print(f"⏱️ Using {execution_timeout}s timeout for graph execution (Gemini: {is_gemini})", flush=True)
         sys.stdout.flush()
         
