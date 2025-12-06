@@ -1135,7 +1135,7 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
             sys.stdout.flush()
             
             import threading
-            import time
+            # Don't import time here - import it locally in create_todo_agent() to avoid scoping conflicts
             
             todo_agent_result = {'agent': None, 'error': None, 'done': False}
             
