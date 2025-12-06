@@ -77,9 +77,13 @@ def create_app():
     migrate.init_app(app, db) # Initialize Flask-Migrate
     
     # Initialize Socket.IO for WebRTC voice
-    # Use 'eventlet' for production (Gunicorn compatibility)
+    # Use 'gevent' for production (better I/O handling, less conflicts with threading)
     # Use 'threading' for local development
-    socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+    # Check if we're in production (Render.com sets RENDER=true)
+    if os.getenv('RENDER') or os.getenv('RENDER_ENVIRONMENT'):
+        socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')
+    else:
+        socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
     # --- Register Blueprints ---
     # Import and register blueprints after all extensions are fully configured.
