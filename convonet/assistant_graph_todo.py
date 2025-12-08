@@ -532,7 +532,6 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                 # OPTIMIZATION: Execute multiple tools in parallel
                 if len(tool_calls_list) > 1:
                     print(f"🚀 Executing {len(tool_calls_list)} tools in parallel for lower latency", flush=True)
-                    import asyncio
                     
                     async def execute_tool_async(tool_call):
                         """Execute a single tool call"""
