@@ -664,6 +664,10 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                                 result = f"Tool {tool_name} not found"
                                 print(f"⚠️ Tool {tool_name} not found in available tools")
                             
+                            # Ensure result is set before creating ToolMessage
+                            if result is None:
+                                result = f"Tool {tool_name} execution completed with no result"
+                            
                             from langchain_core.messages import ToolMessage
                             tool_message = ToolMessage(
                                 content=str(result),
@@ -676,6 +680,8 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                             # Outer exception handler for tool execution
                             error_str = str(e)
                             print(f"❌ Outer exception for tool {tool_name}: {error_str}")
+                            import traceback
+                            traceback.print_exc()
                             from langchain_core.messages import ToolMessage
                             tool_message = ToolMessage(
                                 content=f"Error executing tool: {error_str[:200]}",
