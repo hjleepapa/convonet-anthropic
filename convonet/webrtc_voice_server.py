@@ -1408,7 +1408,7 @@ async def process_with_agent(
     user_id: str, 
     user_name: str,
     socketio=None,
-    session_id: Optional[str] = None,
+    session_id: str | None = None,
 ) -> str:
     """Process user input with the agent"""
     try:
