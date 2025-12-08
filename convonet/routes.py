@@ -1476,8 +1476,9 @@ async def _run_agent_async(
                         # Get system prompt
                         system_prompt = getattr(agent, 'system_prompt', '') if hasattr(agent, 'system_prompt') else ''
                         
-                        # Get conversation history
-                        conversation_messages = input_state.get("messages", [])
+                        # Get conversation history from AgentState
+                        # AgentState is a Pydantic BaseModel, so we access it as an attribute
+                        conversation_messages = input_state.messages if hasattr(input_state, 'messages') else []
                         
                         # Stream using native SDK
                         print(f"📡 Streaming Gemini response with native SDK...", flush=True)
