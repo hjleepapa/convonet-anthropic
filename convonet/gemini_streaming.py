@@ -135,27 +135,64 @@ class GeminiStreamingHandler:
         
         try:
             # Use async generate_content_stream for streaming
-            # Note: The API may vary - check if aio is available
+            # Note: system_instruction may need to be passed differently or included in contents
+            # Build the request parameters
+            request_params = {
+                "model": self.model,
+                "contents": gemini_messages,
+                "config": generation_config,
+            }
+            
+            # Add system instruction if available - try different parameter names
+            if system_instruction:
+                # Try passing as system_instruction first, if that fails, include in contents
+                request_params["system_instruction"] = system_instruction
+            
+            # Add tools if available
+            if tools_config:
+                request_params["tools"] = tools_config
+            
+            # Use async generate_content_stream for streaming
             if hasattr(self.client, 'aio'):
-                response_stream = await self.client.aio.models.generate_content_stream(
-                    model=self.model,
-                    contents=gemini_messages,
-                    config=generation_config,
-                    system_instruction=system_instruction,
-                    tools=tools_config,
-                )
+                try:
+                    response_stream = await self.client.aio.models.generate_content_stream(**request_params)
+                except TypeError as e:
+                    # If system_instruction parameter is not supported, try without it
+                    if "system_instruction" in str(e):
+                        print(f"⚠️ system_instruction parameter not supported, including in contents instead", flush=True)
+                        # Remove system_instruction from params and add as first message
+                        request_params.pop("system_instruction", None)
+                        # Prepend system instruction as a user message with special role
+                        if gemini_messages and gemini_messages[0].get("role") != "system":
+                            gemini_messages.insert(0, {
+                                "role": "user",
+                                "parts": [{"text": f"System: {system_instruction}"}]
+                            })
+                        response_stream = await self.client.aio.models.generate_content_stream(**request_params)
+                    else:
+                        raise
             else:
                 # Fallback to sync streaming (will need to wrap in executor)
                 import asyncio
-                response_stream = await asyncio.to_thread(
-                    lambda: self.client.models.generate_content_stream(
-                        model=self.model,
-                        contents=gemini_messages,
-                        config=generation_config,
-                        system_instruction=system_instruction,
-                        tools=tools_config,
+                try:
+                    response_stream = await asyncio.to_thread(
+                        lambda: self.client.models.generate_content_stream(**request_params)
                     )
-                )
+                except TypeError as e:
+                    # If system_instruction parameter is not supported, try without it
+                    if "system_instruction" in str(e):
+                        print(f"⚠️ system_instruction parameter not supported, including in contents instead", flush=True)
+                        request_params.pop("system_instruction", None)
+                        if gemini_messages and gemini_messages[0].get("role") != "system":
+                            gemini_messages.insert(0, {
+                                "role": "user",
+                                "parts": [{"text": f"System: {system_instruction}"}]
+                            })
+                        response_stream = await asyncio.to_thread(
+                            lambda: self.client.models.generate_content_stream(**request_params)
+                        )
+                    else:
+                        raise
             
             async for chunk in response_stream:
                 # Handle text chunks
