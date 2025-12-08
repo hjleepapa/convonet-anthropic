@@ -594,17 +594,17 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                 else:
                     # Single tool - execute sequentially (original logic)
                     for tool_call in tool_calls_list:
-                    tool_name = tool_call.get('name', 'unknown')
-                    tool_args = tool_call.get('args', {})
-                    tool_id = tool_call.get('id', f'tool_{len(tool_messages)}')
-                    tool_call_ids.add(tool_id)
+                        tool_name = tool_call.get('name', 'unknown')
+                        tool_args = tool_call.get('args', {})
+                        tool_id = tool_call.get('id', f'tool_{len(tool_messages)}')
+                        tool_call_ids.add(tool_id)
                     
-                    print(f"🔧 Executing tool: {tool_name} (id: {tool_id}) with args: {tool_args}")
+                        print(f"🔧 Executing tool: {tool_name} (id: {tool_id}) with args: {tool_args}")
                         
                         # Initialize result variable to avoid UnboundLocalError
                         result = None
                     
-                    try:
+                        try:
                         # Find the tool by name
                         tool = None
                         for t in self.tools:
