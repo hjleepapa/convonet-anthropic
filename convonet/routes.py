@@ -1455,13 +1455,17 @@ async def _run_agent_async(
             # For Gemini, use ainvoke() with timeout instead of astream() to avoid blocking HTTP calls
             # Gemini's astream() uses blocking HTTP that can't be interrupted
             # ainvoke() is async but still needs a timeout wrapper
+            # KEY DIFFERENCE: ainvoke() waits for ENTIRE graph execution (LLM + tools + all iterations)
+            # This means if tools take 10s and there are 2 iterations, total time = (LLM + tool) × iterations
+            # We need a much longer timeout to account for tool execution time
             if is_gemini:
                 print(f"⚠️ Using ainvoke() with timeout instead of astream() for Gemini to avoid blocking...", flush=True)
                 sys.stdout.flush()
-                # Increased timeout for Gemini tool calling (20s) - tool execution can take time
+                # CRITICAL: ainvoke() blocks for ENTIRE execution including all tool calls and iterations
+                # If tools take 10s each and there are 2-3 iterations, we need 60s+ timeout
                 # Google AI Studio works because it has longer timeouts and native SDK
-                # This gives tools enough time to complete while still preventing infinite hangs
-                ainvoke_timeout = 20.0
+                # Increased to 60s to allow for: LLM (5s) + Tool (15s) × 2 iterations = 40s + buffer
+                ainvoke_timeout = 60.0
                 try:
                     final_state = await asyncio.wait_for(
                         agent_graph.ainvoke(input=input_state, config=config),
