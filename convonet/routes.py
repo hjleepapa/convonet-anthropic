@@ -1517,8 +1517,9 @@ async def _run_agent_async(
                 sys.stdout.flush()
                 # Check each state update for transfer markers in tool results
                 # Process stream with per-iteration timeout to prevent hanging
-                # Use aggressive timeout (8s for Claude/OpenAI, 10s for Gemini) to ensure we timeout before worker timeout
-                stream_timeout = 8.0 if not is_gemini else 10.0  # Much less than execution_timeout to ensure we timeout before worker timeout
+                # Increased timeouts for Gemini to allow tool execution to complete
+                # Google AI Studio works because it has longer timeouts - we need to match that
+                stream_timeout = 8.0 if not is_gemini else 15.0  # Increased for Gemini to allow tool execution
                 stream_iter = stream.__aiter__()
                 states_processed = 0
                 max_states = 50  # Prevent infinite loops
@@ -1526,8 +1527,8 @@ async def _run_agent_async(
                 # Add watchdog timer - if we don't get a state update within this time, force exit
                 import time as watchdog_time
                 last_state_time = watchdog_time.time()
-                # Use aggressive watchdog (6s for Claude/OpenAI, 8s for Gemini) to catch hangs early
-                watchdog_timeout = 6.0 if not is_gemini else 8.0  # Maximum time between state updates
+                # Increased watchdog for Gemini - tool execution can take time
+                watchdog_timeout = 6.0 if not is_gemini else 12.0  # Maximum time between state updates
                 
                 try:
                     while states_processed < max_states:
