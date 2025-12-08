@@ -624,7 +624,7 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                                 print(f"✅ Tool {tool_name} completed successfully")
                             except asyncio.TimeoutError:
                                 result = "I'm sorry, the database operation timed out. Please try again."
-                                    print(f"⏰ Tool {tool_name} timed out after {tool_timeout} seconds")
+                                print(f"⏰ Tool {tool_name} timed out after {tool_timeout} seconds")
                             except ExceptionGroup as eg:
                                 # Unwrap ExceptionGroup and get the first exception
                                 print(f"❌ Tool {tool_name} ExceptionGroup with {len(eg.exceptions)} exception(s)")
