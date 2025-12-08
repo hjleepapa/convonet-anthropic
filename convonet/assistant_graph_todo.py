@@ -543,16 +543,19 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                         
                         if tool:
                             # Execute the async tool with timeout
-                            # Reduced timeout to stay under Twilio's 15-second HTTP limit
+                            # Increased timeout for Gemini - tool execution (especially MCP calls, API calls) can take time
+                            # Google AI Studio works because it has longer timeouts
+                            # Use longer timeout for Gemini (15s) vs others (8s) to allow for slower tool execution
+                            tool_timeout = 15.0 if self.provider == "gemini" else 8.0
                             try:
                                 if hasattr(tool, 'ainvoke'):
-                                    result = await asyncio.wait_for(tool.ainvoke(tool_args), timeout=8.0)
+                                    result = await asyncio.wait_for(tool.ainvoke(tool_args), timeout=tool_timeout)
                                 else:
-                                    result = await asyncio.wait_for(asyncio.to_thread(tool.invoke, tool_args), timeout=8.0)
+                                    result = await asyncio.wait_for(asyncio.to_thread(tool.invoke, tool_args), timeout=tool_timeout)
                                 print(f"✅ Tool {tool_name} completed successfully")
                             except asyncio.TimeoutError:
                                 result = "I'm sorry, the database operation timed out. Please try again."
-                                print(f"⏰ Tool {tool_name} timed out after 8 seconds")
+                                print(f"⏰ Tool {tool_name} timed out after {tool_timeout} seconds")
                             except ExceptionGroup as eg:
                                 # Unwrap ExceptionGroup and get the first exception
                                 print(f"❌ Tool {tool_name} ExceptionGroup with {len(eg.exceptions)} exception(s)")

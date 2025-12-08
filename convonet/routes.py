@@ -1433,9 +1433,10 @@ async def _run_agent_async(
         sys.stdout.flush()
         
         # Use wait_for to wrap the entire async for loop with timeout for Gemini
-        # Use aggressive timeout for Gemini (12s) to prevent worker timeout (30s)
+        # Increased timeout for Gemini (20s) to allow tool execution to complete
+        # Google AI Studio works because it has longer timeouts - we need to match that
         # Use shorter timeout for Claude/OpenAI (15s) for faster user feedback
-        execution_timeout = 12.0 if is_gemini else 15.0
+        execution_timeout = 20.0 if is_gemini else 15.0
         print(f"⏱️ Using {execution_timeout}s timeout for graph execution (Gemini: {is_gemini})", flush=True)
         sys.stdout.flush()
         
@@ -1457,9 +1458,10 @@ async def _run_agent_async(
             if is_gemini:
                 print(f"⚠️ Using ainvoke() with timeout instead of astream() for Gemini to avoid blocking...", flush=True)
                 sys.stdout.flush()
-                # Use ainvoke() with aggressive timeout (10s) to prevent worker timeout (30s)
-                # This gives us 10s for processing + 20s buffer before worker timeout
-                ainvoke_timeout = 10.0
+                # Increased timeout for Gemini tool calling (20s) - tool execution can take time
+                # Google AI Studio works because it has longer timeouts and native SDK
+                # This gives tools enough time to complete while still preventing infinite hangs
+                ainvoke_timeout = 20.0
                 try:
                     final_state = await asyncio.wait_for(
                         agent_graph.ainvoke(input=input_state, config=config),
