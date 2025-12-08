@@ -522,75 +522,145 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                     return state
                 
                 # Execute each tool call - CRITICAL: Every tool_use MUST have a tool_result
+                # OPTIMIZATION: Execute tools in parallel for lower latency
                 tool_messages = []
                 tool_call_ids = set()  # Track all tool call IDs to ensure we handle them all
                 
-                for tool_call in last_message.tool_calls:
-                    tool_name = tool_call.get('name', 'unknown')
-                    tool_args = tool_call.get('args', {})
-                    tool_id = tool_call.get('id', f'tool_{len(tool_messages)}')
-                    tool_call_ids.add(tool_id)
+                # Collect all tool calls first
+                tool_calls_list = list(last_message.tool_calls)
+                
+                # OPTIMIZATION: Execute multiple tools in parallel
+                if len(tool_calls_list) > 1:
+                    print(f"🚀 Executing {len(tool_calls_list)} tools in parallel for lower latency", flush=True)
+                    import asyncio
                     
-                    print(f"🔧 Executing tool: {tool_name} (id: {tool_id}) with args: {tool_args}")
-                    
-                    try:
-                        # Find the tool by name
-                        tool = None
-                        for t in self.tools:
-                            if t.name == tool_name:
-                                tool = t
-                                break
+                    async def execute_tool_async(tool_call):
+                        """Execute a single tool call"""
+                        tool_name = tool_call.get('name', 'unknown')
+                        tool_args = tool_call.get('args', {})
+                        tool_id = tool_call.get('id', f'tool_{len(tool_messages)}')
                         
-                        if tool:
-                            # Execute the async tool with timeout
-                            # Increased timeout for Gemini - tool execution (especially MCP calls, API calls) can take time
-                            # Google AI Studio works because it has longer timeouts
-                            # Use longer timeout for Gemini (15s) vs others (8s) to allow for slower tool execution
-                            tool_timeout = 15.0 if self.provider == "gemini" else 8.0
-                            try:
-                                if hasattr(tool, 'ainvoke'):
-                                    result = await asyncio.wait_for(tool.ainvoke(tool_args), timeout=tool_timeout)
-                                else:
-                                    result = await asyncio.wait_for(asyncio.to_thread(tool.invoke, tool_args), timeout=tool_timeout)
-                                print(f"✅ Tool {tool_name} completed successfully")
-                            except asyncio.TimeoutError:
-                                result = "I'm sorry, the database operation timed out. Please try again."
-                                print(f"⏰ Tool {tool_name} timed out after {tool_timeout} seconds")
-                            except ExceptionGroup as eg:
-                                # Unwrap ExceptionGroup and get the first exception
-                                print(f"❌ Tool {tool_name} ExceptionGroup with {len(eg.exceptions)} exception(s)")
-                                for i, exc in enumerate(eg.exceptions):
-                                    print(f"❌   Exception {i+1}: {type(exc).__name__}: {exc}")
-                                first_error = eg.exceptions[0] if eg.exceptions else eg
-                                error_str = str(first_error)
-                                error_type = type(first_error).__name__
-                                
-                                # Handle BrokenResourceError (MCP connection issue)
-                                if "BrokenResourceError" in error_type or not error_str.strip():
-                                    result = "I encountered a connection issue with the database. The operation may have completed. Please check your calendar."
-                                else:
-                                    result = f"I encountered an error: {error_str[:200]}"
-                                print(f"❌ Tool {tool_name} error (unwrapped): {error_str if error_str else error_type}")
-                            except Exception as tool_error:
-                                error_str = str(tool_error)
-                                print(f"❌ Tool {tool_name} error: {error_str}")
-                                print(f"❌ Tool {tool_name} error type: {type(tool_error)}")
-                                
-                                # Handle specific error types
-                                error_type = type(tool_error).__name__
-                                if "BrokenResourceError" in error_type:
-                                    result = "I encountered a database connection issue. The operation may have completed. Please check your calendar or todo list."
-                                elif "TaskGroup" in error_str:
-                                    result = "I encountered a system processing error. The task may have been created successfully. Please check your todo list."
-                                elif "Database not available" in error_str or "DB_URI" in error_str:
-                                    result = "I'm sorry, there's a database connection issue. Please try again in a moment."
-                                elif "validation" in error_str.lower():
-                                    result = "I encountered a data validation error. Let me try again."
-                                elif not error_str.strip():
-                                    # Empty error message
-                                    result = "I encountered an unexpected error. Please try again or rephrase your request."
-                                else:
-                                    result = f"I encountered an error: {error_str[:100]}"
+                        try:
+                            # Find the tool by name
+                            tool = None
+                            for t in self.tools:
+                                if t.name == tool_name:
+                                    tool = t
+                                    break
+                            
+                            if tool:
+                                # Reduced timeout for faster failure (was 8s, now 6s)
+                                tool_timeout = 6.0
+                                try:
+                                    if hasattr(tool, 'ainvoke'):
+                                        result = await asyncio.wait_for(tool.ainvoke(tool_args), timeout=tool_timeout)
+                                    else:
+                                        result = await asyncio.wait_for(asyncio.to_thread(tool.invoke, tool_args), timeout=tool_timeout)
+                                    print(f"✅ Tool {tool_name} completed successfully")
+                                    return {
+                                        'tool_call_id': tool_id,
+                                        'content': str(result),
+                                        'status': 'success'
+                                    }
+                                except asyncio.TimeoutError:
+                                    return {
+                                        'tool_call_id': tool_id,
+                                        'content': "I'm sorry, the database operation timed out. Please try again.",
+                                        'status': 'timeout'
+                                    }
+                            else:
+                                return {
+                                    'tool_call_id': tool_id,
+                                    'content': f"Tool {tool_name} not found",
+                                    'status': 'error'
+                                }
+                        except Exception as e:
+                            print(f"❌ Tool {tool_name} error: {e}")
+                            return {
+                                'tool_call_id': tool_id,
+                                'content': f"Error: {str(e)}",
+                                'status': 'error'
+                            }
+                    
+                    # Execute all tools in parallel
+                    tool_results = await asyncio.gather(*[execute_tool_async(tc) for tc in tool_calls_list])
+                    
+                    # Convert results to ToolMessage format
+                    for result in tool_results:
+                        from langchain_core.messages import ToolMessage
+                        tool_messages.append(ToolMessage(
+                            content=result['content'],
+                            tool_call_id=result['tool_call_id']
+                        ))
+                else:
+                    # Single tool - execute sequentially (original logic)
+                    for tool_call in tool_calls_list:
+                        tool_name = tool_call.get('name', 'unknown')
+                        tool_args = tool_call.get('args', {})
+                        tool_id = tool_call.get('id', f'tool_{len(tool_messages)}')
+                        tool_call_ids.add(tool_id)
+                        
+                        print(f"🔧 Executing tool: {tool_name} (id: {tool_id}) with args: {tool_args}")
+                        
+                        try:
+                            # Find the tool by name
+                            tool = None
+                            for t in self.tools:
+                                if t.name == tool_name:
+                                    tool = t
+                                    break
+                            
+                            if tool:
+                                # OPTIMIZED: Reduced timeout for faster failure detection
+                                # Reduced from 8s to 6s for lower latency (Gemini uses native SDK, doesn't need longer timeout)
+                                tool_timeout = 6.0
+                                try:
+                                    if hasattr(tool, 'ainvoke'):
+                                        result = await asyncio.wait_for(tool.ainvoke(tool_args), timeout=tool_timeout)
+                                    else:
+                                        result = await asyncio.wait_for(asyncio.to_thread(tool.invoke, tool_args), timeout=tool_timeout)
+                                    print(f"✅ Tool {tool_name} completed successfully")
+                                except asyncio.TimeoutError:
+                                    result = "I'm sorry, the database operation timed out. Please try again."
+                                    print(f"⏰ Tool {tool_name} timed out after {tool_timeout} seconds")
+                                except ExceptionGroup as eg:
+                                    # Unwrap ExceptionGroup and get the first exception
+                                    print(f"❌ Tool {tool_name} ExceptionGroup with {len(eg.exceptions)} exception(s)")
+                                    for i, exc in enumerate(eg.exceptions):
+                                        print(f"❌   Exception {i+1}: {type(exc).__name__}: {exc}")
+                                    first_error = eg.exceptions[0] if eg.exceptions else eg
+                                    error_str = str(first_error)
+                                    error_type = type(first_error).__name__
+                                    
+                                    # Handle BrokenResourceError (MCP connection issue)
+                                    if "BrokenResourceError" in error_type or not error_str.strip():
+                                        result = "I encountered a connection issue with the database. The operation may have completed. Please check your calendar."
+                                    else:
+                                        result = f"I encountered an error: {error_str[:200]}"
+                                    print(f"❌ Tool {tool_name} error (unwrapped): {error_str if error_str else error_type}")
+                                except Exception as tool_error:
+                                    error_str = str(tool_error)
+                                    print(f"❌ Tool {tool_name} error: {error_str}")
+                                    print(f"❌ Tool {tool_name} error type: {type(tool_error)}")
+                                    
+                                    # Handle specific error types
+                                    error_type = type(tool_error).__name__
+                                    if "BrokenResourceError" in error_type:
+                                        result = "I encountered a database connection issue. The operation may have completed. Please check your calendar or todo list."
+                                    elif "TaskGroup" in error_str:
+                                        result = "I encountered a system processing error. The task may have been created successfully. Please check your todo list."
+                                    elif "Database not available" in error_str or "DB_URI" in error_str:
+                                        result = "I'm sorry, there's a database connection issue. Please try again in a moment."
+                                    elif "validation" in error_str.lower():
+                                        result = "I encountered a data validation error. Let me try again."
+                                    elif not error_str.strip():
+                                        # Empty error message
+                                        result = "I encountered an unexpected error. Please try again or rephrase your request."
+                                    else:
+                                        result = f"I encountered an error: {error_str[:100]}"
+                            else:
+                                result = f"Tool {tool_name} not found"
+                                print(f"⚠️ Tool {tool_name} not found in available tools")
                             
                             from langchain_core.messages import ToolMessage
                             tool_message = ToolMessage(
@@ -600,37 +670,18 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                             )
                             tool_messages.append(tool_message)
                             print(f"🔧 Tool {tool_name} result: {result}")
-                        else:
+                        except Exception as e:
+                            # Outer exception handler for tool execution
+                            error_str = str(e)
+                            print(f"❌ Outer exception for tool {tool_name}: {error_str}")
                             from langchain_core.messages import ToolMessage
                             tool_message = ToolMessage(
-                                content=f"Tool {tool_name} not found",
+                                content=f"Error executing tool: {error_str[:200]}",
                                 name=tool_name,
                                 tool_call_id=tool_id
                             )
                             tool_messages.append(tool_message)
-                        
-                    except Exception as e:
-                        error_str = str(e)
-                        print(f"❌ Unexpected error in tools_node: {error_str}")
-                        print(f"❌ Error type: {type(e)}")
-                        from langchain_core.messages import ToolMessage
-                        
-                        # Handle TaskGroup errors specifically
-                        if "TaskGroup" in error_str:
-                            error_msg = "I encountered a system processing error. The task may have been created successfully. Please check your todo list."
-                        elif "Database not available" in error_str:
-                            error_msg = "I'm sorry, there's a temporary database issue. Please try again in a moment."
-                        elif "DB_URI" in error_str:
-                            error_msg = "I'm sorry, there's a configuration issue with the database. Please try again later."
-                        else:
-                            error_msg = f"I encountered an error: {error_str[:100]}"
-                        
-                        tool_message = ToolMessage(
-                            content=error_msg,
-                            name=tool_name,
-                            tool_call_id=tool_id
-                        )
-                        tool_messages.append(tool_message)
+                
                 
                 # CRITICAL: Verify we have results for ALL tool calls
                 result_ids = {msg.tool_call_id for msg in tool_messages if hasattr(msg, 'tool_call_id')}

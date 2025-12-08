@@ -1297,7 +1297,9 @@ async def _run_agent_async(
     user_id: Optional[str] = None,
     user_name: Optional[str] = None,
     reset_thread: bool = False,
-    include_metadata: bool = False
+    include_metadata: bool = False,
+    socketio=None,
+    session_id: Optional[str] = None,
 ) -> str | dict:
     """Runs the agent for a given prompt and returns the final response.
     
@@ -1432,11 +1434,10 @@ async def _run_agent_async(
         print(f"🚀 Provider: {current_provider}, Model: {current_model}", flush=True)
         sys.stdout.flush()
         
-        # Use wait_for to wrap the entire async for loop with timeout for Gemini
-        # Increased timeout for Gemini (20s) to allow tool execution to complete
-        # Google AI Studio works because it has longer timeouts - we need to match that
-        # Use shorter timeout for Claude/OpenAI (15s) for faster user feedback
-        execution_timeout = 20.0 if is_gemini else 15.0
+        # OPTIMIZED TIMEOUTS: Reduced for lower latency
+        # Reduced execution timeout for faster response (was 15s, now 12s for Claude/OpenAI)
+        # Gemini uses native SDK streaming (no timeout needed) or 60s fallback
+        execution_timeout = 12.0  # Reduced from 15s for lower latency
         print(f"⏱️ Using {execution_timeout}s timeout for graph execution (Gemini: {is_gemini})", flush=True)
         sys.stdout.flush()
         
@@ -1452,62 +1453,101 @@ async def _run_agent_async(
             transfer_marker = None
             tool_calls_info = []
             
-            # For Gemini, use ainvoke() with timeout instead of astream() to avoid blocking HTTP calls
-            # Gemini's astream() uses blocking HTTP that can't be interrupted
-            # ainvoke() is async but still needs a timeout wrapper
-            # KEY DIFFERENCE: ainvoke() waits for ENTIRE graph execution (LLM + tools + all iterations)
-            # This means if tools take 10s and there are 2 iterations, total time = (LLM + tool) × iterations
-            # We need a much longer timeout to account for tool execution time
+            # HYBRID STREAMING: Use native Gemini SDK for streaming, LangGraph for tool execution
             if is_gemini:
-                print(f"⚠️ Using ainvoke() with timeout instead of astream() for Gemini to avoid blocking...", flush=True)
+                print(f"🚀 Using native Gemini SDK for hybrid streaming...", flush=True)
                 sys.stdout.flush()
-                # CRITICAL: ainvoke() blocks for ENTIRE execution including all tool calls and iterations
-                # If tools take 10s each and there are 2-3 iterations, we need 60s+ timeout
-                # Google AI Studio works because it has longer timeouts and native SDK
-                # Increased to 60s to allow for: LLM (5s) + Tool (15s) × 2 iterations = 40s + buffer
-                ainvoke_timeout = 60.0
+                
                 try:
-                    final_state = await asyncio.wait_for(
-                        agent_graph.ainvoke(input=input_state, config=config),
-                        timeout=ainvoke_timeout
-                    )
-                    print(f"✅ Gemini ainvoke() completed within {ainvoke_timeout}s", flush=True)
-                    sys.stdout.flush()
-                except asyncio.TimeoutError:
-                    print(f"⏱️ Gemini ainvoke() timed out after {ainvoke_timeout}s", flush=True)
-                    sys.stdout.flush()
-                    # Set error response and continue to end of function
-                    final_response = "I'm sorry, the request is taking too long. Please try again or use a different provider."
-                    tool_calls_info = []
-                    # Skip processing final state since ainvoke() timed out
-                    final_state = None
-                else:
-                    # Process final state only if ainvoke() succeeded
-                    final_messages = final_state.get("messages", [])
-                    last_message = final_messages[-1] if final_messages else None
-                    final_response = getattr(last_message, 'content', "") if last_message else ""
+                    # Try to use native Gemini SDK for streaming
+                    from .gemini_streaming import stream_gemini_with_tools, GEMINI_SDK_AVAILABLE
+                    from .llm_provider_manager import get_llm_provider_manager
                     
-                    # Extract tool calls from final state
-                    tool_calls_info = []
-                    for msg in final_messages:
-                        if hasattr(msg, 'tool_calls') and msg.tool_calls:
-                            for tc in msg.tool_calls:
-                                tool_id = getattr(tc, 'id', getattr(tc, 'tool_call_id', str(uuid.uuid4())))
-                                tool_name = getattr(tc, 'name', getattr(tc, 'functionName', 'unknown'))
-                                args = getattr(tc, 'args', getattr(tc, 'arguments', {}))
-                                tool_calls_info.append(ToolCallInfo(
-                                    tool_name=tool_name,
-                                    tool_id=tool_id,
-                                    arguments=args if isinstance(args, dict) else {}
-                                ))
+                    if GEMINI_SDK_AVAILABLE:
+                        # Get Gemini API key and model
+                        provider_mgr = get_llm_provider_manager()
+                        gemini_api_key = os.getenv("GOOGLE_API_KEY")
+                        gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+                        
+                        # Get tools from agent graph
+                        agent = await _get_agent_graph()
+                        tools = agent.tools if hasattr(agent, 'tools') else []
+                        
+                        # Get system prompt
+                        system_prompt = getattr(agent, 'system_prompt', '') if hasattr(agent, 'system_prompt') else ''
+                        
+                        # Get conversation history
+                        conversation_messages = input_state.get("messages", [])
+                        
+                        # Stream using native SDK
+                        print(f"📡 Streaming Gemini response with native SDK...", flush=True)
+                        sys.stdout.flush()
+                        
+                        final_response, tool_calls_list = await stream_gemini_with_tools(
+                            prompt=prompt,
+                            api_key=gemini_api_key,
+                            model=gemini_model,
+                            tools=tools,
+                            system_prompt=system_prompt,
+                            messages=conversation_messages,
+                            socketio=socketio,
+                            session_id=session_id,
+                        )
+                        
+                        # Convert tool calls to ToolCallInfo
+                        tool_calls_info = []
+                        for tc in tool_calls_list:
+                            tool_calls_info.append(ToolCallInfo(
+                                tool_name=tc.get('name', 'unknown'),
+                                tool_id=tc.get('id', str(uuid.uuid4())),
+                                arguments=tc.get('args', {})
+                            ))
+                        
+                        print(f"✅ Gemini native streaming completed", flush=True)
+                        sys.stdout.flush()
+                        final_state = None  # Not using LangGraph state for native streaming
+                    else:
+                        raise ImportError("Native Gemini SDK not available")
+                        
+                except (ImportError, Exception) as e:
+                    print(f"⚠️ Native Gemini SDK streaming failed: {e}, falling back to ainvoke()", flush=True)
+                    sys.stdout.flush()
+                    # Fallback to ainvoke() if native SDK fails
+                    ainvoke_timeout = 60.0
+                    try:
+                        final_state = await asyncio.wait_for(
+                            agent_graph.ainvoke(input=input_state, config=config),
+                            timeout=ainvoke_timeout
+                        )
+                        print(f"✅ Gemini ainvoke() completed within {ainvoke_timeout}s", flush=True)
+                        sys.stdout.flush()
+                    except asyncio.TimeoutError:
+                        print(f"⏱️ Gemini ainvoke() timed out after {ainvoke_timeout}s", flush=True)
+                        sys.stdout.flush()
+                        final_response = "I'm sorry, the request is taking too long. Please try again or use a different provider."
+                        tool_calls_info = []
+                        final_state = None
+                    else:
+                        final_messages = final_state.get("messages", [])
+                        last_message = final_messages[-1] if final_messages else None
+                        final_response = getattr(last_message, 'content', "") if last_message else ""
+                        
+                        tool_calls_info = []
+                        for msg in final_messages:
+                            if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                                for tc in msg.tool_calls:
+                                    tool_id = getattr(tc, 'id', getattr(tc, 'tool_call_id', str(uuid.uuid4())))
+                                    tool_name = getattr(tc, 'name', getattr(tc, 'functionName', 'unknown'))
+                                    args = getattr(tc, 'args', getattr(tc, 'arguments', {}))
+                                    tool_calls_info.append(ToolCallInfo(
+                                        tool_name=tool_name,
+                                        tool_id=tool_id,
+                                        arguments=args if isinstance(args, dict) else {}
+                                    ))
                 
                 # Set final_response if empty
                 if not final_response or final_response.strip() == "":
                     final_response = "I'm processing your request. Please wait a moment and try again if you don't see a response."
-                
-                # For Gemini with invoke(), skip streaming and go directly to return
-                # The final_response and tool_calls_info are already set
-                # We'll continue to the end of the function to return properly
             else:
                 # For non-Gemini providers, use astream() as normal
                 # Create stream inside async function so it's in the right event loop context
@@ -1519,11 +1559,10 @@ async def _run_agent_async(
             
                 print(f"🔄 Processing agent stream...", flush=True)
                 sys.stdout.flush()
-                # Check each state update for transfer markers in tool results
+                # OPTIMIZED STREAMING: Reduced timeouts for lower latency
                 # Process stream with per-iteration timeout to prevent hanging
-                # Increased timeouts for Gemini to allow tool execution to complete
-                # Google AI Studio works because it has longer timeouts - we need to match that
-                stream_timeout = 8.0 if not is_gemini else 15.0  # Increased for Gemini to allow tool execution
+                # Reduced timeouts for faster response (was 8s, now 5s for Claude/OpenAI)
+                stream_timeout = 5.0  # Reduced from 8s for lower latency
                 stream_iter = stream.__aiter__()
                 states_processed = 0
                 max_states = 50  # Prevent infinite loops
@@ -1531,8 +1570,8 @@ async def _run_agent_async(
                 # Add watchdog timer - if we don't get a state update within this time, force exit
                 import time as watchdog_time
                 last_state_time = watchdog_time.time()
-                # Increased watchdog for Gemini - tool execution can take time
-                watchdog_timeout = 6.0 if not is_gemini else 12.0  # Maximum time between state updates
+                # Reduced watchdog timeout for faster failure detection (was 6s, now 4s)
+                watchdog_timeout = 4.0  # Maximum time between state updates
                 
                 try:
                     while states_processed < max_states:
@@ -1556,6 +1595,22 @@ async def _run_agent_async(
                             last_state_time = watchdog_time.time()  # Update watchdog timer
                             print(f"📊 Received state update #{states_processed} from agent graph", flush=True)
                             sys.stdout.flush()
+                            
+                            # STREAMING OPTIMIZATION: Emit text chunks as they arrive
+                            if "messages" in state and socketio and session_id:
+                                for msg in state.get("messages", []):
+                                    # Emit text chunks incrementally for lower latency
+                                    if hasattr(msg, 'content') and isinstance(msg.content, str) and msg.content:
+                                        # Only emit if this is a new AI message (not already emitted)
+                                        if isinstance(msg, type) and hasattr(msg, '__class__'):
+                                            from langchain_core.messages import AIMessage
+                                            if isinstance(msg, AIMessage):
+                                                socketio.emit(
+                                                    'agent_stream_chunk',
+                                                    {'text': msg.content, 'type': 'text'},
+                                                    namespace='/voice',
+                                                    room=session_id
+                                                )
                             
                             if "messages" in state:
                                 for msg in state["messages"]:

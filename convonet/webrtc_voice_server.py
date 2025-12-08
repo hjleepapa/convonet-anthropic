@@ -1253,7 +1253,9 @@ def init_socketio(socketio_instance: SocketIO, app):
                                     process_with_agent(
                                         transcribed_text,
                                         session['user_id'],
-                                        session['user_name']
+                                        session['user_name'],
+                                        socketio=socketio_instance,
+                                        session_id=session_id
                                     ),
                                     timeout=timeout_seconds
                                 )
@@ -1401,7 +1403,13 @@ def init_socketio(socketio_instance: SocketIO, app):
                 }, namespace='/voice', room=session_id)
 
 
-async def process_with_agent(text: str, user_id: str, user_name: str) -> str:
+async def process_with_agent(
+    text: str, 
+    user_id: str, 
+    user_name: str,
+    socketio=None,
+    session_id: Optional[str] = None,
+) -> str:
     """Process user input with the agent"""
     try:
         # Capture agent processing start in Sentry
@@ -1430,7 +1438,9 @@ async def process_with_agent(text: str, user_id: str, user_name: str) -> str:
             user_id=user_id,
             user_name=user_name,
             reset_thread=False,
-            include_metadata=True
+            include_metadata=True,
+            socketio=socketio,
+            session_id=session_id,
         )
         
         if isinstance(result, dict):
