@@ -1046,20 +1046,20 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
             
             # Create a wrapper function to catch any exceptions from nested coroutines
             async def safe_get_tools():
-                    try:
-                        return await client.get_tools()
-                    except (UnboundLocalError, NameError) as e:
-                        # Re-raise as a different exception type so we can catch it
-                        raise RuntimeError(f"MCP library UnboundLocalError: {e}") from e
-                    except Exception as e:
-                        error_str = str(e)
-                        if "UnboundLocalError" in error_str or "cannot access local variable 'tools'" in error_str:
-                            raise RuntimeError(f"MCP library UnboundLocalError (wrapped): {e}") from e
-                        raise
-                
-                # Use timeout to prevent hangs (longer timeout since this is first load)
-                timeout_seconds = 15.0  # 15 seconds for initial load
-                tools = await asyncio.wait_for(safe_get_tools(), timeout=timeout_seconds)
+                try:
+                    return await client.get_tools()
+                except (UnboundLocalError, NameError) as e:
+                    # Re-raise as a different exception type so we can catch it
+                    raise RuntimeError(f"MCP library UnboundLocalError: {e}") from e
+                except Exception as e:
+                    error_str = str(e)
+                    if "UnboundLocalError" in error_str or "cannot access local variable 'tools'" in error_str:
+                        raise RuntimeError(f"MCP library UnboundLocalError (wrapped): {e}") from e
+                    raise
+            
+            # Use timeout to prevent hangs (longer timeout since this is first load)
+            timeout_seconds = 15.0  # 15 seconds for initial load
+            tools = await asyncio.wait_for(safe_get_tools(), timeout=timeout_seconds)
                 print(f"✅ MCP client initialized successfully with {len(tools)} tools")
                 
                 # Cache the tools for future use (including Gemini)
