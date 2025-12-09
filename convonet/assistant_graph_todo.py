@@ -497,7 +497,41 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                         i = j
                         continue
                 
-                # Regular message (not tool_use), include it
+                # Regular message (not tool_use)
+                # CRITICAL: Don't include orphaned ToolMessages (ToolMessages without preceding tool_use)
+                # Check if this is a ToolMessage
+                is_tool_message = (
+                    hasattr(msg, 'tool_call_id') and msg.tool_call_id
+                ) or (
+                    hasattr(msg, 'toolCallId') and msg.toolCallId
+                ) or (
+                    isinstance(msg, ToolMessage)
+                )
+                
+                if is_tool_message:
+                    # This is a ToolMessage - check if there's a preceding AIMessage with tool_calls in filtered_messages
+                    # Look backwards for the most recent AIMessage with tool_calls
+                    has_preceding_tool_use = False
+                    for k in range(len(filtered_messages) - 1, -1, -1):
+                        prev_msg = filtered_messages[k]
+                        if hasattr(prev_msg, 'tool_calls') and prev_msg.tool_calls:
+                            # Check if any tool_call ID matches this ToolMessage's tool_call_id
+                            tool_call_id = getattr(msg, 'tool_call_id', None) or getattr(msg, 'toolCallId', None)
+                            if tool_call_id:
+                                for tc in prev_msg.tool_calls:
+                                    tc_id = getattr(tc, 'id', None) or getattr(tc, 'tool_call_id', None) or getattr(tc, 'toolCallId', None)
+                                    if tc_id == tool_call_id:
+                                        has_preceding_tool_use = True
+                                        break
+                            if has_preceding_tool_use:
+                                break
+                    
+                    if not has_preceding_tool_use:
+                        print(f"⚠️ Skipping orphaned ToolMessage at index {i} (no preceding tool_use in filtered messages)")
+                        i += 1
+                        continue
+                
+                # Regular message or ToolMessage with valid preceding tool_use - include it
                 filtered_messages.append(msg)
                 i += 1
             
