@@ -413,10 +413,21 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                         j = i + 1
                         while j < len(state.messages):
                             next_msg = state.messages[j]
-                            # Check if this is a tool result message
-                            if hasattr(next_msg, 'tool_call_id') or (hasattr(next_msg, 'toolCallId') and next_msg.toolCallId):
+                            # Check if this is a tool result message - use comprehensive check
+                            is_tool_result = (
+                                isinstance(next_msg, ToolMessage)
+                            ) or (
+                                hasattr(next_msg, 'tool_call_id') and next_msg.tool_call_id
+                            ) or (
+                                hasattr(next_msg, 'toolCallId') and next_msg.toolCallId
+                            ) or (
+                                hasattr(next_msg, 'id') and hasattr(next_msg, 'content') and 
+                                not hasattr(next_msg, 'tool_calls')
+                            )
+                            
+                            if is_tool_result:
                                 # This is a ToolMessage - skip it since the tool_use was skipped
-                                print(f"⚠️   Also skipping orphaned ToolMessage at index {j}")
+                                print(f"⚠️   Also skipping orphaned ToolMessage at index {j} (tool_call_id: {getattr(next_msg, 'tool_call_id', getattr(next_msg, 'toolCallId', 'unknown'))})")
                                 j += 1
                             else:
                                 # Not a ToolMessage - stop skipping
@@ -499,13 +510,17 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                 
                 # Regular message (not tool_use)
                 # CRITICAL: Don't include orphaned ToolMessages (ToolMessages without preceding tool_use)
-                # Check if this is a ToolMessage
+                # Check if this is a ToolMessage - use comprehensive check
                 is_tool_message = (
+                    isinstance(msg, ToolMessage)
+                ) or (
                     hasattr(msg, 'tool_call_id') and msg.tool_call_id
                 ) or (
                     hasattr(msg, 'toolCallId') and msg.toolCallId
                 ) or (
-                    isinstance(msg, ToolMessage)
+                    hasattr(msg, 'id') and hasattr(msg, 'content') and 
+                    not hasattr(msg, 'tool_calls') and
+                    (hasattr(msg, 'name') or 'tool' in str(type(msg)).lower())
                 )
                 
                 if is_tool_message:
