@@ -1672,10 +1672,10 @@ async def _run_agent_async(
                                 sys.stdout.flush()
                                 break
                     except Exception as e:
-                    print(f"❌ Error processing stream: {e}", flush=True)
-                    sys.stdout.flush()
-                    import traceback
-                    traceback.print_exc()
+                        print(f"❌ Error processing stream: {e}", flush=True)
+                        sys.stdout.flush()
+                        import traceback
+                        traceback.print_exc()
                 
                 # Get final state and last message (only if we used astream, not invoke)
                 if not is_gemini:  # Only get final state if we used astream
