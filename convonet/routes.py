@@ -1059,11 +1059,12 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
             
             # Use timeout to prevent hangs (longer timeout since this is first load)
             timeout_seconds = 15.0  # 15 seconds for initial load
-            tools = await asyncio.wait_for(safe_get_tools(), timeout=timeout_seconds)
-            print(f"✅ MCP client initialized successfully with {len(tools)} tools")
-            
-            # Cache the tools for future use (including Gemini)
-            _mcp_tools_cache = tools.copy()
+            try:
+                tools = await asyncio.wait_for(safe_get_tools(), timeout=timeout_seconds)
+                print(f"✅ MCP client initialized successfully with {len(tools)} tools")
+                
+                # Cache the tools for future use (including Gemini)
+                _mcp_tools_cache = tools.copy()
                 print(f"✅ MCP tools cached for future requests")
             except asyncio.TimeoutError:
                 print(f"⏱️ MCP get_tools() timed out after {timeout_seconds} seconds")
