@@ -444,64 +444,64 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                     print(f"🤖 Tool call IDs: {list(tool_call_ids)}")
                     
                     if not tool_call_ids:
-                            print(f"⚠️ Tool calls found but no IDs extracted - checking alternative formats...", flush=True)
-                            # Try to extract IDs from content structure (Claude format)
-                            if hasattr(msg, 'content') and isinstance(msg.content, list):
-                                for item in msg.content:
-                                    if isinstance(item, dict) and item.get('type') == 'tool_use':
-                                        tool_id = item.get('id')
-                                        if tool_id:
-                                            tool_call_ids.add(tool_id)
-                                            print(f"✅ Extracted tool call ID from content: {tool_id}", flush=True)
-                            
-                            # Try to extract from tool_calls again with more detailed inspection
-                            if not tool_call_ids and hasattr(msg, 'tool_calls') and msg.tool_calls:
-                                print(f"🔍 Inspecting tool_calls structure: {msg.tool_calls}", flush=True)
-                                for idx, tc in enumerate(msg.tool_calls):
-                                    if tc is None:
-                                        print(f"⚠️   Tool call {idx} is None", flush=True)
-                                        continue
-                                    print(f"🔍   Tool call {idx}: {tc} (type: {type(tc)})", flush=True)
-                                    if isinstance(tc, dict):
-                                        print(f"🔍     Dict keys: {list(tc.keys())}", flush=True)
-                                        # Try different key names
-                                        tool_id = tc.get('id') or tc.get('tool_call_id') or tc.get('call_id')
-                                        if tool_id:
-                                            tool_call_ids.add(tool_id)
-                                            print(f"✅ Extracted tool call ID from dict: {tool_id}", flush=True)
-                                    else:
-                                        # Try different attribute names
-                                        tool_id = getattr(tc, 'id', None) or getattr(tc, 'tool_call_id', None) or getattr(tc, 'call_id', None)
-                                        if tool_id:
-                                            tool_call_ids.add(tool_id)
-                                            print(f"✅ Extracted tool call ID from object: {tool_id}", flush=True)
-                            
-                            # Last resort: Try to get IDs from following ToolMessages
-                            # If tool execution succeeded, ToolMessages will have the correct tool_call_id
-                            if not tool_call_ids:
-                                print(f"🔍 Trying to extract tool call IDs from following ToolMessages...", flush=True)
-                                j = i + 1
-                                while j < len(state.messages) and j < i + 5:  # Check next 5 messages
-                                    next_msg = state.messages[j]
-                                    tool_call_id = None
-                                    if hasattr(next_msg, 'tool_call_id') and next_msg.tool_call_id:
-                                        tool_call_id = next_msg.tool_call_id
-                                    elif hasattr(next_msg, 'toolCallId') and next_msg.toolCallId:
-                                        tool_call_id = next_msg.toolCallId
-                                    elif isinstance(next_msg, ToolMessage):
-                                        tool_call_id = getattr(next_msg, 'tool_call_id', None) or getattr(next_msg, 'toolCallId', None)
-                                    
-                                    if tool_call_id:
-                                        tool_call_ids.add(tool_call_id)
-                                        print(f"✅ Extracted tool call ID from ToolMessage at index {j}: {tool_call_id}", flush=True)
-                                        break  # Found one, that's enough to proceed
-                                    j += 1
-                            
-                            if not tool_call_ids:
-                                print(f"⚠️ Tool calls found but no IDs extracted - skipping message {i} and any following ToolMessages", flush=True)
-                        # Skip this AIMessage with tool_calls (no IDs)
-                        # Also skip any ToolMessages that immediately follow (they're orphaned)
-                        j = i + 1
+                        print(f"⚠️ Tool calls found but no IDs extracted - checking alternative formats...", flush=True)
+                        # Try to extract IDs from content structure (Claude format)
+                        if hasattr(msg, 'content') and isinstance(msg.content, list):
+                            for item in msg.content:
+                                if isinstance(item, dict) and item.get('type') == 'tool_use':
+                                    tool_id = item.get('id')
+                                    if tool_id:
+                                        tool_call_ids.add(tool_id)
+                                        print(f"✅ Extracted tool call ID from content: {tool_id}", flush=True)
+                        
+                        # Try to extract from tool_calls again with more detailed inspection
+                        if not tool_call_ids and hasattr(msg, 'tool_calls') and msg.tool_calls:
+                            print(f"🔍 Inspecting tool_calls structure: {msg.tool_calls}", flush=True)
+                            for idx, tc in enumerate(msg.tool_calls):
+                                if tc is None:
+                                    print(f"⚠️   Tool call {idx} is None", flush=True)
+                                    continue
+                                print(f"🔍   Tool call {idx}: {tc} (type: {type(tc)})", flush=True)
+                                if isinstance(tc, dict):
+                                    print(f"🔍     Dict keys: {list(tc.keys())}", flush=True)
+                                    # Try different key names
+                                    tool_id = tc.get('id') or tc.get('tool_call_id') or tc.get('call_id')
+                                    if tool_id:
+                                        tool_call_ids.add(tool_id)
+                                        print(f"✅ Extracted tool call ID from dict: {tool_id}", flush=True)
+                                else:
+                                    # Try different attribute names
+                                    tool_id = getattr(tc, 'id', None) or getattr(tc, 'tool_call_id', None) or getattr(tc, 'call_id', None)
+                                    if tool_id:
+                                        tool_call_ids.add(tool_id)
+                                        print(f"✅ Extracted tool call ID from object: {tool_id}", flush=True)
+                        
+                        # Last resort: Try to get IDs from following ToolMessages
+                        # If tool execution succeeded, ToolMessages will have the correct tool_call_id
+                        if not tool_call_ids:
+                            print(f"🔍 Trying to extract tool call IDs from following ToolMessages...", flush=True)
+                            j = i + 1
+                            while j < len(state.messages) and j < i + 5:  # Check next 5 messages
+                                next_msg = state.messages[j]
+                                tool_call_id = None
+                                if hasattr(next_msg, 'tool_call_id') and next_msg.tool_call_id:
+                                    tool_call_id = next_msg.tool_call_id
+                                elif hasattr(next_msg, 'toolCallId') and next_msg.toolCallId:
+                                    tool_call_id = next_msg.toolCallId
+                                elif isinstance(next_msg, ToolMessage):
+                                    tool_call_id = getattr(next_msg, 'tool_call_id', None) or getattr(next_msg, 'toolCallId', None)
+                                
+                                if tool_call_id:
+                                    tool_call_ids.add(tool_call_id)
+                                    print(f"✅ Extracted tool call ID from ToolMessage at index {j}: {tool_call_id}", flush=True)
+                                    break  # Found one, that's enough to proceed
+                                j += 1
+                        
+                        if not tool_call_ids:
+                            print(f"⚠️ Tool calls found but no IDs extracted - skipping message {i} and any following ToolMessages", flush=True)
+                            # Skip this AIMessage with tool_calls (no IDs)
+                            # Also skip any ToolMessages that immediately follow (they're orphaned)
+                            j = i + 1
                         while j < len(state.messages):
                             next_msg = state.messages[j]
                             # Check if this is a tool result message - use comprehensive check
