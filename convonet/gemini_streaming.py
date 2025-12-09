@@ -168,7 +168,7 @@ class GeminiStreamingHandler:
                             # Remove system_instruction from params and add as first message
                             request_params.pop("system_instruction", None)
                             # Prepend system instruction as a user message with special role
-                            if gemini_messages and gemini_messages[0].get("role") != "system"):
+                            if gemini_messages and gemini_messages[0].get("role") != "system":
                                 gemini_messages.insert(0, {
                                     "role": "user",
                                     "parts": [{"text": f"System: {system_instruction}"}]
