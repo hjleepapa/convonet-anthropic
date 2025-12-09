@@ -721,50 +721,58 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                                             result = f"I encountered an error: {error_str[:200]}"
                                             break  # Other errors are not retryable
                                         print(f"❌ Tool {tool_name} error (unwrapped): {error_str if error_str else error_type}")
-                                except Exception as tool_error:
-                                    error_str = str(tool_error)
-                                    error_type = type(tool_error).__name__
-                                    print(f"❌ Tool {tool_name} error: {error_str}")
-                                    print(f"❌ Tool {tool_name} error type: {error_type}")
-                                    
-                                    # Log full traceback for debugging
-                                    import traceback
-                                    print(f"❌ Tool {tool_name} full error traceback:")
-                                    traceback.print_exc()
-                                    
-                                    # Handle BrokenResourceError (MCP connection issue) - retry once
-                                    if "BrokenResourceError" in error_type:
-                                        if retry_count < max_retries - 1:
-                                            print(f"🔄 MCP connection broken, clearing cache and retrying ({retry_count + 1}/{max_retries})...")
-                                            # Clear MCP tools cache to force reconnection
-                                            from convonet.routes import _mcp_tools_cache
-                                            import convonet.routes as routes_module
-                                            routes_module._mcp_tools_cache = None
-                                            retry_count += 1
-                                            await asyncio.sleep(0.5)  # Brief delay before retry
-                                            result = None  # Reset to retry
-                                            continue  # Retry the tool call
+                                    except Exception as tool_error:
+                                        error_str = str(tool_error)
+                                        error_type = type(tool_error).__name__
+                                        print(f"❌ Tool {tool_name} error: {error_str}")
+                                        print(f"❌ Tool {tool_name} error type: {error_type}")
+                                        
+                                        # Log full traceback for debugging
+                                        import traceback
+                                        print(f"❌ Tool {tool_name} full error traceback:")
+                                        traceback.print_exc()
+                                        
+                                        # Handle BrokenResourceError (MCP connection issue) - retry once
+                                        if "BrokenResourceError" in error_type:
+                                            if retry_count < max_retries - 1:
+                                                print(f"🔄 MCP connection broken, clearing cache and retrying ({retry_count + 1}/{max_retries})...")
+                                                # Clear MCP tools cache to force reconnection
+                                                from convonet.routes import _mcp_tools_cache
+                                                import convonet.routes as routes_module
+                                                routes_module._mcp_tools_cache = None
+                                                retry_count += 1
+                                                await asyncio.sleep(0.5)  # Brief delay before retry
+                                                result = None  # Reset to retry
+                                                continue  # Retry the tool call
+                                            else:
+                                                result = "I encountered a connection issue with the MCP server. The operation may have completed. Please check your calendar or todo list."
+                                        elif "TaskGroup" in error_str:
+                                            result = "I encountered a system processing error. The task may have been created successfully. Please check your todo list."
+                                            break  # Not retryable
+                                        elif "Database not available" in error_str or "DB_URI" in error_str:
+                                            result = "I'm sorry, there's a database connection issue. Please try again in a moment."
+                                            break  # Not retryable
+                                        elif "timeout" in error_str.lower() or "timed out" in error_str.lower():
+                                            result = "I'm sorry, the database operation timed out. Please try again."
+                                            break  # Not retryable
+                                        elif "connection" in error_str.lower() or "connect" in error_str.lower():
+                                            result = f"I encountered a database connection issue: {error_str[:150]}. Please try again."
+                                            break  # Not retryable
+                                        elif "validation" in error_str.lower():
+                                            result = "I encountered a data validation error. Let me try again."
+                                            break  # Not retryable
+                                        elif not error_str.strip():
+                                            # Empty error message
+                                            result = "I encountered an unexpected error. Please try again or rephrase your request."
+                                            break  # Not retryable
                                         else:
-                                            result = "I encountered a connection issue with the MCP server. The operation may have completed. Please check your calendar or todo list."
-                                    elif "TaskGroup" in error_str:
-                                        result = "I encountered a system processing error. The task may have been created successfully. Please check your todo list."
-                                    elif "Database not available" in error_str or "DB_URI" in error_str:
-                                        result = "I'm sorry, there's a database connection issue. Please try again in a moment."
-                                    elif "timeout" in error_str.lower() or "timed out" in error_str.lower():
-                                        result = "I'm sorry, the database operation timed out. Please try again."
-                                    elif "connection" in error_str.lower() or "connect" in error_str.lower():
-                                        result = f"I encountered a database connection issue: {error_str[:150]}. Please try again."
-                                    elif "validation" in error_str.lower():
-                                        result = "I encountered a data validation error. Let me try again."
-                                    elif not error_str.strip():
-                                        # Empty error message
-                                        result = "I encountered an unexpected error. Please try again or rephrase your request."
-                                    else:
-                                        result = f"I encountered an error: {error_str[:200]}"
-                                    
-                                    # If we get here and result is still None, set a default error message
-                                    if result is None:
-                                        result = f"I encountered an error: {error_str[:200]}"
+                                            result = f"I encountered an error: {error_str[:200]}"
+                                            break  # Not retryable
+                                        
+                                        # If we get here and result is still None, set a default error message
+                                        if result is None:
+                                            result = f"I encountered an error: {error_str[:200]}"
+                                            break
                             else:
                                 result = f"Tool {tool_name} not found"
                                 print(f"⚠️ Tool {tool_name} not found in available tools")
