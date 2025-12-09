@@ -1350,7 +1350,9 @@ async def _run_agent_async(
                 print(f"⚠️ Error checking provider preference: {e}", flush=True)
                 sys.stdout.flush()
             
-            timeout_seconds = 8.0 if is_gemini else 12.0
+            # Increased timeout to accommodate MCP tools loading (can take up to 45s)
+            # Gemini needs longer timeout too since MCP tools loading is the same for all providers
+            timeout_seconds = 50.0 if is_gemini else 50.0  # Same timeout for all providers (was 8s/12s)
             print(f"⏱️ Using {timeout_seconds}s timeout for agent graph initialization (Gemini: {is_gemini})", flush=True)
             sys.stdout.flush()
             
