@@ -1597,70 +1597,70 @@ async def _run_agent_async(
                                 sys.stdout.flush()
                                 break
                         
-                        try:
-                            # Get next state with timeout - this prevents hanging on a single iteration
-                            # Use asyncio.wait_for with a shorter timeout to catch hangs early
-                            print(f"⏳ Waiting for next state update (timeout: {stream_timeout}s, watchdog: {watchdog_timeout - time_since_last_state:.1f}s remaining)...", flush=True)
-                            sys.stdout.flush()
-                            state = await asyncio.wait_for(stream_iter.__anext__(), timeout=stream_timeout)
-                            print(f"✅ Received state update in time", flush=True)
-                            sys.stdout.flush()
-                            states_processed += 1
-                            last_state_time = watchdog_time.time()  # Update watchdog timer
-                            print(f"📊 Received state update #{states_processed} from agent graph", flush=True)
-                            sys.stdout.flush()
-                            
-                            # STREAMING OPTIMIZATION: Emit text chunks as they arrive
-                            if "messages" in state and socketio and session_id:
-                                for msg in state.get("messages", []):
-                                    # Emit text chunks incrementally for lower latency
-                                    if hasattr(msg, 'content') and isinstance(msg.content, str) and msg.content:
-                                        # Only emit if this is a new AI message (not already emitted)
-                                        if isinstance(msg, type) and hasattr(msg, '__class__'):
-                                            from langchain_core.messages import AIMessage
-                                            if isinstance(msg, AIMessage):
-                                                socketio.emit(
-                                                    'agent_stream_chunk',
-                                                    {'text': msg.content, 'type': 'text'},
-                                                    namespace='/voice',
-                                                    room=session_id
-                                                )
-                            
-                            if "messages" in state:
-                                for msg in state["messages"]:
-                                    # Check for TRANSFER_INITIATED in tool message content
-                                    if hasattr(msg, 'content') and isinstance(msg.content, str):
-                                        if 'TRANSFER_INITIATED:' in msg.content:
-                                            transfer_marker = msg.content
-                                            print(f"🔄 Transfer marker detected in tool result: {transfer_marker}")
-                                    
-                                    # Track tool calls
-                                    if hasattr(msg, 'tool_calls') and msg.tool_calls:
-                                        print(f"🔧 Detected {len(msg.tool_calls)} tool call(s) in state update #{states_processed}", flush=True)
-                                        sys.stdout.flush()
-                                        for tc in msg.tool_calls:
-                                            tool_id = getattr(tc, 'id', getattr(tc, 'tool_call_id', str(uuid.uuid4())))
-                                            tool_name = getattr(tc, 'name', getattr(tc, 'functionName', 'unknown'))
-                                            args = getattr(tc, 'args', getattr(tc, 'arguments', {}))
-                                            
-                                            print(f"  → Tool: {tool_name} (id: {tool_id[:20]}...)", flush=True)
+                            try:
+                                # Get next state with timeout - this prevents hanging on a single iteration
+                                # Use asyncio.wait_for with a shorter timeout to catch hangs early
+                                print(f"⏳ Waiting for next state update (timeout: {stream_timeout}s, watchdog: {watchdog_timeout - time_since_last_state:.1f}s remaining)...", flush=True)
+                                sys.stdout.flush()
+                                state = await asyncio.wait_for(stream_iter.__anext__(), timeout=stream_timeout)
+                                print(f"✅ Received state update in time", flush=True)
+                                sys.stdout.flush()
+                                states_processed += 1
+                                last_state_time = watchdog_time.time()  # Update watchdog timer
+                                print(f"📊 Received state update #{states_processed} from agent graph", flush=True)
+                                sys.stdout.flush()
+                                
+                                # STREAMING OPTIMIZATION: Emit text chunks as they arrive
+                                if "messages" in state and socketio and session_id:
+                                    for msg in state.get("messages", []):
+                                        # Emit text chunks incrementally for lower latency
+                                        if hasattr(msg, 'content') and isinstance(msg.content, str) and msg.content:
+                                            # Only emit if this is a new AI message (not already emitted)
+                                            if isinstance(msg, type) and hasattr(msg, '__class__'):
+                                                from langchain_core.messages import AIMessage
+                                                if isinstance(msg, AIMessage):
+                                                    socketio.emit(
+                                                        'agent_stream_chunk',
+                                                        {'text': msg.content, 'type': 'text'},
+                                                        namespace='/voice',
+                                                        room=session_id
+                                                    )
+                                
+                                if "messages" in state:
+                                    for msg in state["messages"]:
+                                        # Check for TRANSFER_INITIATED in tool message content
+                                        if hasattr(msg, 'content') and isinstance(msg.content, str):
+                                            if 'TRANSFER_INITIATED:' in msg.content:
+                                                transfer_marker = msg.content
+                                                print(f"🔄 Transfer marker detected in tool result: {transfer_marker}")
+                                        
+                                        # Track tool calls
+                                        if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                                            print(f"🔧 Detected {len(msg.tool_calls)} tool call(s) in state update #{states_processed}", flush=True)
                                             sys.stdout.flush()
-                                            
-                                            tool_calls_info.append(ToolCallInfo(
-                                                tool_name=tool_name,
-                                                tool_id=tool_id,
-                                                arguments=args if isinstance(args, dict) else {}
-                                            ))
-                                    
-                                    # Track tool results
-                                    if hasattr(msg, 'tool_call_id') and hasattr(msg, 'content'):
-                                        tool_call_id = msg.tool_call_id
-                                        # Find matching tool call and update it
-                                        for tc_info in tool_calls_info:
-                                            if tc_info.tool_id == tool_call_id:
-                                                tc_info.result = msg.content
-                                                tc_info.status = "success"
-                                                break
+                                            for tc in msg.tool_calls:
+                                                tool_id = getattr(tc, 'id', getattr(tc, 'tool_call_id', str(uuid.uuid4())))
+                                                tool_name = getattr(tc, 'name', getattr(tc, 'functionName', 'unknown'))
+                                                args = getattr(tc, 'args', getattr(tc, 'arguments', {}))
+                                                
+                                                print(f"  → Tool: {tool_name} (id: {tool_id[:20]}...)", flush=True)
+                                                sys.stdout.flush()
+                                                
+                                                tool_calls_info.append(ToolCallInfo(
+                                                    tool_name=tool_name,
+                                                    tool_id=tool_id,
+                                                    arguments=args if isinstance(args, dict) else {}
+                                                ))
+                                        
+                                        # Track tool results
+                                        if hasattr(msg, 'tool_call_id') and hasattr(msg, 'content'):
+                                            tool_call_id = msg.tool_call_id
+                                            # Find matching tool call and update it
+                                            for tc_info in tool_calls_info:
+                                                if tc_info.tool_id == tool_call_id:
+                                                    tc_info.result = msg.content
+                                                    tc_info.status = "success"
+                                                    break
                             except asyncio.TimeoutError:
                                 print(f"⏱️ Stream iteration timed out after {stream_timeout}s waiting for next state - Gemini may be hanging", flush=True)
                                 sys.stdout.flush()
