@@ -196,55 +196,55 @@ class GeminiStreamingHandler:
                     else:
                         raise
             
-            async for chunk in response_stream:
-                # Handle text chunks
-                if hasattr(chunk, 'text') and chunk.text:
-                    text_chunk = chunk.text
-                    full_text += text_chunk
-                    
-                    # Emit text chunk via callback
-                    if self.on_text_chunk:
-                        self.on_text_chunk(text_chunk)
-                
-                # Handle function calls
-                if hasattr(chunk, 'function_calls') and chunk.function_calls:
-                    for func_call in chunk.function_calls:
-                        tool_call = {
-                            "name": func_call.name,
-                            "id": getattr(func_call, 'id', None),
-                            "args": func_call.args if hasattr(func_call, 'args') else {}
-                        }
-                        tool_calls.append(tool_call)
+                    async for chunk in response_stream:
+                        # Handle text chunks
+                        if hasattr(chunk, 'text') and chunk.text:
+                            text_chunk = chunk.text
+                            full_text += text_chunk
+                            
+                            # Emit text chunk via callback
+                            if self.on_text_chunk:
+                                self.on_text_chunk(text_chunk)
                         
-                        # Emit tool call via callback
-                        if self.on_tool_call:
-                            self.on_tool_call(tool_call)
-                
-                # Handle function call deltas (streaming tool arguments)
-                if hasattr(chunk, 'function_call') and chunk.function_call:
-                    if not current_tool_call:
-                        current_tool_call = {
-                            "name": chunk.function_call.name,
-                            "id": getattr(chunk.function_call, 'id', None),
-                            "args": {}
-                        }
+                        # Handle function calls
+                        if hasattr(chunk, 'function_calls') and chunk.function_calls:
+                            for func_call in chunk.function_calls:
+                                tool_call = {
+                                    "name": func_call.name,
+                                    "id": getattr(func_call, 'id', None),
+                                    "args": func_call.args if hasattr(func_call, 'args') else {}
+                                }
+                                tool_calls.append(tool_call)
+                                
+                                # Emit tool call via callback
+                                if self.on_tool_call:
+                                    self.on_tool_call(tool_call)
+                        
+                        # Handle function call deltas (streaming tool arguments)
+                        if hasattr(chunk, 'function_call') and chunk.function_call:
+                            if not current_tool_call:
+                                current_tool_call = {
+                                    "name": chunk.function_call.name,
+                                    "id": getattr(chunk.function_call, 'id', None),
+                                    "args": {}
+                                }
+                            
+                            # Accumulate function call arguments
+                            if hasattr(chunk.function_call, 'args'):
+                                current_tool_call["args"].update(chunk.function_call.args)
                     
-                    # Accumulate function call arguments
-                    if hasattr(chunk.function_call, 'args'):
-                        current_tool_call["args"].update(chunk.function_call.args)
-            
-                # Finalize any pending tool call
-                if current_tool_call:
-                    tool_calls.append(current_tool_call)
-                    if self.on_tool_call:
-                        self.on_tool_call(current_tool_call)
-                
-                # Call completion callback
-                if self.on_complete:
-                    self.on_complete(full_text, tool_calls)
-                
-                return full_text, tool_calls
-            finally:
+                    # Finalize any pending tool call
+                    if current_tool_call:
+                        tool_calls.append(current_tool_call)
+                        if self.on_tool_call:
+                            self.on_tool_call(current_tool_call)
+                    
+                    # Call completion callback
+                    if self.on_complete:
+                        self.on_complete(full_text, tool_calls)
+                    
+                    return full_text, tool_calls
+                finally:
                 # Cleanup: Clear response stream reference to allow garbage collection
                 if response_stream is not None:
                     # Try to close/cleanup the stream if it has a close method

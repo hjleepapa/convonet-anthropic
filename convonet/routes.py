@@ -1583,8 +1583,8 @@ async def _run_agent_async(
                     
                     try:
                         while states_processed < max_states:
-                        # Check watchdog - if too much time has passed since last state, force exit
-                        current_time = watchdog_time.time()
+                            # Check watchdog - if too much time has passed since last state, force exit
+                            current_time = watchdog_time.time()
                         time_since_last_state = current_time - last_state_time
                         if time_since_last_state > watchdog_timeout:
                             print(f"⚠️ Watchdog timeout: {time_since_last_state:.2f}s since last state update - forcing exit", flush=True)
