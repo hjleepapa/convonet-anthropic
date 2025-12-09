@@ -574,6 +574,15 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                 filtered_messages.append(msg)
                 i += 1
             
+            # CRITICAL SAFETY CHECK: Ensure we have at least one message
+            # If all messages were filtered out, this will cause Claude/OpenAI API errors
+            if len(filtered_messages) == 0:
+                print(f"⚠️ WARNING: All messages filtered out! Re-adding original messages to prevent API error", flush=True)
+                # Re-add all original messages if filtering removed everything
+                # This prevents "messages: at least one message is required" errors
+                filtered_messages = state.messages.copy()
+                print(f"✅ Restored {len(filtered_messages)} messages to prevent API error", flush=True)
+            
             # Debug: Log filtered messages
             print(f"🔍 Messages after filtering ({len(filtered_messages)} total):", flush=True)
             for idx, msg in enumerate(filtered_messages):
