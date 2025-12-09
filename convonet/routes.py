@@ -1475,9 +1475,10 @@ async def _run_agent_async(
                         gemini_api_key = os.getenv("GOOGLE_API_KEY")
                         gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
                         
-                        # Get tools from agent graph
-                        agent = await _get_agent_graph()
-                        tools = agent.tools if hasattr(agent, 'tools') else []
+                        # Get tools from MCP cache (same tools used to build agent graph)
+                        tools = _mcp_tools_cache if _mcp_tools_cache is not None else []
+                        print(f"🔧 Got {len(tools)} tools from MCP cache for Gemini streaming", flush=True)
+                        sys.stdout.flush()
                         
                         # Get system prompt
                         system_prompt = getattr(agent, 'system_prompt', '') if hasattr(agent, 'system_prompt') else ''

@@ -249,8 +249,21 @@ class GeminiStreamingHandler:
                                         for i, part in enumerate(candidate.content.parts):
                                             part_attrs = [attr for attr in dir(part) if not attr.startswith('_')]
                                             print(f"🔍 Part {i} attributes: {part_attrs[:10]}...", flush=True)
-                                            if hasattr(part, 'function_call'):
+                                            if hasattr(part, 'function_call') and part.function_call:
                                                 print(f"🔍 Part {i} has function_call!", flush=True)
+                                                # Extract function call immediately
+                                                func_call = part.function_call
+                                                tool_call = {
+                                                    "name": func_call.name if hasattr(func_call, 'name') else getattr(func_call, 'function_name', 'unknown'),
+                                                    "id": getattr(func_call, 'id', None),
+                                                    "args": func_call.args if hasattr(func_call, 'args') else (func_call.arguments if hasattr(func_call, 'arguments') else {})
+                                                }
+                                                print(f"🔧 Extracted function call: {tool_call['name']} with args: {tool_call['args']}", flush=True)
+                                                if not any(tc.get('name') == tool_call['name'] and tc.get('id') == tool_call['id'] for tc in tool_calls):
+                                                    tool_calls.append(tool_call)
+                                                    function_calls_detected = True
+                                                    if self.on_tool_call:
+                                                        self.on_tool_call(tool_call)
                         except Exception as e:
                             print(f"⚠️ Error inspecting chunk: {e}", flush=True)
                             import traceback
