@@ -1602,10 +1602,10 @@ async def _run_agent_async(
                 
                     print(f"🔄 Processing agent stream...", flush=True)
                     sys.stdout.flush()
-                    # OPTIMIZED STREAMING: Reduced timeouts for lower latency
-                    # Process stream with per-iteration timeout to prevent hanging
-                    # Reduced timeouts for faster response (was 8s, now 5s for Claude/OpenAI)
-                    stream_timeout = 5.0  # Reduced from 8s for lower latency
+                    # OPTIMIZED STREAMING: Timeouts must be longer than tool execution timeout
+                    # Tool execution timeout is 6.0s, so stream timeout should be at least 8s
+                    # This ensures we get tool results even if tool execution takes the full timeout
+                    stream_timeout = 8.0  # Must be > tool_timeout (6.0s) to get tool results
                     stream_iter = stream.__aiter__()
                     states_processed = 0
                     max_states = 50  # Prevent infinite loops
@@ -1613,8 +1613,8 @@ async def _run_agent_async(
                     # Add watchdog timer - if we don't get a state update within this time, force exit
                     import time as watchdog_time
                     last_state_time = watchdog_time.time()
-                    # Reduced watchdog timeout for faster failure detection (was 6s, now 4s)
-                    watchdog_timeout = 4.0  # Maximum time between state updates
+                    # Watchdog should be longer than stream timeout to allow tool execution
+                    watchdog_timeout = 10.0  # Maximum time between state updates (allows tool execution + buffer)
                     
                     try:
                         while states_processed < max_states:
