@@ -1541,7 +1541,22 @@ async def _run_agent_async(
                     else:
                         final_messages = final_state.get("messages", [])
                         last_message = final_messages[-1] if final_messages else None
-                        final_response = getattr(last_message, 'content', "") if last_message else ""
+                        if last_message:
+                            content = getattr(last_message, 'content', "")
+                            # Handle case where content is a list (e.g., AIMessage with multiple content blocks)
+                            if isinstance(content, list):
+                                # Extract text from list of content blocks
+                                text_parts = []
+                                for item in content:
+                                    if isinstance(item, dict) and 'text' in item:
+                                        text_parts.append(item['text'])
+                                    elif isinstance(item, str):
+                                        text_parts.append(item)
+                                final_response = ' '.join(text_parts) if text_parts else ""
+                            else:
+                                final_response = str(content) if content else ""
+                        else:
+                            final_response = ""
                         
                         tool_calls_info = []
                         for msg in final_messages:
@@ -1695,7 +1710,22 @@ async def _run_agent_async(
                             final_state = agent_graph.get_state(config=config)
                             final_messages = final_state.values.get("messages", [])
                             last_message = final_messages[-1] if final_messages else None
-                            final_response = getattr(last_message, 'content', "") if last_message else ""
+                            if last_message:
+                                content = getattr(last_message, 'content', "")
+                                # Handle case where content is a list (e.g., AIMessage with multiple content blocks)
+                                if isinstance(content, list):
+                                    # Extract text from list of content blocks
+                                    text_parts = []
+                                    for item in content:
+                                        if isinstance(item, dict) and 'text' in item:
+                                            text_parts.append(item['text'])
+                                        elif isinstance(item, str):
+                                            text_parts.append(item)
+                                    final_response = ' '.join(text_parts) if text_parts else ""
+                                else:
+                                    final_response = str(content) if content else ""
+                            else:
+                                final_response = ""
                             # Clear state reference after extracting needed data
                             final_state = None
                         except Exception as e:
