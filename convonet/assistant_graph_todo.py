@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 from langchain_core.tools import BaseTool
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import SystemMessage, ToolMessage
 from langchain_anthropic import ChatAnthropic
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.graph import StateGraph
