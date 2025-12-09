@@ -1038,7 +1038,7 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
         else:
             # Try to load MCP tools (with timeout to prevent hangs)
             print("🔧 Loading MCP tools (not cached yet)...")
-        try:
+            try:
             # Initialize MCP client (langchain-mcp-adapters 0.1.0+ does not support context manager)
             print("🔧 Creating MCP client...")
             client = MultiServerMCPClient(connections=mcp_config["mcpServers"])
