@@ -1043,9 +1043,9 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
             print("🔧 Creating MCP client...")
             client = MultiServerMCPClient(connections=mcp_config["mcpServers"])
             print("🔧 Getting tools from MCP client...")
-                
-                # Create a wrapper function to catch any exceptions from nested coroutines
-                async def safe_get_tools():
+            
+            # Create a wrapper function to catch any exceptions from nested coroutines
+            async def safe_get_tools():
                     try:
                         return await client.get_tools()
                     except (UnboundLocalError, NameError) as e:
@@ -1699,8 +1699,8 @@ async def _run_agent_async(
             # Process messages and then clear to free memory
             try:
                 for msg in final_messages:
-                # Track tool calls (AIMessage with tool_calls)
-                if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                    # Track tool calls (AIMessage with tool_calls)
+                    if hasattr(msg, 'tool_calls') and msg.tool_calls:
                     for tc in msg.tool_calls:
                         tool_id = getattr(tc, 'id', getattr(tc, 'tool_call_id', str(uuid.uuid4())))
                         tool_name = getattr(tc, 'name', getattr(tc, 'functionName', 'unknown'))
@@ -1714,9 +1714,9 @@ async def _run_agent_async(
                                 tool_id=tool_id,
                                 arguments=args if isinstance(args, dict) else {}
                             ))
-                
-                # Track tool results (ToolMessage)
-                if hasattr(msg, 'tool_call_id') and hasattr(msg, 'content'):
+                    
+                    # Track tool results (ToolMessage)
+                    if hasattr(msg, 'tool_call_id') and hasattr(msg, 'content'):
                     tool_call_id = msg.tool_call_id
                     # Find matching tool call and update it
                     for tc_info in tool_calls_info:
