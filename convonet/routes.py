@@ -1041,90 +1041,95 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
             try:
                 # Initialize MCP client (langchain-mcp-adapters 0.1.0+ does not support context manager)
                 print("🔧 Creating MCP client...")
-            client = MultiServerMCPClient(connections=mcp_config["mcpServers"])
-            print("🔧 Getting tools from MCP client...")
-            
-            # Create a wrapper function to catch any exceptions from nested coroutines
-            async def safe_get_tools():
+                client = MultiServerMCPClient(connections=mcp_config["mcpServers"])
+                print("🔧 Getting tools from MCP client...")
+                
+                # Create a wrapper function to catch any exceptions from nested coroutines
+                async def safe_get_tools():
+                    try:
+                        return await client.get_tools()
+                    except (UnboundLocalError, NameError) as e:
+                        # Re-raise as a different exception type so we can catch it
+                        raise RuntimeError(f"MCP library UnboundLocalError: {e}") from e
+                    except Exception as e:
+                        error_str = str(e)
+                        if "UnboundLocalError" in error_str or "cannot access local variable 'tools'" in error_str:
+                            raise RuntimeError(f"MCP library UnboundLocalError (wrapped): {e}") from e
+                        raise
+                
+                # Use timeout to prevent hangs (longer timeout since this is first load)
+                timeout_seconds = 15.0  # 15 seconds for initial load
                 try:
-                    return await client.get_tools()
+                    tools = await asyncio.wait_for(safe_get_tools(), timeout=timeout_seconds)
+                    print(f"✅ MCP client initialized successfully with {len(tools)} tools")
+                    
+                    # Cache the tools for future use (including Gemini)
+                    _mcp_tools_cache = tools.copy()
+                    print(f"✅ MCP tools cached for future requests")
+                except asyncio.TimeoutError:
+                    print(f"⏱️ MCP get_tools() timed out after {timeout_seconds} seconds")
+                    print(f"⚠️ Continuing with empty tools list - tool calls will not be available")
+                    print(f"💡 MCP tools will be retried on next request")
+                    tools = []
+                except RuntimeError as e:
+                    # Catch our wrapped UnboundLocalError
+                    if "UnboundLocalError" in str(e):
+                        print(f"⚠️ MCP library error (UnboundLocalError): {e}")
+                        print("⚠️ Continuing with empty tools list")
+                        tools = []  # Ensure tools is set to empty list
+                    else:
+                        raise
                 except (UnboundLocalError, NameError) as e:
-                    # Re-raise as a different exception type so we can catch it
-                    raise RuntimeError(f"MCP library UnboundLocalError: {e}") from e
+                    # Handle library bug where tools variable is referenced before assignment
+                    print(f"⚠️ MCP library error (UnboundLocalError/NameError): {e}")
+                    print("⚠️ Continuing with empty tools list")
+                    tools = []  # Ensure tools is set to empty list
                 except Exception as e:
+                    # Check if the error message contains UnboundLocalError (might be wrapped)
                     error_str = str(e)
                     if "UnboundLocalError" in error_str or "cannot access local variable 'tools'" in error_str:
-                        raise RuntimeError(f"MCP library UnboundLocalError (wrapped): {e}") from e
-                    raise
-            
-            # Use timeout to prevent hangs (longer timeout since this is first load)
-            timeout_seconds = 15.0  # 15 seconds for initial load
-            try:
-                tools = await asyncio.wait_for(safe_get_tools(), timeout=timeout_seconds)
-                print(f"✅ MCP client initialized successfully with {len(tools)} tools")
+                        print(f"⚠️ MCP library error (wrapped UnboundLocalError): {e}")
+                        print("⚠️ Continuing with empty tools list")
+                        tools = []  # Ensure tools is set to empty list
+                    else:
+                        # Handle any other errors from get_tools()
+                        print(f"⚠️ Error getting MCP tools: {e}")
+                        print("⚠️ Continuing with empty tools list")
+                        tools = []  # Ensure tools is set to empty list
                 
-                # Cache the tools for future use (including Gemini)
-                _mcp_tools_cache = tools.copy()
-                print(f"✅ MCP tools cached for future requests")
-            except asyncio.TimeoutError:
-                print(f"⏱️ MCP get_tools() timed out after {timeout_seconds} seconds")
-                print(f"⚠️ Continuing with empty tools list - tool calls will not be available")
-                print(f"💡 MCP tools will be retried on next request")
+                # Add call transfer tools (non-MCP tools) - optional
+                try:
+                    from .mcps.local_servers.call_transfer import get_transfer_tools
+                    transfer_tools = get_transfer_tools()
+                    tools.extend(transfer_tools)
+                    print(f"✅ Added {len(transfer_tools)} call transfer tools")
+                except ImportError as e:
+                    print(f"⚠️ Call transfer tools not available: {e}")
+                    print("⚠️ Continuing without call transfer tools")
+                except Exception as e:
+                    print(f"⚠️ Failed to load call transfer tools: {e}")
+                    print("⚠️ Continuing without call transfer tools")
+                
+                # Add Composio integration tools (optional)
+                try:
+                    from .composio_tools import get_all_integration_tools, test_composio_connection
+                    if test_composio_connection():
+                        composio_tools = get_all_integration_tools()
+                        tools.extend(composio_tools)
+                        print(f"✅ Added {len(composio_tools)} Composio integration tools")
+                    else:
+                        print("⚠️ Composio connection test failed, skipping external integrations")
+                except ImportError as e:
+                    print(f"⚠️ Composio not available: {e}")
+                    print("⚠️ Continuing without external integrations")
+                except Exception as e:
+                    print(f"⚠️ Failed to load Composio tools: {e}")
+                    print("⚠️ Continuing without external integrations")
+            except Exception as e:
+                print(f"⚠️ Error in MCP tools loading: {e}")
+                import traceback
+                traceback.print_exc()
                 tools = []
-            except RuntimeError as e:
-                # Catch our wrapped UnboundLocalError
-                if "UnboundLocalError" in str(e):
-                    print(f"⚠️ MCP library error (UnboundLocalError): {e}")
-                    print("⚠️ Continuing with empty tools list")
-                    tools = []  # Ensure tools is set to empty list
-                else:
-                    raise
-            except (UnboundLocalError, NameError) as e:
-                # Handle library bug where tools variable is referenced before assignment
-                print(f"⚠️ MCP library error (UnboundLocalError/NameError): {e}")
-                print("⚠️ Continuing with empty tools list")
-                tools = []  # Ensure tools is set to empty list
-            except Exception as e:
-                # Check if the error message contains UnboundLocalError (might be wrapped)
-                error_str = str(e)
-                if "UnboundLocalError" in error_str or "cannot access local variable 'tools'" in error_str:
-                    print(f"⚠️ MCP library error (wrapped UnboundLocalError): {e}")
-                    print("⚠️ Continuing with empty tools list")
-                    tools = []  # Ensure tools is set to empty list
-                else:
-                    # Handle any other errors from get_tools()
-                    print(f"⚠️ Error getting MCP tools: {e}")
-                    print("⚠️ Continuing with empty tools list")
-                    tools = []  # Ensure tools is set to empty list
-            
-            # Add call transfer tools (non-MCP tools) - optional
-            try:
-                from .mcps.local_servers.call_transfer import get_transfer_tools
-                transfer_tools = get_transfer_tools()
-                tools.extend(transfer_tools)
-                print(f"✅ Added {len(transfer_tools)} call transfer tools")
-            except ImportError as e:
-                print(f"⚠️ Call transfer tools not available: {e}")
-                print("⚠️ Continuing without call transfer tools")
-            except Exception as e:
-                print(f"⚠️ Failed to load call transfer tools: {e}")
-                print("⚠️ Continuing without call transfer tools")
-            
-            # Add Composio integration tools (optional)
-            try:
-                from .composio_tools import get_all_integration_tools, test_composio_connection
-                if test_composio_connection():
-                    composio_tools = get_all_integration_tools()
-                    tools.extend(composio_tools)
-                    print(f"✅ Added {len(composio_tools)} Composio integration tools")
-                else:
-                    print("⚠️ Composio connection test failed, skipping external integrations")
-            except ImportError as e:
-                print(f"⚠️ Composio not available: {e}")
-                print("⚠️ Continuing without external integrations")
-            except Exception as e:
-                print(f"⚠️ Failed to load Composio tools: {e}")
-                print("⚠️ Continuing without external integrations")
         
         # Build agent graph with whatever tools we have (even if empty)
         # This ensures we always try to build the graph, even if MCP tools failed
