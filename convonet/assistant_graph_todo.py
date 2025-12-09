@@ -535,27 +535,46 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                     
                     while j < len(state.messages):
                         next_msg = state.messages[j]
+                        
+                        # CRITICAL: Stop if we hit another tool_use message (AIMessage with tool_calls)
+                        # This means we've moved to the next tool execution cycle
+                        if hasattr(next_msg, 'tool_calls') and next_msg.tool_calls:
+                            # Check if this is a valid tool_use (not just [None])
+                            valid_tool_calls = [tc for tc in next_msg.tool_calls if tc is not None]
+                            if valid_tool_calls:
+                                # This is a new tool_use - stop looking for results
+                                print(f"⚠️ Hit another tool_use at message {j} - stopping search for tool results", flush=True)
+                                break
+                        
                         # Check if this is a tool result message - check multiple possible attribute names
                         tool_call_id = None
                         if hasattr(next_msg, 'tool_call_id') and next_msg.tool_call_id:
                             tool_call_id = next_msg.tool_call_id
                         elif hasattr(next_msg, 'toolCallId') and next_msg.toolCallId:
                             tool_call_id = next_msg.toolCallId
+                        elif isinstance(next_msg, ToolMessage):
+                            tool_call_id = getattr(next_msg, 'tool_call_id', None) or getattr(next_msg, 'toolCallId', None)
                         elif hasattr(next_msg, 'id') and hasattr(next_msg, 'content'):
                             # Some ToolMessage implementations use 'id' instead of 'tool_call_id'
                             tool_call_id = getattr(next_msg, 'id', None)
                         
                         if tool_call_id:
-                            result_ids.add(tool_call_id)
-                            tool_result_messages.append(j)  # Track index of tool result message
-                            print(f"🤖 Found tool_result for tool_call_id: {tool_call_id}")
-                            
-                            # Check if we've found all results
-                            if tool_call_ids.issubset(result_ids):
-                                found_all_results = True
-                                j += 1  # Include this message, then stop
-                                break
-                            j += 1
+                            # CRITICAL: Only count this as a result if it matches one of our expected tool call IDs
+                            if tool_call_id in tool_call_ids:
+                                result_ids.add(tool_call_id)
+                                tool_result_messages.append(j)  # Track index of tool result message
+                                print(f"🤖 Found matching tool_result for tool_call_id: {tool_call_id}", flush=True)
+                                
+                                # Check if we've found all results
+                                if tool_call_ids.issubset(result_ids):
+                                    found_all_results = True
+                                    j += 1  # Include this message, then stop
+                                    break
+                            else:
+                                # This is a ToolMessage but with a different ID - likely from a previous execution
+                                print(f"⚠️ Found ToolMessage with non-matching ID: {tool_call_id} (expected: {list(tool_call_ids)})", flush=True)
+                                # Don't add it to results, but continue looking
+                        j += 1
                         elif hasattr(next_msg, 'tool_calls') and next_msg.tool_calls:
                             # If we hit another tool_use message, stop looking for results
                             # CRITICAL: If we haven't found all results, this tool_use is incomplete - skip it
