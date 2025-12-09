@@ -443,7 +443,7 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                     print(f"🤖 Found {len(tool_calls_list)} tool calls in message {i}: {tool_names}")
                     print(f"🤖 Tool call IDs: {list(tool_call_ids)}")
                     
-                        if not tool_call_ids:
+                    if not tool_call_ids:
                             print(f"⚠️ Tool calls found but no IDs extracted - checking alternative formats...", flush=True)
                             # Try to extract IDs from content structure (Claude format)
                             if hasattr(msg, 'content') and isinstance(msg.content, list):
