@@ -373,10 +373,23 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
             print(f"🤖 Message count: {len(state.messages)}")
             
             # Filter messages to ensure proper tool_use/tool_result pairing
-            # Anthropic requires that every tool_use is immediately followed by tool_result
+            # Both Claude and OpenAI require that every tool_use is immediately followed by tool_result
             # If a tool_use doesn't have all its tool_result messages, skip it to avoid API errors
             filtered_messages = []
             i = 0
+            
+            # Debug: Log all messages before filtering
+            print(f"🔍 Messages before filtering ({len(state.messages)} total):", flush=True)
+            for idx, msg in enumerate(state.messages):
+                msg_type = type(msg).__name__
+                if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                    tool_ids = [getattr(tc, 'id', getattr(tc, 'tool_call_id', None)) for tc in msg.tool_calls]
+                    print(f"🔍   [{idx}] {msg_type} with {len(msg.tool_calls)} tool_calls: {tool_ids}", flush=True)
+                elif hasattr(msg, 'tool_call_id'):
+                    print(f"🔍   [{idx}] {msg_type} with tool_call_id: {msg.tool_call_id}", flush=True)
+                else:
+                    content_preview = str(getattr(msg, 'content', ''))[:50] if hasattr(msg, 'content') else 'N/A'
+                    print(f"🔍   [{idx}] {msg_type}: {content_preview}...", flush=True)
             while i < len(state.messages):
                 msg = state.messages[i]
                 
@@ -474,6 +487,19 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                 # Regular message (not tool_use), include it
                 filtered_messages.append(msg)
                 i += 1
+            
+            # Debug: Log filtered messages
+            print(f"🔍 Messages after filtering ({len(filtered_messages)} total):", flush=True)
+            for idx, msg in enumerate(filtered_messages):
+                msg_type = type(msg).__name__
+                if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                    tool_ids = [getattr(tc, 'id', getattr(tc, 'tool_call_id', None)) for tc in msg.tool_calls]
+                    print(f"🔍   [{idx}] {msg_type} with {len(msg.tool_calls)} tool_calls: {tool_ids}", flush=True)
+                elif hasattr(msg, 'tool_call_id'):
+                    print(f"🔍   [{idx}] {msg_type} with tool_call_id: {msg.tool_call_id}", flush=True)
+                else:
+                    content_preview = str(getattr(msg, 'content', ''))[:50] if hasattr(msg, 'content') else 'N/A'
+                    print(f"🔍   [{idx}] {msg_type}: {content_preview}...", flush=True)
             
             try:
                 response = await self.llm.ainvoke([SystemMessage(content=system_prompt)] + filtered_messages)
