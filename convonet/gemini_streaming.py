@@ -135,6 +135,7 @@ class GeminiStreamingHandler:
         full_text = ""
         tool_calls = []
         current_tool_call = None
+        iteration = 0  # Track iteration for debug logging
         
         try:
             # Use async generate_content_stream for streaming
@@ -204,6 +205,18 @@ class GeminiStreamingHandler:
                             raise
                 
                 async for chunk in response_stream:
+                    # Debug: Log chunk structure (first chunk only)
+                    if len(tool_calls) == 0 and full_text == "":
+                        chunk_attrs = [attr for attr in dir(chunk) if not attr.startswith('_')]
+                        print(f"🔍 First chunk attributes: {chunk_attrs[:15]}...", flush=True)
+                        print(f"🔍 Chunk type: {type(chunk)}", flush=True)
+                        # Try to inspect chunk contents
+                        try:
+                            chunk_dict = chunk.__dict__ if hasattr(chunk, '__dict__') else {}
+                            print(f"🔍 Chunk dict keys: {list(chunk_dict.keys())[:10]}...", flush=True)
+                        except:
+                            pass
+                    
                     # Handle text chunks
                     if hasattr(chunk, 'text') and chunk.text:
                         text_chunk = chunk.text
@@ -213,25 +226,31 @@ class GeminiStreamingHandler:
                         if self.on_text_chunk:
                             self.on_text_chunk(text_chunk)
                     
-                    # Handle function calls
+                    # Handle function calls (check multiple possible attribute names)
+                    function_calls_detected = False
+                    
+                    # Method 1: Check function_calls attribute
                     if hasattr(chunk, 'function_calls') and chunk.function_calls:
+                        print(f"🔧 Found function_calls in chunk: {len(chunk.function_calls)}", flush=True)
                         for func_call in chunk.function_calls:
                             tool_call = {
-                                "name": func_call.name,
+                                "name": func_call.name if hasattr(func_call, 'name') else getattr(func_call, 'function_name', 'unknown'),
                                 "id": getattr(func_call, 'id', None),
-                                "args": func_call.args if hasattr(func_call, 'args') else {}
+                                "args": func_call.args if hasattr(func_call, 'args') else (func_call.arguments if hasattr(func_call, 'arguments') else {})
                             }
                             tool_calls.append(tool_call)
+                            function_calls_detected = True
                             
                             # Emit tool call via callback
                             if self.on_tool_call:
                                 self.on_tool_call(tool_call)
                     
-                    # Handle function call deltas (streaming tool arguments)
+                    # Method 2: Check function_call (singular) attribute
                     if hasattr(chunk, 'function_call') and chunk.function_call:
+                        print(f"🔧 Found function_call in chunk", flush=True)
                         if not current_tool_call:
                             current_tool_call = {
-                                "name": chunk.function_call.name,
+                                "name": chunk.function_call.name if hasattr(chunk.function_call, 'name') else getattr(chunk.function_call, 'function_name', 'unknown'),
                                 "id": getattr(chunk.function_call, 'id', None),
                                 "args": {}
                             }
@@ -239,12 +258,38 @@ class GeminiStreamingHandler:
                         # Accumulate function call arguments
                         if hasattr(chunk.function_call, 'args'):
                             current_tool_call["args"].update(chunk.function_call.args)
+                        elif hasattr(chunk.function_call, 'arguments'):
+                            current_tool_call["args"].update(chunk.function_call.arguments)
+                        function_calls_detected = True
+                    
+                    # Method 3: Check candidates[0].function_calls (Gemini API format)
+                    if hasattr(chunk, 'candidates') and chunk.candidates:
+                        for candidate in chunk.candidates:
+                            if hasattr(candidate, 'function_calls') and candidate.function_calls:
+                                print(f"🔧 Found function_calls in candidate: {len(candidate.function_calls)}", flush=True)
+                                for func_call in candidate.function_calls:
+                                    tool_call = {
+                                        "name": func_call.name if hasattr(func_call, 'name') else getattr(func_call, 'function_name', 'unknown'),
+                                        "id": getattr(func_call, 'id', None),
+                                        "args": func_call.args if hasattr(func_call, 'args') else (func_call.arguments if hasattr(func_call, 'arguments') else {})
+                                    }
+                                    tool_calls.append(tool_call)
+                                    function_calls_detected = True
+                                    
+                                    if self.on_tool_call:
+                                        self.on_tool_call(tool_call)
                 
                 # Finalize any pending tool call
                 if current_tool_call:
                     tool_calls.append(current_tool_call)
                     if self.on_tool_call:
                         self.on_tool_call(current_tool_call)
+                
+                # Debug: Log tool calls found
+                if tool_calls:
+                    print(f"🔧 Total tool calls detected: {len(tool_calls)}", flush=True)
+                else:
+                    print(f"⚠️ No tool calls detected in streaming response", flush=True)
                 
                 # Call completion callback
                 if self.on_complete:
