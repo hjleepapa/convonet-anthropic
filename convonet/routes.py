@@ -1742,15 +1742,20 @@ async def _run_agent_async(
                     # Track tool results (ToolMessage)
                     if hasattr(msg, 'tool_call_id') and hasattr(msg, 'content'):
                         tool_call_id = msg.tool_call_id
-                    # Find matching tool call and update it
-                    for tc_info in tool_calls_info:
-                        if tc_info.tool_id == tool_call_id:
-                            tc_info.result = msg.content
-                            tc_info.status = "success"
-                            # Try to extract duration if available
-                            if hasattr(msg, 'additional_kwargs') and 'duration' in msg.additional_kwargs:
-                                tc_info.duration_ms = msg.additional_kwargs['duration'] * 1000
-                            break
+                        # Find matching tool call and update it
+                        for tc_info in tool_calls_info:
+                            if tc_info.tool_id == tool_call_id:
+                                tc_info.result = msg.content
+                                tc_info.status = "success"
+                                # Try to extract duration if available
+                                if hasattr(msg, 'additional_kwargs') and 'duration' in msg.additional_kwargs:
+                                    tc_info.duration_ms = msg.additional_kwargs['duration'] * 1000
+                                break
+            finally:
+                # Clear final_messages to free memory after processing
+                if 'final_messages' in locals() and final_messages is not None:
+                    final_messages.clear()
+                    final_messages = None
             
             # Calculate duration using captured start_time
             # Use time_module to avoid scoping conflicts
