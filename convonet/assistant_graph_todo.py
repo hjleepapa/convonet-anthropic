@@ -425,15 +425,16 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                     
                     # Check if all tool calls have results
                     missing_results = tool_call_ids - result_ids
-                    if missing_results:
-                        print(f"⚠️ Skipping tool_use message {i}: missing tool_result for {missing_results}")
-                        # Skip this tool_use message, move to next message
-                        i = j
-                        continue
-                    elif not found_all_results and tool_result_messages:
-                        # We found some results but not all - this is invalid for Claude
-                        print(f"⚠️ Skipping tool_use message {i}: incomplete tool_results (found {len(result_ids)}/{len(tool_call_ids)})")
-                        i = j
+                    if missing_results or not found_all_results:
+                        # Skip this tool_use message and its partial results (if any)
+                        # This happens when tool execution fails/times out
+                        print(f"⚠️ Skipping tool_use message {i}: missing tool_result for {missing_results if missing_results else 'incomplete results'} (found {len(result_ids)}/{len(tool_call_ids)})")
+                        # Skip the tool_use message and any partial tool_result messages
+                        # Move past all messages we checked (including any partial results)
+                        # But don't skip past the next message - we want to process it
+                        i = j  # j points to the message after the last one we checked
+                        # If j is still pointing to a tool_result that we shouldn't include, skip it
+                        # Actually, j should be correct - it points to the first message after the tool_use/results
                         continue
                     else:
                         print(f"✅ All tool calls have results, including message {i} and results")
@@ -746,6 +747,12 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                                                 continue  # Retry the tool call
                                             else:
                                                 result = "I encountered a connection issue with the MCP server. The operation may have completed. Please check your calendar or todo list."
+                                                break  # Max retries reached
+                                        elif "UnboundLocalError" in error_type or "call_tool_result" in error_str:
+                                            # This is an error in the MCP adapter library - don't retry
+                                            result = "I encountered a system error while executing the tool. Please try again."
+                                            print(f"❌ MCP adapter library error: {error_str}", flush=True)
+                                            break  # Don't retry library errors
                                         elif "TaskGroup" in error_str:
                                             result = "I encountered a system processing error. The task may have been created successfully. Please check your todo list."
                                             break  # Not retryable
