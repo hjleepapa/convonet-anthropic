@@ -649,6 +649,10 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                         # Initialize result variable to avoid UnboundLocalError
                         result = None
                         
+                        # Retry logic for MCP connection failures
+                        max_retries = 2
+                        retry_count = 0
+                        
                         try:
                             # Find the tool by name
                             tool = None
@@ -661,16 +665,25 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                                 # OPTIMIZED: Reduced timeout for faster failure detection
                                 # Reduced from 8s to 6s for lower latency (Gemini uses native SDK, doesn't need longer timeout)
                                 tool_timeout = 6.0
-                                try:
-                                    if hasattr(tool, 'ainvoke'):
-                                        result = await asyncio.wait_for(tool.ainvoke(tool_args), timeout=tool_timeout)
-                                    else:
-                                        result = await asyncio.wait_for(asyncio.to_thread(tool.invoke, tool_args), timeout=tool_timeout)
-                                    print(f"✅ Tool {tool_name} completed successfully")
-                                except asyncio.TimeoutError:
-                                    result = "I'm sorry, the database operation timed out. Please try again."
-                                    print(f"⏰ Tool {tool_name} timed out after {tool_timeout} seconds")
-                                except ExceptionGroup as eg:
+                                
+                                # Retry logic for MCP connection failures
+                                max_retries = 2
+                                retry_count = 0
+                                result = None
+                                
+                                while retry_count < max_retries and result is None:
+                                    try:
+                                        if hasattr(tool, 'ainvoke'):
+                                            result = await asyncio.wait_for(tool.ainvoke(tool_args), timeout=tool_timeout)
+                                        else:
+                                            result = await asyncio.wait_for(asyncio.to_thread(tool.invoke, tool_args), timeout=tool_timeout)
+                                        print(f"✅ Tool {tool_name} completed successfully")
+                                        break  # Success, exit retry loop
+                                    except asyncio.TimeoutError:
+                                        result = "I'm sorry, the database operation timed out. Please try again."
+                                        print(f"⏰ Tool {tool_name} timed out after {tool_timeout} seconds")
+                                        break  # Timeout is not retryable
+                                    except ExceptionGroup as eg:
                                     # Unwrap ExceptionGroup and get the first exception
                                     print(f"❌ Tool {tool_name} ExceptionGroup with {len(eg.exceptions)} exception(s)")
                                     for i, exc in enumerate(eg.exceptions):
@@ -684,15 +697,29 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                                     print(f"❌ Tool {tool_name} full error traceback:")
                                     traceback.print_exc()
                                     
-                                    # Handle BrokenResourceError (MCP connection issue)
+                                    # Handle BrokenResourceError (MCP connection issue) - retry once
                                     if "BrokenResourceError" in error_type or not error_str.strip():
-                                        result = "I encountered a connection issue with the database. The operation may have completed. Please check your calendar."
+                                        if retry_count < max_retries - 1:
+                                            print(f"🔄 MCP connection broken, clearing cache and retrying ({retry_count + 1}/{max_retries})...")
+                                            # Clear MCP tools cache to force reconnection
+                                            from convonet.routes import _mcp_tools_cache
+                                            import convonet.routes as routes_module
+                                            routes_module._mcp_tools_cache = None
+                                            retry_count += 1
+                                            await asyncio.sleep(0.5)  # Brief delay before retry
+                                            result = None  # Reset to retry
+                                            continue  # Retry the tool call
+                                        else:
+                                            result = "I encountered a connection issue with the MCP server. The operation may have completed. Please check your calendar."
                                     elif "timeout" in error_str.lower() or "timed out" in error_str.lower():
                                         result = "I'm sorry, the database operation timed out. Please try again."
+                                        break  # Timeout is not retryable
                                     elif "connection" in error_str.lower() or "connect" in error_str.lower():
                                         result = f"I encountered a database connection issue: {error_str[:150]}. Please try again."
+                                        break  # Connection errors are not retryable (already handled above)
                                     else:
                                         result = f"I encountered an error: {error_str[:200]}"
+                                        break  # Other errors are not retryable
                                     print(f"❌ Tool {tool_name} error (unwrapped): {error_str if error_str else error_type}")
                                 except Exception as tool_error:
                                     error_str = str(tool_error)
@@ -705,9 +732,20 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                                     print(f"❌ Tool {tool_name} full error traceback:")
                                     traceback.print_exc()
                                     
-                                    # Handle specific error types
+                                    # Handle BrokenResourceError (MCP connection issue) - retry once
                                     if "BrokenResourceError" in error_type:
-                                        result = "I encountered a database connection issue. The operation may have completed. Please check your calendar or todo list."
+                                        if retry_count < max_retries - 1:
+                                            print(f"🔄 MCP connection broken, clearing cache and retrying ({retry_count + 1}/{max_retries})...")
+                                            # Clear MCP tools cache to force reconnection
+                                            from convonet.routes import _mcp_tools_cache
+                                            import convonet.routes as routes_module
+                                            routes_module._mcp_tools_cache = None
+                                            retry_count += 1
+                                            await asyncio.sleep(0.5)  # Brief delay before retry
+                                            result = None  # Reset to retry
+                                            continue  # Retry the tool call
+                                        else:
+                                            result = "I encountered a connection issue with the MCP server. The operation may have completed. Please check your calendar or todo list."
                                     elif "TaskGroup" in error_str:
                                         result = "I encountered a system processing error. The task may have been created successfully. Please check your todo list."
                                     elif "Database not available" in error_str or "DB_URI" in error_str:
@@ -722,6 +760,10 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                                         # Empty error message
                                         result = "I encountered an unexpected error. Please try again or rephrase your request."
                                     else:
+                                        result = f"I encountered an error: {error_str[:200]}"
+                                    
+                                    # If we get here and result is still None, set a default error message
+                                    if result is None:
                                         result = f"I encountered an error: {error_str[:200]}"
                             else:
                                 result = f"Tool {tool_name} not found"
