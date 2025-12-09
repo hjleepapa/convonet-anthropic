@@ -1307,7 +1307,7 @@ def init_socketio(socketio_instance: SocketIO, app):
                         # Use 60s timeout to allow for tool execution (database operations, API calls)
                         # Tool execution (MCP calls, API calls, database operations) can take time
                         # Increased from 25s to 60s to handle complex operations like calendar event creation
-                        executor_timeout = 60.0
+                        executor_timeout = 90.0  # Increased for MCP tools loading (was 60s)
                         try:
                             print(f"⏳ Waiting for result with {executor_timeout}s timeout...", flush=True)
                             sys.stdout.flush()
