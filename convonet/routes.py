@@ -1480,8 +1480,17 @@ async def _run_agent_async(
                         print(f"🔧 Got {len(tools)} tools from MCP cache for Gemini streaming", flush=True)
                         sys.stdout.flush()
                         
-                        # Get system prompt
-                        system_prompt = getattr(agent, 'system_prompt', '') if hasattr(agent, 'system_prompt') else ''
+                        # Get system prompt - use a simplified version for Gemini native SDK
+                        # The full system prompt is in TodoAgent, but we use a concise version here
+                        system_prompt = """You are a productivity assistant that helps users manage todos, reminders, and calendar events. You MUST use tools to perform actions - never just ask for more information.
+
+CRITICAL RULES:
+1. ALWAYS use tools when users mention creating, adding, or doing something
+2. NEVER ask "what would you like to create?" - infer the intent and use the appropriate tool
+3. Be proactive - if user says "create", "add", "todo", "reminder", "calendar event", immediately use the tool
+4. Make reasonable assumptions when details are missing
+
+Your messages are read aloud, so be brief and conversational."""
                         
                         # Get conversation history from AgentState
                         # AgentState is a Pydantic BaseModel, so we access it as an attribute

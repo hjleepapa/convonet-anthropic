@@ -522,10 +522,15 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                 # CRITICAL: NEVER treat HumanMessage or AIMessage as ToolMessage
                 # Only check for ToolMessage type - explicitly exclude HumanMessage and AIMessage
                 if is_human or is_ai:
-                    # This is a HumanMessage or AIMessage - NEVER skip it
+                    # This is a HumanMessage or AIMessage - NEVER skip it, NEVER treat as ToolMessage
                     is_tool_message = False
+                    # Debug log to verify HumanMessage/AIMessage are not being skipped
+                    if is_human:
+                        print(f"✅ HumanMessage detected at index {i} - will NOT skip", flush=True)
+                    elif is_ai:
+                        print(f"✅ AIMessage detected at index {i} - will NOT skip", flush=True)
                 else:
-                    # Check if it's actually a ToolMessage
+                    # Check if it's actually a ToolMessage (only if NOT HumanMessage or AIMessage)
                     is_tool_message = is_tool
                     # Also check for tool_call_id attribute (some ToolMessage implementations use this)
                     if not is_tool_message:
