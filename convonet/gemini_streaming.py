@@ -155,96 +155,102 @@ class GeminiStreamingHandler:
                 request_params["tools"] = tools_config
             
             # Use async generate_content_stream for streaming
-            if hasattr(self.client, 'aio'):
-                try:
-                    response_stream = await self.client.aio.models.generate_content_stream(**request_params)
-                except TypeError as e:
-                    # If system_instruction parameter is not supported, try without it
-                    if "system_instruction" in str(e):
-                        print(f"⚠️ system_instruction parameter not supported, including in contents instead", flush=True)
-                        # Remove system_instruction from params and add as first message
-                        request_params.pop("system_instruction", None)
-                        # Prepend system instruction as a user message with special role
-                        if gemini_messages and gemini_messages[0].get("role") != "system":
-                            gemini_messages.insert(0, {
-                                "role": "user",
-                                "parts": [{"text": f"System: {system_instruction}"}]
-                            })
+            response_stream = None
+            try:
+                if hasattr(self.client, 'aio'):
+                    try:
                         response_stream = await self.client.aio.models.generate_content_stream(**request_params)
-                    else:
-                        raise
-            else:
-                # Fallback to sync streaming (will need to wrap in executor)
-                import asyncio
-                try:
-                    response_stream = await asyncio.to_thread(
-                        lambda: self.client.models.generate_content_stream(**request_params)
-                    )
-                except TypeError as e:
-                    # If system_instruction parameter is not supported, try without it
-                    if "system_instruction" in str(e):
-                        print(f"⚠️ system_instruction parameter not supported, including in contents instead", flush=True)
-                        request_params.pop("system_instruction", None)
-                        if gemini_messages and gemini_messages[0].get("role") != "system":
-                            gemini_messages.insert(0, {
-                                "role": "user",
-                                "parts": [{"text": f"System: {system_instruction}"}]
-                            })
+                        self._response_stream = response_stream  # Track for cleanup
+                    except TypeError as e:
+                        # If system_instruction parameter is not supported, try without it
+                        if "system_instruction" in str(e):
+                            print(f"⚠️ system_instruction parameter not supported, including in contents instead", flush=True)
+                            # Remove system_instruction from params and add as first message
+                            request_params.pop("system_instruction", None)
+                            # Prepend system instruction as a user message with special role
+                            if gemini_messages and gemini_messages[0].get("role") != "system"):
+                                gemini_messages.insert(0, {
+                                    "role": "user",
+                                    "parts": [{"text": f"System: {system_instruction}"}]
+                                })
+                            response_stream = await self.client.aio.models.generate_content_stream(**request_params)
+                            self._response_stream = response_stream
+                        else:
+                            raise
+                else:
+                    # Fallback to sync streaming (will need to wrap in executor)
+                    import asyncio
+                    try:
                         response_stream = await asyncio.to_thread(
                             lambda: self.client.models.generate_content_stream(**request_params)
                         )
-                    else:
-                        raise
-            
-                    async for chunk in response_stream:
-                        # Handle text chunks
-                        if hasattr(chunk, 'text') and chunk.text:
-                            text_chunk = chunk.text
-                            full_text += text_chunk
-                            
-                            # Emit text chunk via callback
-                            if self.on_text_chunk:
-                                self.on_text_chunk(text_chunk)
+                        self._response_stream = response_stream
+                    except TypeError as e:
+                        # If system_instruction parameter is not supported, try without it
+                        if "system_instruction" in str(e):
+                            print(f"⚠️ system_instruction parameter not supported, including in contents instead", flush=True)
+                            request_params.pop("system_instruction", None)
+                            if gemini_messages and gemini_messages[0].get("role") != "system":
+                                gemini_messages.insert(0, {
+                                    "role": "user",
+                                    "parts": [{"text": f"System: {system_instruction}"}]
+                                })
+                            response_stream = await asyncio.to_thread(
+                                lambda: self.client.models.generate_content_stream(**request_params)
+                            )
+                            self._response_stream = response_stream
+                        else:
+                            raise
+                
+                async for chunk in response_stream:
+                    # Handle text chunks
+                    if hasattr(chunk, 'text') and chunk.text:
+                        text_chunk = chunk.text
+                        full_text += text_chunk
                         
-                        # Handle function calls
-                        if hasattr(chunk, 'function_calls') and chunk.function_calls:
-                            for func_call in chunk.function_calls:
-                                tool_call = {
-                                    "name": func_call.name,
-                                    "id": getattr(func_call, 'id', None),
-                                    "args": func_call.args if hasattr(func_call, 'args') else {}
-                                }
-                                tool_calls.append(tool_call)
-                                
-                                # Emit tool call via callback
-                                if self.on_tool_call:
-                                    self.on_tool_call(tool_call)
-                        
-                        # Handle function call deltas (streaming tool arguments)
-                        if hasattr(chunk, 'function_call') and chunk.function_call:
-                            if not current_tool_call:
-                                current_tool_call = {
-                                    "name": chunk.function_call.name,
-                                    "id": getattr(chunk.function_call, 'id', None),
-                                    "args": {}
-                                }
+                        # Emit text chunk via callback
+                        if self.on_text_chunk:
+                            self.on_text_chunk(text_chunk)
+                    
+                    # Handle function calls
+                    if hasattr(chunk, 'function_calls') and chunk.function_calls:
+                        for func_call in chunk.function_calls:
+                            tool_call = {
+                                "name": func_call.name,
+                                "id": getattr(func_call, 'id', None),
+                                "args": func_call.args if hasattr(func_call, 'args') else {}
+                            }
+                            tool_calls.append(tool_call)
                             
-                            # Accumulate function call arguments
-                            if hasattr(chunk.function_call, 'args'):
-                                current_tool_call["args"].update(chunk.function_call.args)
+                            # Emit tool call via callback
+                            if self.on_tool_call:
+                                self.on_tool_call(tool_call)
                     
-                    # Finalize any pending tool call
-                    if current_tool_call:
-                        tool_calls.append(current_tool_call)
-                        if self.on_tool_call:
-                            self.on_tool_call(current_tool_call)
-                    
-                    # Call completion callback
-                    if self.on_complete:
-                        self.on_complete(full_text, tool_calls)
-                    
-                    return full_text, tool_calls
-                finally:
+                    # Handle function call deltas (streaming tool arguments)
+                    if hasattr(chunk, 'function_call') and chunk.function_call:
+                        if not current_tool_call:
+                            current_tool_call = {
+                                "name": chunk.function_call.name,
+                                "id": getattr(chunk.function_call, 'id', None),
+                                "args": {}
+                            }
+                        
+                        # Accumulate function call arguments
+                        if hasattr(chunk.function_call, 'args'):
+                            current_tool_call["args"].update(chunk.function_call.args)
+                
+                # Finalize any pending tool call
+                if current_tool_call:
+                    tool_calls.append(current_tool_call)
+                    if self.on_tool_call:
+                        self.on_tool_call(current_tool_call)
+                
+                # Call completion callback
+                if self.on_complete:
+                    self.on_complete(full_text, tool_calls)
+                
+                return full_text, tool_calls
+            finally:
                 # Cleanup: Clear response stream reference to allow garbage collection
                 if response_stream is not None:
                     # Try to close/cleanup the stream if it has a close method
@@ -265,7 +271,7 @@ class GeminiStreamingHandler:
             import traceback
             traceback.print_exc()
             # Ensure cleanup even on error
-            if response_stream is not None:
+            if 'response_stream' in locals() and response_stream is not None:
                 self._response_stream = None
                 response_stream = None
             raise
