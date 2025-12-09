@@ -1058,7 +1058,8 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
                         raise
                 
                 # Use timeout to prevent hangs (longer timeout since this is first load)
-                timeout_seconds = 15.0  # 15 seconds for initial load
+                # Increased timeout for MCP tools loading as it can take longer on first request
+                timeout_seconds = 45.0  # 45 seconds for initial load (was 15s)
                 try:
                     tools = await asyncio.wait_for(safe_get_tools(), timeout=timeout_seconds)
                     print(f"✅ MCP client initialized successfully with {len(tools)} tools")
