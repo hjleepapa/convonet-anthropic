@@ -1593,9 +1593,9 @@ async def _run_agent_async(
                             current_time = watchdog_time.time()
                             time_since_last_state = current_time - last_state_time
                             if time_since_last_state > watchdog_timeout:
-                            print(f"⚠️ Watchdog timeout: {time_since_last_state:.2f}s since last state update - forcing exit", flush=True)
-                            sys.stdout.flush()
-                            break
+                                print(f"⚠️ Watchdog timeout: {time_since_last_state:.2f}s since last state update - forcing exit", flush=True)
+                                sys.stdout.flush()
+                                break
                         
                         try:
                             # Get next state with timeout - this prevents hanging on a single iteration
