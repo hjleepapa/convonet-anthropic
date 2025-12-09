@@ -382,13 +382,24 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                 
                 # Check if this is a tool_use message (has tool_calls)
                 if hasattr(msg, 'tool_calls') and msg.tool_calls:
-                    tool_call_ids = {getattr(tc, 'id', getattr(tc, 'tool_call_id', None)) for tc in msg.tool_calls}
-                    tool_call_ids = {tid for tid in tool_call_ids if tid}  # Remove None values
+                    # Collect all tool call IDs - check multiple possible attribute names
+                    tool_call_ids = set()
+                    for tc in msg.tool_calls:
+                        tool_id = getattr(tc, 'id', None) or getattr(tc, 'tool_call_id', None) or getattr(tc, 'toolCallId', None)
+                        if tool_id:
+                            tool_call_ids.add(tool_id)
                     
-                    print(f"🤖 Found {len(msg.tool_calls)} tool calls in message {i}: {[getattr(tc, 'name', 'unknown') for tc in msg.tool_calls]}")
+                    tool_names = [getattr(tc, 'name', getattr(tc, 'functionName', 'unknown')) for tc in msg.tool_calls]
+                    print(f"🤖 Found {len(msg.tool_calls)} tool calls in message {i}: {tool_names}")
+                    print(f"🤖 Tool call IDs: {list(tool_call_ids)}")
+                    
+                    if not tool_call_ids:
+                        print(f"⚠️ Tool calls found but no IDs extracted - skipping message {i}")
+                        i += 1
+                        continue
                     
                     # Check if all tool calls have corresponding tool_result messages immediately after
-                    # CRITICAL: Claude requires ALL tool_results to be in the message(s) immediately following tool_use
+                    # CRITICAL: Both Claude and OpenAI require ALL tool_results to be in the message(s) immediately following tool_use
                     result_ids = set()
                     tool_result_messages = []  # Track all tool result messages
                     j = i + 1
@@ -396,11 +407,20 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                     
                     while j < len(state.messages):
                         next_msg = state.messages[j]
-                        # Check if this is a tool result message
+                        # Check if this is a tool result message - check multiple possible attribute names
+                        tool_call_id = None
                         if hasattr(next_msg, 'tool_call_id') and next_msg.tool_call_id:
-                            result_ids.add(next_msg.tool_call_id)
+                            tool_call_id = next_msg.tool_call_id
+                        elif hasattr(next_msg, 'toolCallId') and next_msg.toolCallId:
+                            tool_call_id = next_msg.toolCallId
+                        elif hasattr(next_msg, 'id') and hasattr(next_msg, 'content'):
+                            # Some ToolMessage implementations use 'id' instead of 'tool_call_id'
+                            tool_call_id = getattr(next_msg, 'id', None)
+                        
+                        if tool_call_id:
+                            result_ids.add(tool_call_id)
                             tool_result_messages.append(j)  # Track index of tool result message
-                            print(f"🤖 Found tool_result for tool_call_id: {next_msg.tool_call_id}")
+                            print(f"🤖 Found tool_result for tool_call_id: {tool_call_id}")
                             
                             # Check if we've found all results
                             if tool_call_ids.issubset(result_ids):
@@ -413,6 +433,7 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                             # CRITICAL: If we haven't found all results, this tool_use is incomplete - skip it
                             if not found_all_results:
                                 # This tool_use doesn't have all its results - stop here
+                                print(f"⚠️ Hit another tool_use at message {j} before finding all results")
                                 break
                             # If we found all results, we can stop here (next tool_use will be handled separately)
                             break
@@ -421,6 +442,7 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                             # CRITICAL: If we haven't found all results yet, this breaks the chain - skip the tool_use
                             if not found_all_results:
                                 # Regular message breaks the tool_use/tool_result chain - stop here
+                                print(f"⚠️ Hit regular message at {j} before finding all results")
                                 break
                             # If we found all results, we can include up to here, then stop
                             break
@@ -431,15 +453,16 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                         # Skip this tool_use message and its partial results (if any)
                         # This happens when tool execution fails/times out
                         print(f"⚠️ Skipping tool_use message {i}: missing tool_result for {missing_results if missing_results else 'incomplete results'} (found {len(result_ids)}/{len(tool_call_ids)})")
+                        print(f"⚠️   Expected IDs: {list(tool_call_ids)}")
+                        print(f"⚠️   Found IDs: {list(result_ids)}")
                         # Skip the tool_use message and any partial tool_result messages
                         # j points to the first message after the tool_use (or after partial results)
-                        # We want to skip the tool_use and any partial results, then continue processing from j
-                        # But also skip any partial tool_result messages we found
-                        # Actually, j already points past the last message we checked, so we can use it directly
                         i = j  # j points to the first message after the incomplete tool_use/results
                         continue
                     else:
                         print(f"✅ All tool calls have results, including message {i} and results")
+                        print(f"✅   Tool call IDs: {list(tool_call_ids)}")
+                        print(f"✅   Result IDs: {list(result_ids)}")
                         # Include the tool_use message
                         filtered_messages.append(state.messages[i])
                         # Include ALL tool_result messages immediately after
