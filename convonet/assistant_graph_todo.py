@@ -430,7 +430,18 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                     print(f"🤖 Tool call IDs: {list(tool_call_ids)}")
                     
                     if not tool_call_ids:
-                        print(f"⚠️ Tool calls found but no IDs extracted - skipping message {i} and any following ToolMessages")
+                        print(f"⚠️ Tool calls found but no IDs extracted - checking content structure...", flush=True)
+                        # Try to extract IDs from content structure (Claude format)
+                        if hasattr(msg, 'content') and isinstance(msg.content, list):
+                            for item in msg.content:
+                                if isinstance(item, dict) and item.get('type') == 'tool_use':
+                                    tool_id = item.get('id')
+                                    if tool_id:
+                                        tool_call_ids.add(tool_id)
+                                        print(f"✅ Extracted tool call ID from content: {tool_id}", flush=True)
+                        
+                        if not tool_call_ids:
+                            print(f"⚠️ Tool calls found but no IDs extracted - skipping message {i} and any following ToolMessages", flush=True)
                         # Skip this AIMessage with tool_calls (no IDs)
                         # Also skip any ToolMessages that immediately follow (they're orphaned)
                         j = i + 1
