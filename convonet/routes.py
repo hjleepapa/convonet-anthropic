@@ -1507,6 +1507,7 @@ async def _run_agent_async(
                         print(f"✅ Gemini native streaming completed", flush=True)
                         sys.stdout.flush()
                         final_state = None  # Not using LangGraph state for native streaming
+                        final_messages = []  # Initialize for native SDK path - tool calls already extracted
                     else:
                         raise ImportError("Native Gemini SDK not available")
                         
@@ -1678,6 +1679,10 @@ async def _run_agent_async(
                 final_response = "I'm processing your request. Please wait a moment and try again if you don't see a response."
             
             # Extract all tool calls from final state messages
+            # For native Gemini SDK, tool_calls_info is already populated, so skip if empty
+            if not final_messages:
+                final_messages = []  # Ensure it's initialized
+            
             for msg in final_messages:
                 # Track tool calls (AIMessage with tool_calls)
                 if hasattr(msg, 'tool_calls') and msg.tool_calls:
