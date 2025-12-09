@@ -513,19 +513,27 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                 # Check if this is a ToolMessage - use STRICT check to avoid false positives
                 from langchain_core.messages import HumanMessage, AIMessage
                 
-                # Only check for ToolMessage type and tool_call_id attributes
-                # CRITICAL: Explicitly exclude HumanMessage and AIMessage to prevent false positives
-                is_tool_message = isinstance(msg, ToolMessage)
+                # Debug: Log message type
+                msg_type = type(msg).__name__
+                is_human = isinstance(msg, HumanMessage)
+                is_ai = isinstance(msg, AIMessage)
+                is_tool = isinstance(msg, ToolMessage)
                 
-                # Also check for tool_call_id attribute (some ToolMessage implementations use this)
-                # BUT explicitly exclude HumanMessage and AIMessage types
-                if not is_tool_message and not isinstance(msg, HumanMessage) and not isinstance(msg, AIMessage):
-                    # Check for tool_call_id attribute (must exist AND be non-empty)
-                    tool_call_id = getattr(msg, 'tool_call_id', None) or getattr(msg, 'toolCallId', None)
-                    if tool_call_id:
-                        # Only consider it a ToolMessage if it also has content
-                        if hasattr(msg, 'content'):
-                            is_tool_message = True
+                # CRITICAL: NEVER treat HumanMessage or AIMessage as ToolMessage
+                # Only check for ToolMessage type - explicitly exclude HumanMessage and AIMessage
+                if is_human or is_ai:
+                    # This is a HumanMessage or AIMessage - NEVER skip it
+                    is_tool_message = False
+                else:
+                    # Check if it's actually a ToolMessage
+                    is_tool_message = is_tool
+                    # Also check for tool_call_id attribute (some ToolMessage implementations use this)
+                    if not is_tool_message:
+                        tool_call_id = getattr(msg, 'tool_call_id', None) or getattr(msg, 'toolCallId', None)
+                        if tool_call_id:
+                            # Only consider it a ToolMessage if it also has content
+                            if hasattr(msg, 'content'):
+                                is_tool_message = True
                 
                 if is_tool_message:
                     # This is a ToolMessage - check if there's a preceding AIMessage with tool_calls in filtered_messages
