@@ -1702,6 +1702,12 @@ async def _run_agent_async(
                             print(f"⚠️ Error getting final state: {e}", flush=True)
                             final_messages = []
                             final_response = ""
+                finally:
+                    # Additional cleanup: Clear stream references
+                    if stream_iter is not None:
+                        stream_iter = None
+                    if stream is not None:
+                        stream = None
             
             # Ensure we have a response - if empty, provide a fallback message
             if not final_response or final_response.strip() == "":
