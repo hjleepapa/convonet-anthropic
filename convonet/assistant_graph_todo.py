@@ -684,43 +684,43 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                                         print(f"⏰ Tool {tool_name} timed out after {tool_timeout} seconds")
                                         break  # Timeout is not retryable
                                     except ExceptionGroup as eg:
-                                    # Unwrap ExceptionGroup and get the first exception
-                                    print(f"❌ Tool {tool_name} ExceptionGroup with {len(eg.exceptions)} exception(s)")
-                                    for i, exc in enumerate(eg.exceptions):
-                                        print(f"❌   Exception {i+1}: {type(exc).__name__}: {exc}")
-                                    first_error = eg.exceptions[0] if eg.exceptions else eg
-                                    error_str = str(first_error)
-                                    error_type = type(first_error).__name__
-                                    
-                                    # Log full error details for debugging
-                                    import traceback
-                                    print(f"❌ Tool {tool_name} full error traceback:")
-                                    traceback.print_exc()
-                                    
-                                    # Handle BrokenResourceError (MCP connection issue) - retry once
-                                    if "BrokenResourceError" in error_type or not error_str.strip():
-                                        if retry_count < max_retries - 1:
-                                            print(f"🔄 MCP connection broken, clearing cache and retrying ({retry_count + 1}/{max_retries})...")
-                                            # Clear MCP tools cache to force reconnection
-                                            from convonet.routes import _mcp_tools_cache
-                                            import convonet.routes as routes_module
-                                            routes_module._mcp_tools_cache = None
-                                            retry_count += 1
-                                            await asyncio.sleep(0.5)  # Brief delay before retry
-                                            result = None  # Reset to retry
-                                            continue  # Retry the tool call
+                                        # Unwrap ExceptionGroup and get the first exception
+                                        print(f"❌ Tool {tool_name} ExceptionGroup with {len(eg.exceptions)} exception(s)")
+                                        for i, exc in enumerate(eg.exceptions):
+                                            print(f"❌   Exception {i+1}: {type(exc).__name__}: {exc}")
+                                        first_error = eg.exceptions[0] if eg.exceptions else eg
+                                        error_str = str(first_error)
+                                        error_type = type(first_error).__name__
+                                        
+                                        # Log full error details for debugging
+                                        import traceback
+                                        print(f"❌ Tool {tool_name} full error traceback:")
+                                        traceback.print_exc()
+                                        
+                                        # Handle BrokenResourceError (MCP connection issue) - retry once
+                                        if "BrokenResourceError" in error_type or not error_str.strip():
+                                            if retry_count < max_retries - 1:
+                                                print(f"🔄 MCP connection broken, clearing cache and retrying ({retry_count + 1}/{max_retries})...")
+                                                # Clear MCP tools cache to force reconnection
+                                                from convonet.routes import _mcp_tools_cache
+                                                import convonet.routes as routes_module
+                                                routes_module._mcp_tools_cache = None
+                                                retry_count += 1
+                                                await asyncio.sleep(0.5)  # Brief delay before retry
+                                                result = None  # Reset to retry
+                                                continue  # Retry the tool call
+                                            else:
+                                                result = "I encountered a connection issue with the MCP server. The operation may have completed. Please check your calendar."
+                                        elif "timeout" in error_str.lower() or "timed out" in error_str.lower():
+                                            result = "I'm sorry, the database operation timed out. Please try again."
+                                            break  # Timeout is not retryable
+                                        elif "connection" in error_str.lower() or "connect" in error_str.lower():
+                                            result = f"I encountered a database connection issue: {error_str[:150]}. Please try again."
+                                            break  # Connection errors are not retryable (already handled above)
                                         else:
-                                            result = "I encountered a connection issue with the MCP server. The operation may have completed. Please check your calendar."
-                                    elif "timeout" in error_str.lower() or "timed out" in error_str.lower():
-                                        result = "I'm sorry, the database operation timed out. Please try again."
-                                        break  # Timeout is not retryable
-                                    elif "connection" in error_str.lower() or "connect" in error_str.lower():
-                                        result = f"I encountered a database connection issue: {error_str[:150]}. Please try again."
-                                        break  # Connection errors are not retryable (already handled above)
-                                    else:
-                                        result = f"I encountered an error: {error_str[:200]}"
-                                        break  # Other errors are not retryable
-                                    print(f"❌ Tool {tool_name} error (unwrapped): {error_str if error_str else error_type}")
+                                            result = f"I encountered an error: {error_str[:200]}"
+                                            break  # Other errors are not retryable
+                                        print(f"❌ Tool {tool_name} error (unwrapped): {error_str if error_str else error_type}")
                                 except Exception as tool_error:
                                     error_str = str(tool_error)
                                     error_type = type(tool_error).__name__
