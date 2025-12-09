@@ -1740,7 +1740,21 @@ async def _run_agent_async(
                         stream = None
             
             # Ensure we have a response - if empty, provide a fallback message
-            if not final_response or final_response.strip() == "":
+            # Convert final_response to string if it's not already (handles list content)
+            if not isinstance(final_response, str):
+                if isinstance(final_response, list):
+                    # Extract text from list of content blocks
+                    text_parts = []
+                    for item in final_response:
+                        if isinstance(item, dict) and 'text' in item:
+                            text_parts.append(item['text'])
+                        elif isinstance(item, str):
+                            text_parts.append(item)
+                    final_response = ' '.join(text_parts) if text_parts else ""
+                else:
+                    final_response = str(final_response) if final_response else ""
+            
+            if not final_response or (isinstance(final_response, str) and final_response.strip() == ""):
                 print(f"⚠️ Final response is empty, using fallback message", flush=True)
                 sys.stdout.flush()
                 final_response = "I'm processing your request. Please wait a moment and try again if you don't see a response."
