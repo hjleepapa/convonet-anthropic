@@ -1558,28 +1558,31 @@ async def _run_agent_async(
                 # Create stream inside async function so it's in the right event loop context
                 print(f"📡 Creating agent graph stream inside process_stream...", flush=True)
                 sys.stdout.flush()
-                stream = agent_graph.astream(input=input_state, stream_mode="values", config=config)
-                print(f"✅ Agent graph stream created, starting execution...", flush=True)
-                sys.stdout.flush()
-            
-                print(f"🔄 Processing agent stream...", flush=True)
-                sys.stdout.flush()
-                # OPTIMIZED STREAMING: Reduced timeouts for lower latency
-                # Process stream with per-iteration timeout to prevent hanging
-                # Reduced timeouts for faster response (was 8s, now 5s for Claude/OpenAI)
-                stream_timeout = 5.0  # Reduced from 8s for lower latency
-                stream_iter = stream.__aiter__()
-                states_processed = 0
-                max_states = 50  # Prevent infinite loops
-                
-                # Add watchdog timer - if we don't get a state update within this time, force exit
-                import time as watchdog_time
-                last_state_time = watchdog_time.time()
-                # Reduced watchdog timeout for faster failure detection (was 6s, now 4s)
-                watchdog_timeout = 4.0  # Maximum time between state updates
-                
+                stream = None
+                stream_iter = None
                 try:
-                    while states_processed < max_states:
+                    stream = agent_graph.astream(input=input_state, stream_mode="values", config=config)
+                    print(f"✅ Agent graph stream created, starting execution...", flush=True)
+                    sys.stdout.flush()
+                
+                    print(f"🔄 Processing agent stream...", flush=True)
+                    sys.stdout.flush()
+                    # OPTIMIZED STREAMING: Reduced timeouts for lower latency
+                    # Process stream with per-iteration timeout to prevent hanging
+                    # Reduced timeouts for faster response (was 8s, now 5s for Claude/OpenAI)
+                    stream_timeout = 5.0  # Reduced from 8s for lower latency
+                    stream_iter = stream.__aiter__()
+                    states_processed = 0
+                    max_states = 50  # Prevent infinite loops
+                    
+                    # Add watchdog timer - if we don't get a state update within this time, force exit
+                    import time as watchdog_time
+                    last_state_time = watchdog_time.time()
+                    # Reduced watchdog timeout for faster failure detection (was 6s, now 4s)
+                    watchdog_timeout = 4.0  # Maximum time between state updates
+                    
+                    try:
+                        while states_processed < max_states:
                         # Check watchdog - if too much time has passed since last state, force exit
                         current_time = watchdog_time.time()
                         time_since_last_state = current_time - last_state_time
@@ -1686,7 +1689,9 @@ async def _run_agent_async(
             if not final_messages:
                 final_messages = []  # Ensure it's initialized
             
-            for msg in final_messages:
+            # Process messages and then clear to free memory
+            try:
+                for msg in final_messages:
                 # Track tool calls (AIMessage with tool_calls)
                 if hasattr(msg, 'tool_calls') and msg.tool_calls:
                     for tc in msg.tool_calls:
@@ -1733,6 +1738,11 @@ async def _run_agent_async(
                 status=AgentInteractionStatus.SUCCESS,
                 duration_ms=duration_ms
             )
+            
+            # Cleanup: Clear large objects to help with memory management
+            # Note: tool_calls_info is used by monitor, so don't clear it yet
+            # But we can clear other temporary variables after they're used
+            # (transfer_marker is already used above, so it can be cleared)
             
             # If transfer marker was found, return it (for WebRTC transfer detection)
             # Otherwise return the final response

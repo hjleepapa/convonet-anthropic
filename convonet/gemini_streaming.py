@@ -46,8 +46,10 @@ class GeminiStreamingHandler:
             raise ImportError("Google GenAI SDK not available. Install with: pip install google-genai")
         
         # Initialize client (use async client for streaming)
+        # Note: genai.Client should be reused, but we'll ensure proper cleanup
         self.client = genai.Client(api_key=api_key)
-        self.async_client = genai.Client(api_key=api_key)  # Will use aio for async operations
+        # Don't create duplicate client - use self.client.aio if available
+        self._response_stream = None  # Track active stream for cleanup
     
     def _convert_tools_to_gemini_format(self) -> List[Dict[str, Any]]:
         """Convert LangChain tools to Gemini function declarations"""
@@ -231,22 +233,41 @@ class GeminiStreamingHandler:
                     if hasattr(chunk.function_call, 'args'):
                         current_tool_call["args"].update(chunk.function_call.args)
             
-            # Finalize any pending tool call
-            if current_tool_call:
-                tool_calls.append(current_tool_call)
-                if self.on_tool_call:
-                    self.on_tool_call(current_tool_call)
-            
-            # Call completion callback
-            if self.on_complete:
-                self.on_complete(full_text, tool_calls)
-            
-            return full_text, tool_calls
-            
+                # Finalize any pending tool call
+                if current_tool_call:
+                    tool_calls.append(current_tool_call)
+                    if self.on_tool_call:
+                        self.on_tool_call(current_tool_call)
+                
+                # Call completion callback
+                if self.on_complete:
+                    self.on_complete(full_text, tool_calls)
+                
+                return full_text, tool_calls
+            finally:
+                # Cleanup: Clear response stream reference to allow garbage collection
+                if response_stream is not None:
+                    # Try to close/cleanup the stream if it has a close method
+                    if hasattr(response_stream, 'close'):
+                        try:
+                            if asyncio.iscoroutinefunction(response_stream.close):
+                                await response_stream.close()
+                            else:
+                                response_stream.close()
+                        except:
+                            pass
+                    # Clear reference
+                    self._response_stream = None
+                    response_stream = None
+                    
         except Exception as e:
             print(f"❌ Gemini streaming error: {e}", flush=True)
             import traceback
             traceback.print_exc()
+            # Ensure cleanup even on error
+            if response_stream is not None:
+                self._response_stream = None
+                response_stream = None
             raise
 
 
@@ -305,42 +326,58 @@ async def stream_gemini_with_tools(
                 room=session_id
             )
     
-    handler = GeminiStreamingHandler(
-        api_key=api_key,
-        model=model,
-        tools=tools,
-        system_prompt=system_prompt,
-        on_text_chunk=on_text_chunk,
-        on_tool_call=on_tool_call,
-    )
-    
-    # Add current prompt to messages
-    full_messages = messages + [HumanMessage(content=prompt)]
-    
-    final_text, final_tool_calls = await handler.stream_response(
-        messages=full_messages,
-        session_id=session_id,
-    )
-    
-    # Log final response for debugging
-    print(f"📝 Gemini final response length: {len(final_text)} chars", flush=True)
-    print(f"📝 Gemini final response preview: {final_text[:200]}...", flush=True)
-    
-    # Ensure we return the complete text (use handler's full_text, not just accumulated chunks)
-    # The handler's full_text should be complete, but verify
-    if final_text and len(final_text) > 0:
-        # Emit final chunk marker if needed
-        if socketio and session_id:
-            socketio.emit(
-                'agent_stream_chunk',
-                {
-                    'session_id': session_id,
-                    'text_chunk': '',  # Empty chunk to signal completion
-                    'is_final': True
-                },
-                namespace='/voice',
-                room=session_id
-            )
-    
-    return final_text, final_tool_calls
+    handler = None
+    try:
+        handler = GeminiStreamingHandler(
+            api_key=api_key,
+            model=model,
+            tools=tools,
+            system_prompt=system_prompt,
+            on_text_chunk=on_text_chunk,
+            on_tool_call=on_tool_call,
+        )
+        
+        # Add current prompt to messages
+        full_messages = messages + [HumanMessage(content=prompt)]
+        
+        final_text, final_tool_calls = await handler.stream_response(
+            messages=full_messages,
+            session_id=session_id,
+        )
+        
+        # Log final response for debugging
+        print(f"📝 Gemini final response length: {len(final_text)} chars", flush=True)
+        print(f"📝 Gemini final response preview: {final_text[:200]}...", flush=True)
+        
+        # Ensure we return the complete text (use handler's full_text, not just accumulated chunks)
+        # The handler's full_text should be complete, but verify
+        if final_text and len(final_text) > 0:
+            # Emit final chunk marker if needed
+            if socketio and session_id:
+                socketio.emit(
+                    'agent_stream_chunk',
+                    {
+                        'session_id': session_id,
+                        'text_chunk': '',  # Empty chunk to signal completion
+                        'is_final': True
+                    },
+                    namespace='/voice',
+                    room=session_id
+                )
+        
+        return final_text, final_tool_calls
+    finally:
+        # Cleanup: Clear handler and client references to help with garbage collection
+        if handler is not None:
+            # Clear client references
+            handler.client = None
+            handler._response_stream = None
+            handler = None
+        
+        # Clear local accumulators to free memory
+        text_chunks.clear()
+        tool_calls.clear()
+        
+        # Force garbage collection for large objects
+        gc.collect()
 
