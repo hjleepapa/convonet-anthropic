@@ -1529,6 +1529,7 @@ async def _run_agent_async(
                         final_response = "I'm sorry, the request is taking too long. Please try again or use a different provider."
                         tool_calls_info = []
                         final_state = None
+                        final_messages = []  # Initialize for timeout case
                     else:
                         final_messages = final_state.get("messages", [])
                         last_message = final_messages[-1] if final_messages else None
