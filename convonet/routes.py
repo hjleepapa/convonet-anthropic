@@ -956,7 +956,7 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
     elif provider == "openai":
         current_model = os.getenv("OPENAI_MODEL", "gpt-4o")
     else:  # claude
-        current_model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+    current_model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
     
     print(f"🔧 Selected provider: {provider}, model: {current_model}")
     
@@ -1038,11 +1038,11 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
         else:
             # Try to load MCP tools (with timeout to prevent hangs)
             print("🔧 Loading MCP tools (not cached yet)...")
-            try:
-                # Initialize MCP client (langchain-mcp-adapters 0.1.0+ does not support context manager)
-                print("🔧 Creating MCP client...")
-                client = MultiServerMCPClient(connections=mcp_config["mcpServers"])
-                print("🔧 Getting tools from MCP client...")
+        try:
+            # Initialize MCP client (langchain-mcp-adapters 0.1.0+ does not support context manager)
+            print("🔧 Creating MCP client...")
+            client = MultiServerMCPClient(connections=mcp_config["mcpServers"])
+            print("🔧 Getting tools from MCP client...")
                 
                 # Create a wrapper function to catch any exceptions from nested coroutines
                 async def safe_get_tools():
@@ -1096,34 +1096,34 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
                     print("⚠️ Continuing with empty tools list")
                     tools = []  # Ensure tools is set to empty list
             
-        # Add call transfer tools (non-MCP tools) - optional
-        try:
-            from .mcps.local_servers.call_transfer import get_transfer_tools
-            transfer_tools = get_transfer_tools()
-            tools.extend(transfer_tools)
-            print(f"✅ Added {len(transfer_tools)} call transfer tools")
-        except ImportError as e:
-            print(f"⚠️ Call transfer tools not available: {e}")
-            print("⚠️ Continuing without call transfer tools")
-        except Exception as e:
-            print(f"⚠️ Failed to load call transfer tools: {e}")
-            print("⚠️ Continuing without call transfer tools")
-        
-        # Add Composio integration tools (optional)
-        try:
-            from .composio_tools import get_all_integration_tools, test_composio_connection
-            if test_composio_connection():
-                composio_tools = get_all_integration_tools()
-                tools.extend(composio_tools)
-                print(f"✅ Added {len(composio_tools)} Composio integration tools")
-            else:
-                print("⚠️ Composio connection test failed, skipping external integrations")
-        except ImportError as e:
-            print(f"⚠️ Composio not available: {e}")
-            print("⚠️ Continuing without external integrations")
-        except Exception as e:
-            print(f"⚠️ Failed to load Composio tools: {e}")
-            print("⚠️ Continuing without external integrations")
+            # Add call transfer tools (non-MCP tools) - optional
+            try:
+                from .mcps.local_servers.call_transfer import get_transfer_tools
+                transfer_tools = get_transfer_tools()
+                tools.extend(transfer_tools)
+                print(f"✅ Added {len(transfer_tools)} call transfer tools")
+            except ImportError as e:
+                print(f"⚠️ Call transfer tools not available: {e}")
+                print("⚠️ Continuing without call transfer tools")
+            except Exception as e:
+                print(f"⚠️ Failed to load call transfer tools: {e}")
+                print("⚠️ Continuing without call transfer tools")
+            
+            # Add Composio integration tools (optional)
+            try:
+                from .composio_tools import get_all_integration_tools, test_composio_connection
+                if test_composio_connection():
+                    composio_tools = get_all_integration_tools()
+                    tools.extend(composio_tools)
+                    print(f"✅ Added {len(composio_tools)} Composio integration tools")
+                else:
+                    print("⚠️ Composio connection test failed, skipping external integrations")
+            except ImportError as e:
+                print(f"⚠️ Composio not available: {e}")
+                print("⚠️ Continuing without external integrations")
+            except Exception as e:
+                print(f"⚠️ Failed to load Composio tools: {e}")
+                print("⚠️ Continuing without external integrations")
         
         # Build agent graph with whatever tools we have (even if empty)
         # This ensures we always try to build the graph, even if MCP tools failed
@@ -1585,8 +1585,8 @@ async def _run_agent_async(
                         while states_processed < max_states:
                             # Check watchdog - if too much time has passed since last state, force exit
                             current_time = watchdog_time.time()
-                        time_since_last_state = current_time - last_state_time
-                        if time_since_last_state > watchdog_timeout:
+                            time_since_last_state = current_time - last_state_time
+                            if time_since_last_state > watchdog_timeout:
                             print(f"⚠️ Watchdog timeout: {time_since_last_state:.2f}s since last state update - forcing exit", flush=True)
                             sys.stdout.flush()
                             break
@@ -1620,14 +1620,14 @@ async def _run_agent_async(
                                                     room=session_id
                                                 )
                             
-                            if "messages" in state:
-                                for msg in state["messages"]:
-                                    # Check for TRANSFER_INITIATED in tool message content
-                                    if hasattr(msg, 'content') and isinstance(msg.content, str):
-                                        if 'TRANSFER_INITIATED:' in msg.content:
-                                            transfer_marker = msg.content
-                                            print(f"🔄 Transfer marker detected in tool result: {transfer_marker}")
-                                    
+                if "messages" in state:
+                    for msg in state["messages"]:
+                        # Check for TRANSFER_INITIATED in tool message content
+                        if hasattr(msg, 'content') and isinstance(msg.content, str):
+                            if 'TRANSFER_INITIATED:' in msg.content:
+                                transfer_marker = msg.content
+                                print(f"🔄 Transfer marker detected in tool result: {transfer_marker}")
+            
                                     # Track tool calls
                                     if hasattr(msg, 'tool_calls') and msg.tool_calls:
                                         print(f"🔧 Detected {len(msg.tool_calls)} tool call(s) in state update #{states_processed}", flush=True)
@@ -1673,7 +1673,7 @@ async def _run_agent_async(
                 
                 # Get final state and last message (only if we used astream, not invoke)
                 if not is_gemini:  # Only get final state if we used astream
-                    final_state = agent_graph.get_state(config=config)
+            final_state = agent_graph.get_state(config=config)
                     final_messages = final_state.values.get("messages", [])
                     last_message = final_messages[-1] if final_messages else None
                     final_response = getattr(last_message, 'content', "") if last_message else ""
