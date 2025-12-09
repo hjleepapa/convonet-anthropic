@@ -393,17 +393,40 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
             while i < len(state.messages):
                 msg = state.messages[i]
                 
-                # Check if this is a tool_use message (has tool_calls)
+                # Check if this is a tool_use message (has tool_calls or tool_use in content)
+                # Claude uses content field with tool_use items, OpenAI/Gemini use tool_calls attribute
+                tool_calls_list = []
+                tool_call_ids = set()
+                
+                # Method 1: Check tool_calls attribute (OpenAI/Gemini format)
                 if hasattr(msg, 'tool_calls') and msg.tool_calls:
-                    # Collect all tool call IDs - check multiple possible attribute names
-                    tool_call_ids = set()
-                    for tc in msg.tool_calls:
+                    tool_calls_list = msg.tool_calls
+                    for tc in tool_calls_list:
                         tool_id = getattr(tc, 'id', None) or getattr(tc, 'tool_call_id', None) or getattr(tc, 'toolCallId', None)
                         if tool_id:
                             tool_call_ids.add(tool_id)
-                    
-                    tool_names = [getattr(tc, 'name', getattr(tc, 'functionName', 'unknown')) for tc in msg.tool_calls]
-                    print(f"🤖 Found {len(msg.tool_calls)} tool calls in message {i}: {tool_names}")
+                
+                # Method 2: Check content field for tool_use items (Claude format)
+                if not tool_calls_list and hasattr(msg, 'content'):
+                    content = msg.content
+                    # Content can be a list (Claude format) or a string
+                    if isinstance(content, list):
+                        for item in content:
+                            # Check if this is a tool_use item
+                            if isinstance(item, dict) and item.get('type') == 'tool_use':
+                                tool_calls_list.append(item)
+                                tool_id = item.get('id') or item.get('tool_call_id')
+                                if tool_id:
+                                    tool_call_ids.add(tool_id)
+                
+                if tool_calls_list:
+                    tool_names = []
+                    for tc in tool_calls_list:
+                        if isinstance(tc, dict):
+                            tool_names.append(tc.get('name', 'unknown'))
+                        else:
+                            tool_names.append(getattr(tc, 'name', getattr(tc, 'functionName', 'unknown')))
+                    print(f"🤖 Found {len(tool_calls_list)} tool calls in message {i}: {tool_names}")
                     print(f"🤖 Tool call IDs: {list(tool_call_ids)}")
                     
                     if not tool_call_ids:
