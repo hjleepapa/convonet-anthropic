@@ -1241,10 +1241,10 @@ def init_socketio(socketio_instance: SocketIO, app):
                         sys.stdout.flush()
                         
                         # Use timeout that matches routes.py execution_timeout (15s for Claude/OpenAI, 12s for Gemini)
-# Add buffer for tool execution which can be slow (MCP calls, API calls, etc.)
-# Total timeout: execution_timeout (15s) + buffer (5s) = 20s for Claude/OpenAI
-# This gives tools time to complete while still failing fast if truly hanging
-                        timeout_seconds = 20.0  # Increased from 10s to allow tool execution time
+                        # Add buffer for tool execution which can be slow (MCP calls, API calls, etc.)
+                        # Increased to 60s to allow for database operations and external API calls
+                        # Tool execution (calendar event creation, database operations) can take time
+                        timeout_seconds = 60.0  # Increased from 20s to allow tool execution time
                         try:
                             print(f"🔄 Running process_with_agent in thread (timeout: {timeout_seconds}s)...", flush=True)
                             sys.stdout.flush()
