@@ -407,8 +407,21 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                     print(f"🤖 Tool call IDs: {list(tool_call_ids)}")
                     
                     if not tool_call_ids:
-                        print(f"⚠️ Tool calls found but no IDs extracted - skipping message {i}")
-                        i += 1
+                        print(f"⚠️ Tool calls found but no IDs extracted - skipping message {i} and any following ToolMessages")
+                        # Skip this AIMessage with tool_calls (no IDs)
+                        # Also skip any ToolMessages that immediately follow (they're orphaned)
+                        j = i + 1
+                        while j < len(state.messages):
+                            next_msg = state.messages[j]
+                            # Check if this is a tool result message
+                            if hasattr(next_msg, 'tool_call_id') or (hasattr(next_msg, 'toolCallId') and next_msg.toolCallId):
+                                # This is a ToolMessage - skip it since the tool_use was skipped
+                                print(f"⚠️   Also skipping orphaned ToolMessage at index {j}")
+                                j += 1
+                            else:
+                                # Not a ToolMessage - stop skipping
+                                break
+                        i = j
                         continue
                     
                     # Check if all tool calls have corresponding tool_result messages immediately after
