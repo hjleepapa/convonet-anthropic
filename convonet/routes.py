@@ -956,7 +956,7 @@ async def _get_agent_graph(provider: Optional[LLMProvider] = None, user_id: Opti
     elif provider == "openai":
         current_model = os.getenv("OPENAI_MODEL", "gpt-4o")
     else:  # claude
-    current_model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+        current_model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
     
     print(f"🔧 Selected provider: {provider}, model: {current_model}")
     
