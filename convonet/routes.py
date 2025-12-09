@@ -1725,23 +1725,23 @@ async def _run_agent_async(
                 for msg in final_messages:
                     # Track tool calls (AIMessage with tool_calls)
                     if hasattr(msg, 'tool_calls') and msg.tool_calls:
-                    for tc in msg.tool_calls:
-                        tool_id = getattr(tc, 'id', getattr(tc, 'tool_call_id', str(uuid.uuid4())))
-                        tool_name = getattr(tc, 'name', getattr(tc, 'functionName', 'unknown'))
-                        args = getattr(tc, 'args', getattr(tc, 'arguments', {}))
-                        
-                        # Check if we already have this tool call
-                        existing = next((t for t in tool_calls_info if t.tool_id == tool_id), None)
-                        if not existing:
-                            tool_calls_info.append(ToolCallInfo(
-                                tool_name=tool_name,
-                                tool_id=tool_id,
-                                arguments=args if isinstance(args, dict) else {}
-                            ))
+                        for tc in msg.tool_calls:
+                            tool_id = getattr(tc, 'id', getattr(tc, 'tool_call_id', str(uuid.uuid4())))
+                            tool_name = getattr(tc, 'name', getattr(tc, 'functionName', 'unknown'))
+                            args = getattr(tc, 'args', getattr(tc, 'arguments', {}))
+                            
+                            # Check if we already have this tool call
+                            existing = next((t for t in tool_calls_info if t.tool_id == tool_id), None)
+                            if not existing:
+                                tool_calls_info.append(ToolCallInfo(
+                                    tool_name=tool_name,
+                                    tool_id=tool_id,
+                                    arguments=args if isinstance(args, dict) else {}
+                                ))
                     
                     # Track tool results (ToolMessage)
                     if hasattr(msg, 'tool_call_id') and hasattr(msg, 'content'):
-                    tool_call_id = msg.tool_call_id
+                        tool_call_id = msg.tool_call_id
                     # Find matching tool call and update it
                     for tc_info in tool_calls_info:
                         if tc_info.tool_id == tool_call_id:
