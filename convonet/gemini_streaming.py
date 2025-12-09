@@ -289,7 +289,7 @@ async def stream_gemini_with_tools(
     session_id: Optional[str] = None,
 ) -> tuple[str, List[Dict[str, Any]]]:
     """
-    Convenience function to stream Gemini response with tool support
+    Convenience function to stream Gemini response with tool support and execution
     
     Args:
         prompt: User prompt
@@ -305,7 +305,9 @@ async def stream_gemini_with_tools(
         Tuple of (response_text, tool_calls)
     """
     text_chunks = []
-    tool_calls = []
+    all_tool_calls = []
+    conversation_messages = messages + [HumanMessage(content=prompt)]
+    max_iterations = 5  # Prevent infinite loops
     
     def on_text_chunk(chunk: str):
         """Emit text chunk via WebSocket"""
@@ -324,7 +326,7 @@ async def stream_gemini_with_tools(
     
     def on_tool_call(tool_call: Dict[str, Any]):
         """Emit tool call via WebSocket"""
-        tool_calls.append(tool_call)
+        all_tool_calls.append(tool_call)
         if socketio and session_id:
             socketio.emit(
                 'agent_stream_chunk',
@@ -344,35 +346,115 @@ async def stream_gemini_with_tools(
             on_tool_call=on_tool_call,
         )
         
-        # Add current prompt to messages
-        full_messages = messages + [HumanMessage(content=prompt)]
+        # Loop: Get response → Execute tools → Feed results back → Get final response
+        iteration = 0
+        final_text = ""
         
-        final_text, final_tool_calls = await handler.stream_response(
-            messages=full_messages,
-            session_id=session_id,
-        )
+        while iteration < max_iterations:
+            iteration += 1
+            print(f"🔄 Gemini iteration {iteration}/{max_iterations}", flush=True)
+            
+            # Stream response from Gemini
+            response_text, tool_calls = await handler.stream_response(
+                messages=conversation_messages,
+                session_id=session_id,
+            )
+            
+            # If there are tool calls, execute them and continue the loop
+            if tool_calls and len(tool_calls) > 0:
+                print(f"🔧 Executing {len(tool_calls)} tool call(s) from Gemini...", flush=True)
+                
+                # Execute each tool call
+                tool_results = []
+                for tc in tool_calls:
+                    tool_name = tc.get('name', 'unknown')
+                    tool_args = tc.get('args', {})
+                    tool_id = tc.get('id', None)
+                    
+                    # Find the tool
+                    tool = None
+                    for t in tools:
+                        if t.name == tool_name:
+                            tool = t
+                            break
+                    
+                    if tool:
+                        try:
+                            print(f"🔧 Executing tool: {tool_name} with args: {tool_args}", flush=True)
+                            # Execute tool (with timeout)
+                            if hasattr(tool, 'ainvoke'):
+                                result = await asyncio.wait_for(tool.ainvoke(tool_args), timeout=6.0)
+                            else:
+                                result = await asyncio.wait_for(asyncio.to_thread(tool.invoke, tool_args), timeout=6.0)
+                            
+                            tool_result = {
+                                'name': tool_name,
+                                'id': tool_id,
+                                'response': str(result)
+                            }
+                            tool_results.append(tool_result)
+                            print(f"✅ Tool {tool_name} completed: {str(result)[:100]}...", flush=True)
+                        except asyncio.TimeoutError:
+                            tool_result = {
+                                'name': tool_name,
+                                'id': tool_id,
+                                'response': "I'm sorry, the operation timed out. Please try again."
+                            }
+                            tool_results.append(tool_result)
+                            print(f"⏰ Tool {tool_name} timed out", flush=True)
+                        except Exception as e:
+                            error_str = str(e)
+                            tool_result = {
+                                'name': tool_name,
+                                'id': tool_id,
+                                'response': f"I encountered an error: {error_str[:200]}"
+                            }
+                            tool_results.append(tool_result)
+                            print(f"❌ Tool {tool_name} error: {error_str}", flush=True)
+                    else:
+                        tool_result = {
+                            'name': tool_name,
+                            'id': tool_id,
+                            'response': f"Tool {tool_name} not found"
+                        }
+                        tool_results.append(tool_result)
+                        print(f"⚠️ Tool {tool_name} not found", flush=True)
+                
+                # Add tool results to conversation as ToolMessages
+                for tr in tool_results:
+                    tool_message = ToolMessage(
+                        content=tr['response'],
+                        name=tr['name'],
+                        tool_call_id=tr.get('id', None)
+                    )
+                    conversation_messages.append(tool_message)
+                
+                # Continue loop to get final response with tool results
+                print(f"🔄 Feeding tool results back to Gemini for final response...", flush=True)
+                continue
+            else:
+                # No tool calls - this is the final response
+                final_text = response_text
+                break
         
         # Log final response for debugging
         print(f"📝 Gemini final response length: {len(final_text)} chars", flush=True)
         print(f"📝 Gemini final response preview: {final_text[:200]}...", flush=True)
         
-        # Ensure we return the complete text (use handler's full_text, not just accumulated chunks)
-        # The handler's full_text should be complete, but verify
-        if final_text and len(final_text) > 0:
-            # Emit final chunk marker if needed
-            if socketio and session_id:
-                socketio.emit(
-                    'agent_stream_chunk',
-                    {
-                        'session_id': session_id,
-                        'text_chunk': '',  # Empty chunk to signal completion
-                        'is_final': True
-                    },
-                    namespace='/voice',
-                    room=session_id
-                )
+        # Emit final chunk marker
+        if socketio and session_id:
+            socketio.emit(
+                'agent_stream_chunk',
+                {
+                    'session_id': session_id,
+                    'text_chunk': '',  # Empty chunk to signal completion
+                    'is_final': True
+                },
+                namespace='/voice',
+                room=session_id
+            )
         
-        return final_text, final_tool_calls
+        return final_text, all_tool_calls
     finally:
         # Cleanup: Clear handler and client references to help with garbage collection
         if handler is not None:
@@ -383,7 +465,7 @@ async def stream_gemini_with_tools(
         
         # Clear local accumulators to free memory
         text_chunks.clear()
-        tool_calls.clear()
+        all_tool_calls.clear()
         
         # Force garbage collection for large objects
         gc.collect()
