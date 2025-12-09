@@ -540,6 +540,13 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                             if hasattr(msg, 'content'):
                                 is_tool_message = True
                 
+                # CRITICAL SAFETY CHECK: NEVER skip HumanMessage or AIMessage, even if detection logic fails
+                if is_human or is_ai:
+                    # This is definitely a HumanMessage or AIMessage - ALWAYS include it
+                    filtered_messages.append(msg)
+                    i += 1
+                    continue
+                
                 if is_tool_message:
                     # This is a ToolMessage - check if there's a preceding AIMessage with tool_calls in filtered_messages
                     # Look backwards for the most recent AIMessage with tool_calls
