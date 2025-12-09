@@ -159,6 +159,12 @@ class GeminiStreamingHandler:
             # Add tools if available
             if tools_config:
                 request_params["tools"] = tools_config
+                print(f"🔧 Added {len(tools_config)} tool config(s) to request", flush=True)
+                if len(tools_config) > 0:
+                    first_tool = tools_config[0].get('function_declarations', [{}])[0] if tools_config[0].get('function_declarations') else {}
+                    print(f"🔧 First tool in request: {first_tool.get('name', 'unknown')}", flush=True)
+            else:
+                print(f"⚠️ No tools_config to add to request", flush=True)
             
             # Use async generate_content_stream for streaming
             response_stream = None
