@@ -73,6 +73,10 @@ class GeminiStreamingHandler:
             }
             gemini_tools.append(gemini_tool)
         
+        print(f"🔧 Converted {len(gemini_tools)} tools to Gemini format", flush=True)
+        if len(gemini_tools) > 0:
+            print(f"🔧 First tool: {gemini_tools[0].get('function_declarations', [{}])[0].get('name', 'unknown')}", flush=True)
+        
         return gemini_tools
     
     async def stream_response(
