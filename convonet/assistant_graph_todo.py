@@ -400,11 +400,25 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                 
                 # Method 1: Check tool_calls attribute (OpenAI/Gemini format)
                 if hasattr(msg, 'tool_calls') and msg.tool_calls:
-                    tool_calls_list = msg.tool_calls
-                    for tc in tool_calls_list:
-                        tool_id = getattr(tc, 'id', None) or getattr(tc, 'tool_call_id', None) or getattr(tc, 'toolCallId', None)
-                        if tool_id:
-                            tool_call_ids.add(tool_id)
+                    # Filter out None values (sometimes tool_calls is [None])
+                    valid_tool_calls = [tc for tc in msg.tool_calls if tc is not None]
+                    if valid_tool_calls:
+                        tool_calls_list = valid_tool_calls
+                        for tc in tool_calls_list:
+                            # OpenAI format: tc.id or tc['id']
+                            if isinstance(tc, dict):
+                                tool_id = tc.get('id') or tc.get('tool_call_id')
+                            else:
+                                tool_id = getattr(tc, 'id', None) or getattr(tc, 'tool_call_id', None) or getattr(tc, 'toolCallId', None)
+                            if tool_id:
+                                tool_call_ids.add(tool_id)
+                            else:
+                                # Debug: log what we found
+                                print(f"⚠️ Tool call has no ID: {tc} (type: {type(tc)})", flush=True)
+                                if isinstance(tc, dict):
+                                    print(f"⚠️   Tool call dict keys: {list(tc.keys())}", flush=True)
+                                else:
+                                    print(f"⚠️   Tool call attributes: {[attr for attr in dir(tc) if not attr.startswith('_')][:10]}", flush=True)
                 
                 # Method 2: Check content field for tool_use items (Claude format)
                 if not tool_calls_list and hasattr(msg, 'content'):
