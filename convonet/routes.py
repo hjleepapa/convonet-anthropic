@@ -1572,7 +1572,21 @@ async def _run_agent_async(
                                     ))
                 
                 # Set final_response if empty
-                if not final_response or final_response.strip() == "":
+                # Convert final_response to string if it's not already (handles list content)
+                if not isinstance(final_response, str):
+                    if isinstance(final_response, list):
+                        # Extract text from list of content blocks
+                        text_parts = []
+                        for item in final_response:
+                            if isinstance(item, dict) and 'text' in item:
+                                text_parts.append(item['text'])
+                            elif isinstance(item, str):
+                                text_parts.append(item)
+                        final_response = ' '.join(text_parts) if text_parts else ""
+                    else:
+                        final_response = str(final_response) if final_response else ""
+                
+                if not final_response or (isinstance(final_response, str) and final_response.strip() == ""):
                     final_response = "I'm processing your request. Please wait a moment and try again if you don't see a response."
             else:
                 # For non-Gemini providers, use astream() as normal
