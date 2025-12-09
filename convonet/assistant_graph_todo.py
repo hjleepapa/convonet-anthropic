@@ -388,34 +388,60 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                     print(f"🤖 Found {len(msg.tool_calls)} tool calls in message {i}: {[getattr(tc, 'name', 'unknown') for tc in msg.tool_calls]}")
                     
                     # Check if all tool calls have corresponding tool_result messages immediately after
+                    # CRITICAL: Claude requires ALL tool_results to be in the message(s) immediately following tool_use
                     result_ids = set()
+                    tool_result_messages = []  # Track all tool result messages
                     j = i + 1
+                    found_all_results = False
+                    
                     while j < len(state.messages):
                         next_msg = state.messages[j]
                         # Check if this is a tool result message
                         if hasattr(next_msg, 'tool_call_id') and next_msg.tool_call_id:
                             result_ids.add(next_msg.tool_call_id)
+                            tool_result_messages.append(j)  # Track index of tool result message
                             print(f"🤖 Found tool_result for tool_call_id: {next_msg.tool_call_id}")
+                            
+                            # Check if we've found all results
+                            if tool_call_ids.issubset(result_ids):
+                                found_all_results = True
+                                j += 1  # Include this message
+                                break
+                            j += 1
                         elif hasattr(next_msg, 'tool_calls') and next_msg.tool_calls:
                             # If we hit another tool_use message, stop looking for results
+                            # But only if we haven't found all results yet
+                            if not found_all_results:
+                                break
+                            # If we found all results, we can stop here
                             break
-                        elif not hasattr(next_msg, 'tool_call_id'):
-                            # If this is a regular message (not tool_result), stop looking
+                        else:
+                            # This is a regular message (not tool_result, not tool_use)
+                            # If we haven't found all results yet, this breaks the chain - skip the tool_use
+                            if not found_all_results:
+                                break
+                            # If we found all results, we can include up to here
                             break
-                        j += 1
                     
                     # Check if all tool calls have results
                     missing_results = tool_call_ids - result_ids
                     if missing_results:
                         print(f"⚠️ Skipping tool_use message {i}: missing tool_result for {missing_results}")
-                        # Skip this tool_use message and its results, move to next non-tool message
+                        # Skip this tool_use message, move to next message
+                        i = j
+                        continue
+                    elif not found_all_results and tool_result_messages:
+                        # We found some results but not all - this is invalid for Claude
+                        print(f"⚠️ Skipping tool_use message {i}: incomplete tool_results (found {len(result_ids)}/{len(tool_call_ids)})")
                         i = j
                         continue
                     else:
                         print(f"✅ All tool calls have results, including message {i} and results")
-                        # Include the tool_use message and all its tool_result messages
-                        for k in range(i, j):
-                            filtered_messages.append(state.messages[k])
+                        # Include the tool_use message
+                        filtered_messages.append(state.messages[i])
+                        # Include ALL tool_result messages immediately after
+                        for result_idx in tool_result_messages:
+                            filtered_messages.append(state.messages[result_idx])
                         i = j
                         continue
                 
