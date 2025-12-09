@@ -75,7 +75,14 @@ class GeminiStreamingHandler:
         
         print(f"🔧 Converted {len(gemini_tools)} tools to Gemini format", flush=True)
         if len(gemini_tools) > 0:
-            print(f"🔧 First tool: {gemini_tools[0].get('function_declarations', [{}])[0].get('name', 'unknown')}", flush=True)
+            first_tool_decl = gemini_tools[0].get('function_declarations', [{}])
+            if first_tool_decl:
+                print(f"🔧 First tool: {first_tool_decl[0].get('name', 'unknown')}", flush=True)
+                print(f"🔧 First tool description: {first_tool_decl[0].get('description', '')[:50]}...", flush=True)
+            else:
+                print(f"⚠️ First tool has no function_declarations", flush=True)
+        else:
+            print(f"⚠️ No tools converted!", flush=True)
         
         return gemini_tools
     
