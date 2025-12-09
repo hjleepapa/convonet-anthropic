@@ -405,22 +405,24 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                             # Check if we've found all results
                             if tool_call_ids.issubset(result_ids):
                                 found_all_results = True
-                                j += 1  # Include this message
+                                j += 1  # Include this message, then stop
                                 break
                             j += 1
                         elif hasattr(next_msg, 'tool_calls') and next_msg.tool_calls:
                             # If we hit another tool_use message, stop looking for results
-                            # But only if we haven't found all results yet
+                            # CRITICAL: If we haven't found all results, this tool_use is incomplete - skip it
                             if not found_all_results:
+                                # This tool_use doesn't have all its results - stop here
                                 break
-                            # If we found all results, we can stop here
+                            # If we found all results, we can stop here (next tool_use will be handled separately)
                             break
                         else:
                             # This is a regular message (not tool_result, not tool_use)
-                            # If we haven't found all results yet, this breaks the chain - skip the tool_use
+                            # CRITICAL: If we haven't found all results yet, this breaks the chain - skip the tool_use
                             if not found_all_results:
+                                # Regular message breaks the tool_use/tool_result chain - stop here
                                 break
-                            # If we found all results, we can include up to here
+                            # If we found all results, we can include up to here, then stop
                             break
                     
                     # Check if all tool calls have results
@@ -430,11 +432,11 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                         # This happens when tool execution fails/times out
                         print(f"⚠️ Skipping tool_use message {i}: missing tool_result for {missing_results if missing_results else 'incomplete results'} (found {len(result_ids)}/{len(tool_call_ids)})")
                         # Skip the tool_use message and any partial tool_result messages
-                        # Move past all messages we checked (including any partial results)
-                        # But don't skip past the next message - we want to process it
-                        i = j  # j points to the message after the last one we checked
-                        # If j is still pointing to a tool_result that we shouldn't include, skip it
-                        # Actually, j should be correct - it points to the first message after the tool_use/results
+                        # j points to the first message after the tool_use (or after partial results)
+                        # We want to skip the tool_use and any partial results, then continue processing from j
+                        # But also skip any partial tool_result messages we found
+                        # Actually, j already points past the last message we checked, so we can use it directly
+                        i = j  # j points to the first message after the incomplete tool_use/results
                         continue
                     else:
                         print(f"✅ All tool calls have results, including message {i} and results")
