@@ -1304,9 +1304,10 @@ def init_socketio(socketio_instance: SocketIO, app):
                         future = executor.submit(run_async_in_thread)
                         print(f"✅ Task submitted to executor, future created", flush=True)
                         sys.stdout.flush()
-                        # Use 25s timeout (20s async + 5s buffer for thread overhead and tool execution)
-                        # Tool execution (MCP calls, API calls) can take time, so we need a longer timeout
-                        executor_timeout = 25.0
+                        # Use 60s timeout to allow for tool execution (database operations, API calls)
+                        # Tool execution (MCP calls, API calls, database operations) can take time
+                        # Increased from 25s to 60s to handle complex operations like calendar event creation
+                        executor_timeout = 60.0
                         try:
                             print(f"⏳ Waiting for result with {executor_timeout}s timeout...", flush=True)
                             sys.stdout.flush()
