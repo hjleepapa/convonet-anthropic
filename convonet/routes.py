@@ -1676,9 +1676,21 @@ async def _run_agent_async(
                         sys.stdout.flush()
                         import traceback
                         traceback.print_exc()
+                    finally:
+                        # Cleanup: Close stream iterator to free resources
+                        if stream_iter is not None:
+                            try:
+                                # Close async iterator if it has a close method
+                                if hasattr(stream_iter, 'aclose'):
+                                    await stream_iter.aclose()
+                            except:
+                                pass
+                            stream_iter = None
+                        if stream is not None:
+                            stream = None
                 
-                # Get final state and last message (only if we used astream, not invoke)
-                if not is_gemini:  # Only get final state if we used astream
+                    # Get final state and last message (only if we used astream, not invoke)
+                    if not is_gemini:  # Only get final state if we used astream
                     try:
                         final_state = agent_graph.get_state(config=config)
                         final_messages = final_state.values.get("messages", [])
