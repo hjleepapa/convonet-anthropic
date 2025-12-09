@@ -289,9 +289,41 @@ class GeminiStreamingHandler:
                     if self.on_tool_call:
                         self.on_tool_call(current_tool_call)
                 
+                # IMPORTANT: Check the final aggregated response for function calls
+                # The streaming chunks might not contain function calls, but the final response might
+                # Try to get the aggregated response from the stream
+                try:
+                    # Some SDKs provide an aggregated response object
+                    if hasattr(response_stream, 'response') or hasattr(response_stream, 'aggregate'):
+                        final_response_obj = getattr(response_stream, 'response', None) or getattr(response_stream, 'aggregate', None)
+                        if final_response_obj:
+                            print(f"🔍 Checking final response object for function calls...", flush=True)
+                            # Check candidates[0].content.parts for function calls
+                            if hasattr(final_response_obj, 'candidates') and final_response_obj.candidates:
+                                candidate = final_response_obj.candidates[0]
+                                if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
+                                    for part in candidate.content.parts:
+                                        if hasattr(part, 'function_call'):
+                                            func_call = part.function_call
+                                            tool_call = {
+                                                "name": func_call.name if hasattr(func_call, 'name') else 'unknown',
+                                                "id": getattr(func_call, 'id', None),
+                                                "args": func_call.args if hasattr(func_call, 'args') else (func_call.arguments if hasattr(func_call, 'arguments') else {})
+                                            }
+                                            # Only add if not already in tool_calls
+                                            if not any(tc.get('name') == tool_call['name'] and tc.get('id') == tool_call['id'] for tc in tool_calls):
+                                                tool_calls.append(tool_call)
+                                                print(f"🔧 Found function call in final response: {tool_call['name']}", flush=True)
+                                                if self.on_tool_call:
+                                                    self.on_tool_call(tool_call)
+                except Exception as e:
+                    print(f"⚠️ Error checking final response object: {e}", flush=True)
+                
                 # Debug: Log tool calls found
                 if tool_calls:
                     print(f"🔧 Total tool calls detected: {len(tool_calls)}", flush=True)
+                    for tc in tool_calls:
+                        print(f"🔧   - {tc.get('name', 'unknown')} with args: {tc.get('args', {})}", flush=True)
                 else:
                     print(f"⚠️ No tool calls detected in streaming response", flush=True)
                 
