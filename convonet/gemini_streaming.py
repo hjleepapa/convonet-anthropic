@@ -218,8 +218,30 @@ class GeminiStreamingHandler:
                         try:
                             chunk_dict = chunk.__dict__ if hasattr(chunk, '__dict__') else {}
                             print(f"🔍 Chunk dict keys: {list(chunk_dict.keys())[:10]}...", flush=True)
-                        except:
-                            pass
+                            
+                            # Check candidates for function calls
+                            if hasattr(chunk, 'candidates') and chunk.candidates:
+                                print(f"🔍 Found {len(chunk.candidates)} candidate(s)", flush=True)
+                                candidate = chunk.candidates[0]
+                                candidate_attrs = [attr for attr in dir(candidate) if not attr.startswith('_')]
+                                print(f"🔍 Candidate attributes: {candidate_attrs[:15]}...", flush=True)
+                                
+                                # Check for function_calls in candidate
+                                if hasattr(candidate, 'function_calls'):
+                                    print(f"🔍 Candidate has function_calls: {candidate.function_calls}", flush=True)
+                                if hasattr(candidate, 'content'):
+                                    print(f"🔍 Candidate has content: {type(candidate.content)}", flush=True)
+                                    if hasattr(candidate.content, 'parts'):
+                                        print(f"🔍 Content has {len(candidate.content.parts)} part(s)", flush=True)
+                                        for i, part in enumerate(candidate.content.parts):
+                                            part_attrs = [attr for attr in dir(part) if not attr.startswith('_')]
+                                            print(f"🔍 Part {i} attributes: {part_attrs[:10]}...", flush=True)
+                                            if hasattr(part, 'function_call'):
+                                                print(f"🔍 Part {i} has function_call!", flush=True)
+                        except Exception as e:
+                            print(f"⚠️ Error inspecting chunk: {e}", flush=True)
+                            import traceback
+                            traceback.print_exc()
                     
                     # Handle text chunks
                     if hasattr(chunk, 'text') and chunk.text:
@@ -266,9 +288,10 @@ class GeminiStreamingHandler:
                             current_tool_call["args"].update(chunk.function_call.arguments)
                         function_calls_detected = True
                     
-                    # Method 3: Check candidates[0].function_calls (Gemini API format)
+                    # Method 3: Check candidates[0].content.parts for function_call (Gemini API format)
                     if hasattr(chunk, 'candidates') and chunk.candidates:
                         for candidate in chunk.candidates:
+                            # Check candidate.function_calls directly
                             if hasattr(candidate, 'function_calls') and candidate.function_calls:
                                 print(f"🔧 Found function_calls in candidate: {len(candidate.function_calls)}", flush=True)
                                 for func_call in candidate.function_calls:
@@ -282,6 +305,25 @@ class GeminiStreamingHandler:
                                     
                                     if self.on_tool_call:
                                         self.on_tool_call(tool_call)
+                            
+                            # Check candidate.content.parts for function_call
+                            if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
+                                for part in candidate.content.parts:
+                                    if hasattr(part, 'function_call') and part.function_call:
+                                        print(f"🔧 Found function_call in content.parts!", flush=True)
+                                        func_call = part.function_call
+                                        tool_call = {
+                                            "name": func_call.name if hasattr(func_call, 'name') else getattr(func_call, 'function_name', 'unknown'),
+                                            "id": getattr(func_call, 'id', None),
+                                            "args": func_call.args if hasattr(func_call, 'args') else (func_call.arguments if hasattr(func_call, 'arguments') else {})
+                                        }
+                                        # Only add if not already in tool_calls
+                                        if not any(tc.get('name') == tool_call['name'] and tc.get('id') == tool_call['id'] for tc in tool_calls):
+                                            tool_calls.append(tool_call)
+                                            function_calls_detected = True
+                                            
+                                            if self.on_tool_call:
+                                                self.on_tool_call(tool_call)
                 
                 # Finalize any pending tool call
                 if current_tool_call:
