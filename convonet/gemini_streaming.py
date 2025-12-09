@@ -371,8 +371,9 @@ class GeminiStreamingHandler:
                                 candidate = final_response_obj.candidates[0]
                                 if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
                                     for part in candidate.content.parts:
-                                        if hasattr(part, 'function_call'):
+                                        if hasattr(part, 'function_call') and part.function_call:
                                             func_call = part.function_call
+                                            print(f"🔧 Found function_call in final response part: {func_call.name if hasattr(func_call, 'name') else 'unknown'}", flush=True)
                                             tool_call = {
                                                 "name": func_call.name if hasattr(func_call, 'name') else 'unknown',
                                                 "id": getattr(func_call, 'id', None),
