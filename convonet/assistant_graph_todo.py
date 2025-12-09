@@ -511,18 +511,20 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                 # Regular message (not tool_use)
                 # CRITICAL: Don't include orphaned ToolMessages (ToolMessages without preceding tool_use)
                 # Check if this is a ToolMessage - use STRICT check to avoid false positives
+                from langchain_core.messages import HumanMessage, AIMessage
+                
                 # Only check for ToolMessage type and tool_call_id attributes
+                # CRITICAL: Explicitly exclude HumanMessage and AIMessage to prevent false positives
                 is_tool_message = isinstance(msg, ToolMessage)
                 
                 # Also check for tool_call_id attribute (some ToolMessage implementations use this)
-                if not is_tool_message:
+                # BUT explicitly exclude HumanMessage and AIMessage types
+                if not is_tool_message and not isinstance(msg, HumanMessage) and not isinstance(msg, AIMessage):
                     # Check for tool_call_id attribute (must exist AND be non-empty)
                     tool_call_id = getattr(msg, 'tool_call_id', None) or getattr(msg, 'toolCallId', None)
                     if tool_call_id:
-                        # Only consider it a ToolMessage if it also has content (ToolMessages have both)
-                        # AND it's not a HumanMessage (HumanMessages never have tool_call_id)
-                        from langchain_core.messages import HumanMessage
-                        if not isinstance(msg, HumanMessage) and hasattr(msg, 'content'):
+                        # Only consider it a ToolMessage if it also has content
+                        if hasattr(msg, 'content'):
                             is_tool_message = True
                 
                 if is_tool_message:
