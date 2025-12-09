@@ -1691,17 +1691,17 @@ async def _run_agent_async(
                 
                     # Get final state and last message (only if we used astream, not invoke)
                     if not is_gemini:  # Only get final state if we used astream
-                    try:
-                        final_state = agent_graph.get_state(config=config)
-                        final_messages = final_state.values.get("messages", [])
-                        last_message = final_messages[-1] if final_messages else None
-                        final_response = getattr(last_message, 'content', "") if last_message else ""
-                        # Clear state reference after extracting needed data
-                        final_state = None
-                    except Exception as e:
-                        print(f"⚠️ Error getting final state: {e}", flush=True)
-                        final_messages = []
-                        final_response = ""
+                        try:
+                            final_state = agent_graph.get_state(config=config)
+                            final_messages = final_state.values.get("messages", [])
+                            last_message = final_messages[-1] if final_messages else None
+                            final_response = getattr(last_message, 'content', "") if last_message else ""
+                            # Clear state reference after extracting needed data
+                            final_state = None
+                        except Exception as e:
+                            print(f"⚠️ Error getting final state: {e}", flush=True)
+                            final_messages = []
+                            final_response = ""
             
             # Ensure we have a response - if empty, provide a fallback message
             if not final_response or final_response.strip() == "":
