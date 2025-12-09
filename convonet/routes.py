@@ -1626,14 +1626,14 @@ async def _run_agent_async(
                                                     room=session_id
                                                 )
                             
-                if "messages" in state:
-                    for msg in state["messages"]:
-                        # Check for TRANSFER_INITIATED in tool message content
-                        if hasattr(msg, 'content') and isinstance(msg.content, str):
-                            if 'TRANSFER_INITIATED:' in msg.content:
-                                transfer_marker = msg.content
-                                print(f"🔄 Transfer marker detected in tool result: {transfer_marker}")
-            
+                            if "messages" in state:
+                                for msg in state["messages"]:
+                                    # Check for TRANSFER_INITIATED in tool message content
+                                    if hasattr(msg, 'content') and isinstance(msg.content, str):
+                                        if 'TRANSFER_INITIATED:' in msg.content:
+                                            transfer_marker = msg.content
+                                            print(f"🔄 Transfer marker detected in tool result: {transfer_marker}")
+                                    
                                     # Track tool calls
                                     if hasattr(msg, 'tool_calls') and msg.tool_calls:
                                         print(f"🔧 Detected {len(msg.tool_calls)} tool call(s) in state update #{states_processed}", flush=True)
