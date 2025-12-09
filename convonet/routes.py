@@ -1505,6 +1505,8 @@ async def _run_agent_async(
                             ))
                         
                         print(f"✅ Gemini native streaming completed", flush=True)
+                        print(f"📝 Final response length: {len(final_response)} chars", flush=True)
+                        print(f"📝 Final response preview: {final_response[:200]}...", flush=True)
                         sys.stdout.flush()
                         final_state = None  # Not using LangGraph state for native streaming
                         final_messages = []  # Initialize for native SDK path - tool calls already extracted

@@ -285,7 +285,11 @@ async def stream_gemini_with_tools(
         if socketio and session_id:
             socketio.emit(
                 'agent_stream_chunk',
-                {'text': chunk, 'type': 'text'},
+                {
+                    'session_id': session_id,
+                    'text_chunk': chunk,
+                    'is_final': False
+                },
                 namespace='/voice',
                 room=session_id
             )
@@ -317,6 +321,26 @@ async def stream_gemini_with_tools(
         messages=full_messages,
         session_id=session_id,
     )
+    
+    # Log final response for debugging
+    print(f"📝 Gemini final response length: {len(final_text)} chars", flush=True)
+    print(f"📝 Gemini final response preview: {final_text[:200]}...", flush=True)
+    
+    # Ensure we return the complete text (use handler's full_text, not just accumulated chunks)
+    # The handler's full_text should be complete, but verify
+    if final_text and len(final_text) > 0:
+        # Emit final chunk marker if needed
+        if socketio and session_id:
+            socketio.emit(
+                'agent_stream_chunk',
+                {
+                    'session_id': session_id,
+                    'text_chunk': '',  # Empty chunk to signal completion
+                    'is_final': True
+                },
+                namespace='/voice',
+                room=session_id
+            )
     
     return final_text, final_tool_calls
 
