@@ -574,7 +574,6 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                                 # This is a ToolMessage but with a different ID - likely from a previous execution
                                 print(f"⚠️ Found ToolMessage with non-matching ID: {tool_call_id} (expected: {list(tool_call_ids)})", flush=True)
                                 # Don't add it to results, but continue looking
-                        j += 1
                         elif hasattr(next_msg, 'tool_calls') and next_msg.tool_calls:
                             # If we hit another tool_use message, stop looking for results
                             # CRITICAL: If we haven't found all results, this tool_use is incomplete - skip it
