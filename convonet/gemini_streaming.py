@@ -56,8 +56,30 @@ class GeminiStreamingHandler:
         """Convert LangChain tools to Gemini function declarations"""
         gemini_tools = []
         for tool in self.tools:
-            # Get tool schema
-            schema = tool.args_schema.schema() if hasattr(tool, 'args_schema') and tool.args_schema else {}
+            # Get tool schema - handle both Pydantic models and dicts
+            schema = {}
+            try:
+                if hasattr(tool, 'args_schema') and tool.args_schema:
+                    # Check if args_schema is a Pydantic model (has schema() method)
+                    if hasattr(tool.args_schema, 'schema'):
+                        schema = tool.args_schema.schema()
+                    # Check if args_schema is already a dict
+                    elif isinstance(tool.args_schema, dict):
+                        schema = tool.args_schema
+                    # Try get_input_schema() method (LangChain standard)
+                    elif hasattr(tool, 'get_input_schema'):
+                        schema = tool.get_input_schema().schema() if hasattr(tool.get_input_schema(), 'schema') else tool.get_input_schema()
+                # Fallback: try get_input_schema() directly on tool
+                elif hasattr(tool, 'get_input_schema'):
+                    input_schema = tool.get_input_schema()
+                    if hasattr(input_schema, 'schema'):
+                        schema = input_schema.schema()
+                    elif isinstance(input_schema, dict):
+                        schema = input_schema
+            except Exception as e:
+                print(f"⚠️ Error getting schema for tool {tool.name}: {e}", flush=True)
+                # Use empty schema as fallback
+                schema = {}
             
             # Convert to Gemini format
             gemini_tool = {
