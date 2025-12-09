@@ -3,6 +3,7 @@ Hybrid Streaming Implementation for Gemini using Native SDK
 This module provides real-time streaming for Gemini while maintaining LangGraph integration
 """
 import asyncio
+import gc
 import json
 import os
 import sys
