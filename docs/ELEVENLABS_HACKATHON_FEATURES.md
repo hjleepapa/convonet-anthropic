@@ -81,7 +81,7 @@ def synthesize_multilingual(self, text: str, language: str, voice_id: str) -> by
 ```
 
 **User Experience**:
-- User speaks Spanish → Assistant responds in Spanish
+- User speaks Korean → Assistant responds in Korean
 - User speaks Japanese → Assistant responds in Japanese
 - Automatic language detection and switching
 
@@ -304,9 +304,9 @@ def get_team_voice(self, team_id: str) -> str:
 4. Assistant responds in user's cloned voice
 
 ### Scenario 2: Multi-Language Demo
-1. User speaks in Spanish: "Crea un evento de calendario"
-2. System detects Spanish
-3. Assistant responds in Spanish with native accent
+1. User speaks in Korean: "캘린더 이벤트를 만들어주세요"
+2. System detects Korean
+3. Assistant responds in Korean with native accent
 4. Calendar event created successfully
 
 ### Scenario 3: Emotional Response Demo
