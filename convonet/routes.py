@@ -1446,9 +1446,11 @@ async def _run_agent_async(
         # OPTIMIZED TIMEOUTS: Reduced for lower latency
         # Reduced execution timeout for faster response (was 15s, now 12s for Claude/OpenAI)
         # Gemini uses native SDK streaming (no timeout needed) or 60s fallback
-        # Gemini needs more time for tool execution + response generation
-        # Tool execution can take 15s, then we need time for Gemini to process results and respond
-        execution_timeout = 50.0 if is_gemini else 25.0  # 50s for Gemini, 25s for Claude/OpenAI
+        # Timeouts need to account for tool execution + response generation
+        # Gemini: Tool execution (15s) + processing results (10-15s) + response (10-15s) = ~40-45s
+        # Claude/OpenAI: Tool execution (6-10s) + processing results (5-10s) + response (5-10s) = ~20-30s
+        # Add buffer for safety
+        execution_timeout = 50.0 if is_gemini else 40.0  # 50s for Gemini, 40s for Claude/OpenAI (increased from 25s)
         print(f"⏱️ Using {execution_timeout}s timeout for graph execution (Gemini: {is_gemini})", flush=True)
         sys.stdout.flush()
         
@@ -1618,9 +1620,10 @@ Your messages are read aloud, so be brief and conversational."""
                     print(f"🔄 Processing agent stream...", flush=True)
                     sys.stdout.flush()
                     # OPTIMIZED STREAMING: Timeouts must be longer than tool execution timeout
-                    # Tool execution timeout is 6.0s, so stream timeout should be at least 8s
+                    # Tool execution timeout is 6.0s, so stream timeout should be at least 10s
                     # This ensures we get tool results even if tool execution takes the full timeout
-                    stream_timeout = 8.0  # Must be > tool_timeout (6.0s) to get tool results
+                    # Increased from 8s to 10s to give more time for tool execution
+                    stream_timeout = 10.0  # Must be > tool_timeout (6.0s) to get tool results
                     stream_iter = stream.__aiter__()
                     states_processed = 0
                     max_states = 50  # Prevent infinite loops
