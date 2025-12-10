@@ -202,7 +202,7 @@ async def translate_and_speak(self, text: str,
 ```
 
 **User Experience**:
-- "Respond in Spanish" → All responses in Spanish
+- "Respond in Korean" → All responses in Korean
 - "Translate this meeting to Japanese" → Real-time translation
 - Cross-language team collaboration
 
