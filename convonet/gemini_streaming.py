@@ -265,9 +265,20 @@ class GeminiStreamingHandler:
                         all_function_declarations.extend(tool_config['function_declarations'])
                 
                 if all_function_declarations:
-                    # Tools should be passed in config, not as separate parameter
-                    generation_config["tools"] = [{"function_declarations": all_function_declarations}]
-                    print(f"🔧 Added {len(all_function_declarations)} function declaration(s) to config", flush=True)
+                    # Tools should be passed in config using SDK's Tool type
+                    # Try using types.Tool if available, otherwise use dict format
+                    try:
+                        from google.genai import types
+                        # Use SDK's Tool type
+                        tool_obj = types.Tool(function_declarations=all_function_declarations)
+                        generation_config["tools"] = [tool_obj]
+                        print(f"🔧 Added {len(all_function_declarations)} function declaration(s) to config using Tool type", flush=True)
+                    except (ImportError, TypeError, AttributeError) as e:
+                        # Fallback: try dict format (might work with some SDK versions)
+                        print(f"⚠️ Could not use types.Tool, trying dict format: {e}", flush=True)
+                        generation_config["tools"] = [{"function_declarations": all_function_declarations}]
+                        print(f"🔧 Added {len(all_function_declarations)} function declaration(s) to config using dict format", flush=True)
+                    
                     if len(all_function_declarations) > 0:
                         print(f"🔧 First tool in config: {all_function_declarations[0].get('name', 'unknown')}", flush=True)
                 else:
