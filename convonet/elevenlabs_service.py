@@ -11,8 +11,8 @@ from enum import Enum
 logger = logging.getLogger(__name__)
 
 try:
-    from elevenlabs import ElevenLabs, VoiceSettings, Voice, VoiceClone
-    from elevenlabs.client import ElevenLabs
+    from elevenlabs import ElevenLabs
+    from elevenlabs import VoiceSettings
     ELEVENLABS_AVAILABLE = True
 except ImportError:
     ELEVENLABS_AVAILABLE = False
@@ -266,16 +266,39 @@ class ElevenLabsService:
         try:
             logger.info(f"🎤 Cloning voice '{voice_name}' from {len(audio_samples)} samples...")
             
-            # Clone voice
-            voice = self.client.clone(
-                name=voice_name,
-                description=description or f"Cloned voice: {voice_name}",
-                files=audio_samples
-            )
+            # Clone voice using the voices.clone method
+            # Note: The API may require file paths or file-like objects
+            # For now, we'll save to temp files if needed
+            import tempfile
+            import os
             
-            voice_id = voice.voice_id
-            logger.info(f"✅ Voice cloned successfully: {voice_id}")
-            return voice_id
+            temp_files = []
+            try:
+                # Save audio samples to temporary files
+                for i, audio_bytes in enumerate(audio_samples):
+                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
+                    temp_file.write(audio_bytes)
+                    temp_file.close()
+                    temp_files.append(temp_file.name)
+                
+                # Clone voice using file paths
+                voice = self.client.voices.clone(
+                    name=voice_name,
+                    description=description or f"Cloned voice: {voice_name}",
+                    files=temp_files
+                )
+                
+                voice_id = voice.voice_id
+                logger.info(f"✅ Voice cloned successfully: {voice_id}")
+                return voice_id
+                
+            finally:
+                # Clean up temporary files
+                for temp_file in temp_files:
+                    try:
+                        os.unlink(temp_file)
+                    except:
+                        pass
             
         except Exception as e:
             logger.error(f"❌ Voice cloning failed: {e}")
