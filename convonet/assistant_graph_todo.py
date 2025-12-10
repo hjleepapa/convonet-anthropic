@@ -377,6 +377,7 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
             # If a tool_use doesn't have all its tool_result messages, skip it to avoid API errors
             filtered_messages = []
             i = 0
+            warned_tool_ids = set()  # Track ToolMessage IDs we've already warned about to prevent log spam
             
             # Debug: Log all messages before filtering
             print(f"🔍 Messages before filtering ({len(state.messages)} total):", flush=True)
