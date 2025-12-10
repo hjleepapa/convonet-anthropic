@@ -265,17 +265,34 @@ class GeminiStreamingHandler:
                         all_function_declarations.extend(tool_config['function_declarations'])
                 
                 if all_function_declarations:
-                    # Tools should be passed in config using SDK's Tool type
-                    # Try using types.Tool if available, otherwise use dict format
+                    # Tools should be passed in config using SDK's types
+                    # Convert dict function_declarations to types.FunctionDeclaration objects
                     try:
                         from google.genai import types
-                        # Use SDK's Tool type
-                        tool_obj = types.Tool(function_declarations=all_function_declarations)
-                        generation_config["tools"] = [tool_obj]
-                        print(f"🔧 Added {len(all_function_declarations)} function declaration(s) to config using Tool type", flush=True)
+                        # Convert each function declaration dict to FunctionDeclaration object
+                        function_decl_objects = []
+                        for func_decl_dict in all_function_declarations:
+                            try:
+                                # Create FunctionDeclaration from dict
+                                func_decl = types.FunctionDeclaration(**func_decl_dict)
+                                function_decl_objects.append(func_decl)
+                            except Exception as e:
+                                print(f"⚠️ Error creating FunctionDeclaration for {func_decl_dict.get('name', 'unknown')}: {e}", flush=True)
+                                # Skip this function declaration if it fails
+                                continue
+                        
+                        if function_decl_objects:
+                            # Create Tool with FunctionDeclaration objects
+                            tool_obj = types.Tool(function_declarations=function_decl_objects)
+                            generation_config["tools"] = [tool_obj]
+                            print(f"🔧 Added {len(function_decl_objects)} function declaration(s) to config using SDK types", flush=True)
+                        else:
+                            print(f"⚠️ No valid function declarations created, skipping tools", flush=True)
                     except (ImportError, TypeError, AttributeError) as e:
                         # Fallback: try dict format (might work with some SDK versions)
-                        print(f"⚠️ Could not use types.Tool, trying dict format: {e}", flush=True)
+                        print(f"⚠️ Could not use SDK types, trying dict format: {e}", flush=True)
+                        import traceback
+                        traceback.print_exc()
                         generation_config["tools"] = [{"function_declarations": all_function_declarations}]
                         print(f"🔧 Added {len(all_function_declarations)} function declaration(s) to config using dict format", flush=True)
                     
