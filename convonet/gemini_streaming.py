@@ -457,12 +457,22 @@ class GeminiStreamingHandler:
                                 "id": getattr(func_call, 'id', None),
                                 "args": func_call.args if hasattr(func_call, 'args') else (func_call.arguments if hasattr(func_call, 'arguments') else {})
                             }
-                            tool_calls.append(tool_call)
-                            function_calls_detected = True
-                            
-                            # Emit tool call via callback
-                            if self.on_tool_call:
-                                self.on_tool_call(tool_call)
+                            # Check for duplicates
+                            is_duplicate = any(
+                                tc.get('name') == tool_call.get('name') and 
+                                (tc.get('id') == tool_call.get('id') if tool_call.get('id') else 
+                                 tc.get('args') == tool_call.get('args'))
+                                for tc in tool_calls
+                            )
+                            if not is_duplicate:
+                                tool_calls.append(tool_call)
+                                function_calls_detected = True
+                                
+                                # Emit tool call via callback
+                                if self.on_tool_call:
+                                    self.on_tool_call(tool_call)
+                            else:
+                                print(f"🔧 Skipping duplicate tool call: {tool_call['name']} (id: {tool_call.get('id', 'none')})", flush=True)
                     
                     # Method 2: Check function_call (singular) attribute
                     if hasattr(chunk, 'function_call') and chunk.function_call:
@@ -493,11 +503,21 @@ class GeminiStreamingHandler:
                                         "id": getattr(func_call, 'id', None),
                                         "args": func_call.args if hasattr(func_call, 'args') else (func_call.arguments if hasattr(func_call, 'arguments') else {})
                                     }
-                                    tool_calls.append(tool_call)
-                                    function_calls_detected = True
-                                    
-                                    if self.on_tool_call:
-                                        self.on_tool_call(tool_call)
+                                    # Check for duplicates
+                                    is_duplicate = any(
+                                        tc.get('name') == tool_call.get('name') and 
+                                        (tc.get('id') == tool_call.get('id') if tool_call.get('id') else 
+                                         tc.get('args') == tool_call.get('args'))
+                                        for tc in tool_calls
+                                    )
+                                    if not is_duplicate:
+                                        tool_calls.append(tool_call)
+                                        function_calls_detected = True
+                                        
+                                        if self.on_tool_call:
+                                            self.on_tool_call(tool_call)
+                                    else:
+                                        print(f"🔧 Skipping duplicate tool call: {tool_call['name']} (id: {tool_call.get('id', 'none')})", flush=True)
                             
                             # Check candidate.content.parts for function_call
                             if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
@@ -510,13 +530,21 @@ class GeminiStreamingHandler:
                                             "id": getattr(func_call, 'id', None),
                                             "args": func_call.args if hasattr(func_call, 'args') else (func_call.arguments if hasattr(func_call, 'arguments') else {})
                                         }
-                                        # Only add if not already in tool_calls
-                                        if not any(tc.get('name') == tool_call['name'] and tc.get('id') == tool_call['id'] for tc in tool_calls):
+                                        # Check for duplicates (by ID if both have IDs, or by name+args)
+                                        is_duplicate = any(
+                                            tc.get('name') == tool_call.get('name') and 
+                                            (tc.get('id') == tool_call.get('id') if tool_call.get('id') else 
+                                             tc.get('args') == tool_call.get('args'))
+                                            for tc in tool_calls
+                                        )
+                                        if not is_duplicate:
                                             tool_calls.append(tool_call)
                                             function_calls_detected = True
                                             
                                             if self.on_tool_call:
                                                 self.on_tool_call(tool_call)
+                                        else:
+                                            print(f"🔧 Skipping duplicate tool call: {tool_call['name']} (id: {tool_call.get('id', 'none')})", flush=True)
                 
                 # Finalize any pending tool call
                 if current_tool_call:
@@ -556,12 +584,20 @@ class GeminiStreamingHandler:
                                                 "id": getattr(func_call, 'id', None),
                                                 "args": func_call.args if hasattr(func_call, 'args') else (func_call.arguments if hasattr(func_call, 'arguments') else {})
                                             }
-                                            # Only add if not already in tool_calls
-                                            if not any(tc.get('name') == tool_call['name'] and tc.get('id') == tool_call['id'] for tc in tool_calls):
+                                            # Check for duplicates (by ID if both have IDs, or by name+args)
+                                            is_duplicate = any(
+                                                tc.get('name') == tool_call.get('name') and 
+                                                (tc.get('id') == tool_call.get('id') if tool_call.get('id') else 
+                                                 tc.get('args') == tool_call.get('args'))
+                                                for tc in tool_calls
+                                            )
+                                            if not is_duplicate:
                                                 tool_calls.append(tool_call)
                                                 print(f"🔧 Found function call in final response: {tool_call['name']}", flush=True)
                                                 if self.on_tool_call:
                                                     self.on_tool_call(tool_call)
+                                            else:
+                                                print(f"🔧 Skipping duplicate tool call in final response: {tool_call['name']}", flush=True)
                 except Exception as e:
                     print(f"⚠️ Error checking final response object: {e}", flush=True)
                 
