@@ -52,12 +52,54 @@ class GeminiStreamingHandler:
         # Don't create duplicate client - use self.client.aio if available
         self._response_stream = None  # Track active stream for cleanup
     
+    def _resolve_schema_refs(self, schema: Dict[str, Any], defs: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Resolve $ref references in JSON Schema to flat schema"""
+        if defs is None:
+            defs = schema.get("$defs", {})
+        
+        if not isinstance(schema, dict):
+            return schema
+        
+        resolved = {}
+        for key, value in schema.items():
+            if key == "$ref":
+                # Resolve reference
+                ref_path = value
+                if ref_path.startswith("#/$defs/"):
+                    ref_name = ref_path.split("/")[-1]
+                    if ref_name in defs:
+                        # Recursively resolve the referenced schema
+                        resolved.update(self._resolve_schema_refs(defs[ref_name], defs))
+                    else:
+                        # Reference not found, use string type as fallback
+                        resolved = {"type": "string"}
+                else:
+                    # External reference, use string as fallback
+                    resolved = {"type": "string"}
+            elif key == "anyOf":
+                # Handle anyOf - take first option and resolve it
+                if isinstance(value, list) and len(value) > 0:
+                    first_option = value[0]
+                    if isinstance(first_option, dict) and "$ref" in first_option:
+                        resolved.update(self._resolve_schema_refs(first_option, defs))
+                    else:
+                        resolved.update(self._resolve_schema_refs(first_option, defs))
+            elif isinstance(value, dict):
+                resolved[key] = self._resolve_schema_refs(value, defs)
+            elif isinstance(value, list):
+                resolved[key] = [self._resolve_schema_refs(item, defs) if isinstance(item, dict) else item for item in value]
+            else:
+                resolved[key] = value
+        
+        return resolved
+    
     def _convert_tools_to_gemini_format(self) -> List[Dict[str, Any]]:
         """Convert LangChain tools to Gemini function declarations"""
         gemini_tools = []
         for tool in self.tools:
             # Get tool schema - handle both Pydantic models and dicts
             schema = {}
+            defs = {}
             try:
                 if hasattr(tool, 'args_schema') and tool.args_schema:
                     # Check if args_schema is a Pydantic model (has schema() method)
@@ -76,10 +118,44 @@ class GeminiStreamingHandler:
                         schema = input_schema.schema()
                     elif isinstance(input_schema, dict):
                         schema = input_schema
+                
+                # Extract $defs if present
+                if isinstance(schema, dict):
+                    defs = schema.get("$defs", {})
+                    # Resolve $ref references in schema
+                    schema = self._resolve_schema_refs(schema, defs)
+                    
             except Exception as e:
                 print(f"⚠️ Error getting schema for tool {tool.name}: {e}", flush=True)
+                import traceback
+                traceback.print_exc()
                 # Use empty schema as fallback
                 schema = {}
+            
+            # Convert to Gemini format - ensure properties don't have $ref
+            properties = schema.get("properties", {})
+            # Clean properties - remove any remaining $ref or $defs
+            cleaned_properties = {}
+            for prop_name, prop_schema in properties.items():
+                if isinstance(prop_schema, dict):
+                    # Remove $ref, $defs, and anyOf with $ref
+                    cleaned_prop = {k: v for k, v in prop_schema.items() 
+                                   if k not in ["$ref", "$defs"] and 
+                                   not (k == "anyOf" and isinstance(v, list) and any(isinstance(item, dict) and "$ref" in item for item in v))}
+                    # If anyOf exists without $ref, use first option
+                    if "anyOf" in cleaned_prop and isinstance(cleaned_prop["anyOf"], list) and len(cleaned_prop["anyOf"]) > 0:
+                        first_option = cleaned_prop["anyOf"][0]
+                        if isinstance(first_option, dict) and "$ref" not in first_option:
+                            cleaned_prop = first_option
+                        elif isinstance(first_option, dict):
+                            # Still has $ref, use enum if available, else string
+                            if "enum" in first_option:
+                                cleaned_prop = {"type": "string", "enum": first_option["enum"]}
+                            else:
+                                cleaned_prop = {"type": "string"}
+                    cleaned_properties[prop_name] = cleaned_prop
+                else:
+                    cleaned_properties[prop_name] = prop_schema
             
             # Convert to Gemini format
             gemini_tool = {
@@ -88,7 +164,7 @@ class GeminiStreamingHandler:
                     "description": tool.description or "",
                     "parameters": {
                         "type": "OBJECT",
-                        "properties": schema.get("properties", {}),
+                        "properties": cleaned_properties,
                         "required": schema.get("required", [])
                     }
                 }]
