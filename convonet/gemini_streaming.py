@@ -804,6 +804,10 @@ async def stream_gemini_with_tools(
                 
                 # Continue loop to get final response with tool results
                 print(f"🔄 Feeding tool results back to Gemini for final response...", flush=True)
+                print(f"📊 Tool results summary: {len(tool_results)} result(s)", flush=True)
+                for tr in tool_results:
+                    print(f"   - {tr['name']}: {tr['response'][:100]}...", flush=True)
+                # Continue to next iteration (iteration is incremented at start of while loop)
                 continue
             else:
                 # No tool calls - this is the final response
