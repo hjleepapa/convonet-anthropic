@@ -671,6 +671,7 @@ async def stream_gemini_with_tools(
     all_tool_calls = []
     conversation_messages = messages + [HumanMessage(content=prompt)]
     max_iterations = 5  # Prevent infinite loops
+    iteration = 0  # Track current iteration
     
     def on_text_chunk(chunk: str):
         """Emit text chunk via WebSocket"""
@@ -744,11 +745,12 @@ async def stream_gemini_with_tools(
                     if tool:
                         try:
                             print(f"🔧 Executing tool: {tool_name} with args: {tool_args}", flush=True)
-                            # Execute tool (with timeout)
+                            # Execute tool (with timeout) - increased from 6s to 15s for MCP tools
+                            tool_timeout = 15.0  # MCP tools can take time, especially calendar operations
                             if hasattr(tool, 'ainvoke'):
-                                result = await asyncio.wait_for(tool.ainvoke(tool_args), timeout=6.0)
+                                result = await asyncio.wait_for(tool.ainvoke(tool_args), timeout=tool_timeout)
                             else:
-                                result = await asyncio.wait_for(asyncio.to_thread(tool.invoke, tool_args), timeout=6.0)
+                                result = await asyncio.wait_for(asyncio.to_thread(tool.invoke, tool_args), timeout=tool_timeout)
                             
                             tool_result = {
                                 'name': tool_name,
