@@ -1007,6 +1007,22 @@ DO NOT respond with text like "I'll create..." - ACTUALLY CALL THE TOOL!
                                             else:
                                                 result = "I encountered a connection issue with the MCP server. The operation may have completed. Please check your calendar or todo list."
                                                 break  # Max retries reached
+                                        # Handle BrokenPipeError (MCP server process crashed - likely OOM)
+                                        elif "BrokenPipeError" in error_type or "Broken pipe" in error_str:
+                                            if retry_count < max_retries - 1:
+                                                print(f"⚠️ MCP server process crashed (likely memory issue), clearing cache and retrying ({retry_count + 1}/{max_retries})...", flush=True)
+                                                # Clear MCP tools cache to force MCP server restart
+                                                from convonet.routes import _mcp_tools_cache
+                                                import convonet.routes as routes_module
+                                                routes_module._mcp_tools_cache = None
+                                                retry_count += 1
+                                                await asyncio.sleep(1.0)  # Longer delay for process restart
+                                                result = None  # Reset to retry
+                                                continue  # Retry the tool call
+                                            else:
+                                                result = "I encountered a system error (likely due to memory constraints). Please try again or contact support."
+                                                print(f"❌ MCP server BrokenPipeError after {max_retries} retries - may indicate insufficient RAM", flush=True)
+                                                break  # Max retries reached
                                         elif "UnboundLocalError" in error_type or "call_tool_result" in error_str:
                                             # This is an error in the MCP adapter library - don't retry
                                             result = "I encountered a system error while executing the tool. Please try again."
