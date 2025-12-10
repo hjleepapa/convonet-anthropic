@@ -149,6 +149,7 @@ class DeepgramService:
             url = "https://api.deepgram.com/v1/listen"
             
             # Configure parameters for WebRTC audio - try without specifying encoding
+            # Note: endpointing is NOT supported for batch/upload requests, only for streaming
             params = {
                 "model": "nova-2",  # Use Deepgram's latest model
                 "language": language,
@@ -156,7 +157,7 @@ class DeepgramService:
                 "punctuate": "true",     # Add punctuation
                 "alternatives": "1",     # Single alternative
                 "detect_language": "false",  # Use specified language
-                "endpointing": "300",       # Endpoint detection (300ms)
+                # "endpointing": "300",  # REMOVED: Not supported for batch requests (only streaming)
                 "vad_events": "true",       # Voice activity detection
                 "interim_results": "false"  # Final results only
             }
