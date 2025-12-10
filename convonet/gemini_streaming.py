@@ -342,13 +342,6 @@ class GeminiStreamingHandler:
                             request_params["contents"] = gemini_messages
                             response_stream = await self.client.aio.models.generate_content_stream(**request_params)
                             self._response_stream = response_stream
-                        elif "tools" in str(e):
-                            # If tools parameter error, tools are already in config (handled above)
-                            # This shouldn't happen, but handle it gracefully
-                            print(f"⚠️ tools parameter error (tools should be in config, already handled)", flush=True)
-                            # Just retry - tools are already in config
-                            response_stream = await self.client.aio.models.generate_content_stream(**request_params)
-                            self._response_stream = response_stream
                         else:
                             raise
                 else:
@@ -423,11 +416,21 @@ class GeminiStreamingHandler:
                                                     "args": func_call.args if hasattr(func_call, 'args') else (func_call.arguments if hasattr(func_call, 'arguments') else {})
                                                 }
                                                 print(f"🔧 Extracted function call: {tool_call['name']} with args: {tool_call['args']}", flush=True)
-                                                if not any(tc.get('name') == tool_call['name'] and tc.get('id') == tool_call['id'] for tc in tool_calls):
+                                                # Check for duplicates using helper function (defined in main loop)
+                                                # For now, use simple check - will be improved in main loop
+                                                is_duplicate = any(
+                                                    tc.get('name') == tool_call.get('name') and 
+                                                    (tc.get('id') == tool_call.get('id') if tool_call.get('id') else 
+                                                     tc.get('args') == tool_call.get('args'))
+                                                    for tc in tool_calls
+                                                )
+                                                if not is_duplicate:
                                                     tool_calls.append(tool_call)
                                                     function_calls_detected = True
                                                     if self.on_tool_call:
                                                         self.on_tool_call(tool_call)
+                                                else:
+                                                    print(f"🔧 Skipping duplicate tool call in debug section: {tool_call['name']}", flush=True)
                         except Exception as e:
                             print(f"⚠️ Error inspecting chunk: {e}", flush=True)
                             import traceback
@@ -517,9 +520,19 @@ class GeminiStreamingHandler:
                 
                 # Finalize any pending tool call
                 if current_tool_call:
-                    tool_calls.append(current_tool_call)
-                    if self.on_tool_call:
-                        self.on_tool_call(current_tool_call)
+                    # Check for duplicates before adding
+                    is_duplicate = any(
+                        tc.get('name') == current_tool_call.get('name') and 
+                        (tc.get('id') == current_tool_call.get('id') if current_tool_call.get('id') else 
+                         tc.get('args') == current_tool_call.get('args'))
+                        for tc in tool_calls
+                    )
+                    if not is_duplicate:
+                        tool_calls.append(current_tool_call)
+                        if self.on_tool_call:
+                            self.on_tool_call(current_tool_call)
+                    else:
+                        print(f"🔧 Skipping duplicate current_tool_call: {current_tool_call.get('name')}", flush=True)
                 
                 # IMPORTANT: Check the final aggregated response for function calls
                 # The streaming chunks might not contain function calls, but the final response might
