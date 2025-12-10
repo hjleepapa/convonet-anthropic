@@ -784,11 +784,19 @@ async def stream_gemini_with_tools(
                         print(f"⚠️ Tool {tool_name} not found", flush=True)
                 
                 # Add tool results to conversation as ToolMessages
+                import uuid
                 for tr in tool_results:
+                    # Generate a unique ID if tool_call_id is None (required by ToolMessage)
+                    tool_call_id = tr.get('id', None)
+                    if tool_call_id is None:
+                        # Generate a unique ID for this tool call
+                        tool_call_id = f"gemini_tool_{uuid.uuid4().hex[:12]}"
+                        print(f"🔧 Generated tool_call_id for {tr['name']}: {tool_call_id}", flush=True)
+                    
                     tool_message = ToolMessage(
                         content=tr['response'],
                         name=tr['name'],
-                        tool_call_id=tr.get('id', None)
+                        tool_call_id=tool_call_id
                     )
                     conversation_messages.append(tool_message)
                 
