@@ -226,6 +226,14 @@ class GeminiStreamingHandler:
                                     "role": "user",
                                     "parts": [{"text": f"System: {system_instruction}"}]
                                 })
+                            # Retry without system_instruction, but keep tools in config
+                            response_stream = await self.client.aio.models.generate_content_stream(**request_params)
+                            self._response_stream = response_stream
+                        elif "tools" in str(e):
+                            # If tools parameter error, tools are already in config (handled above)
+                            # This shouldn't happen, but handle it gracefully
+                            print(f"⚠️ tools parameter error (tools should be in config, already handled)", flush=True)
+                            # Just retry - tools are already in config
                             response_stream = await self.client.aio.models.generate_content_stream(**request_params)
                             self._response_stream = response_stream
                         else:
