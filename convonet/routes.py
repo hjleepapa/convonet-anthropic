@@ -2033,6 +2033,148 @@ Your messages are read aloud, so be brief and conversational."""
             return f"AGENT_ERROR:general:{error_str[:100]}"
 
 
+# ElevenLabs Voice API Routes
+@convonet_todo_bp.route('/api/voice/clone', methods=['POST'])
+def clone_voice():
+    """Clone a voice from audio samples"""
+    try:
+        from convonet.elevenlabs_service import get_elevenlabs_service
+        from convonet.voice_preferences import get_voice_preferences
+        import base64
+        
+        data = request.get_json(silent=True) or {}
+        user_id = data.get('user_id') or request.headers.get('X-User-ID')
+        voice_name = data.get('voice_name', 'My Voice')
+        audio_samples_b64 = data.get('audio_samples', [])
+        
+        if not audio_samples_b64:
+            return jsonify({
+                'success': False,
+                'error': 'No audio samples provided'
+            }), 400
+        
+        # Decode base64 audio samples
+        audio_samples = []
+        for sample_b64 in audio_samples_b64:
+            try:
+                audio_bytes = base64.b64decode(sample_b64)
+                audio_samples.append(audio_bytes)
+            except Exception as e:
+                logger.error(f"Error decoding audio sample: {e}")
+                return jsonify({
+                    'success': False,
+                    'error': f'Invalid audio sample format: {e}'
+                }), 400
+        
+        # Clone voice
+        elevenlabs = get_elevenlabs_service()
+        if not elevenlabs.is_available():
+            return jsonify({
+                'success': False,
+                'error': 'ElevenLabs service not available. Check ELEVENLABS_API_KEY.'
+            }), 503
+        
+        voice_id = elevenlabs.clone_voice(
+            audio_samples=audio_samples,
+            voice_name=voice_name,
+            description=f"Cloned voice for user {user_id}"
+        )
+        
+        if not voice_id:
+            return jsonify({
+                'success': False,
+                'error': 'Voice cloning failed'
+            }), 500
+        
+        # Save voice preference
+        if user_id:
+            voice_prefs = get_voice_preferences()
+            voice_prefs.update_user_preferences(user_id, {
+                'voice_id': voice_id,
+                'voice_name': voice_name
+            })
+        
+        return jsonify({
+            'success': True,
+            'voice_id': voice_id,
+            'voice_name': voice_name,
+            'message': 'Voice cloned successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error cloning voice: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@convonet_todo_bp.route('/api/voice/preferences', methods=['GET', 'POST'])
+def voice_preferences():
+    """Get or update user voice preferences"""
+    try:
+        from convonet.voice_preferences import get_voice_preferences
+        
+        user_id = request.args.get('user_id') or request.headers.get('X-User-ID')
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'error': 'user_id required'
+            }), 400
+        
+        voice_prefs = get_voice_preferences()
+        
+        if request.method == 'GET':
+            prefs = voice_prefs.get_user_preferences(user_id)
+            return jsonify({
+                'success': True,
+                'preferences': prefs
+            })
+        else:  # POST
+            data = request.get_json(silent=True) or {}
+            success = voice_prefs.update_user_preferences(user_id, data)
+            return jsonify({
+                'success': success,
+                'preferences': voice_prefs.get_user_preferences(user_id)
+            })
+            
+    except Exception as e:
+        logger.error(f"Error with voice preferences: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@convonet_todo_bp.route('/api/voice/list', methods=['GET'])
+def list_voices():
+    """List available ElevenLabs voices"""
+    try:
+        from convonet.elevenlabs_service import get_elevenlabs_service
+        
+        elevenlabs = get_elevenlabs_service()
+        if not elevenlabs.is_available():
+            return jsonify({
+                'success': False,
+                'error': 'ElevenLabs service not available'
+            }), 503
+        
+        voices = elevenlabs.list_voices()
+        return jsonify({
+            'success': True,
+            'voices': voices
+        })
+        
+    except Exception as e:
+        logger.error(f"Error listing voices: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @convonet_todo_bp.route('/run_agent', methods=['POST'])
 def run_agent():
     data = request.get_json(silent=True) or {}

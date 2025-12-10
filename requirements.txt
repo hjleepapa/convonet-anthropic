@@ -188,3 +188,6 @@ flask-limiter>=3.0.0
 
 # Deepgram SDK for WebRTC speech-to-text
 deepgram-sdk>=3.0.0
+
+# ElevenLabs SDK for TTS with voice cloning, emotions, and multilingual support
+elevenlabs>=1.0.0

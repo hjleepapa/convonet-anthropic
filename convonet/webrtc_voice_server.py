@@ -31,6 +31,16 @@ from twilio.rest import Client
 from deepgram_webrtc_integration import transcribe_audio_with_deepgram_webrtc, get_deepgram_webrtc_info
 from deepgram_service import get_deepgram_service
 
+# ElevenLabs integration
+try:
+    from convonet.elevenlabs_service import get_elevenlabs_service, EmotionType
+    from convonet.voice_preferences import get_voice_preferences
+    from convonet.emotion_detection import get_emotion_detector
+    ELEVENLABS_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ ElevenLabs not available: {e}")
+    ELEVENLABS_AVAILABLE = False
+
 # Import the blueprint (optional - not used in this module)
 # from convonet.routes import convonet_todo_bp
 
@@ -1364,16 +1374,78 @@ def init_socketio(socketio_instance: SocketIO, app):
                         print("Transfer marker detected but caller did not request a human. Ignoring marker.")
                         agent_response = agent_response if not isinstance(agent_response, str) or not agent_response.startswith("TRANSFER_INITIATED:") else "Let me know how else I can help."
                 
-                # Step 3: Convert response to speech using Deepgram TTS (normal response)
+                # Step 3: Convert response to speech using ElevenLabs (with Deepgram fallback)
                 socketio.emit('status', {'message': 'Generating speech...'}, namespace='/voice', room=session_id)
                 sentry_capture_voice_event("tts_generation_started", session_id, session.get('user_id'))
                 
-                # Generate TTS audio using Deepgram
-                deepgram_tts = get_deepgram_tts_service()
-                audio_bytes = deepgram_tts.synthesize_speech(agent_response, voice="aura-asteria-en")
+                # Get user preferences
+                user_id = session.get('user_id')
+                voice_prefs = get_voice_preferences() if ELEVENLABS_AVAILABLE else None
+                
+                audio_bytes = None
+                tts_provider = "deepgram"  # Default fallback
+                
+                # Try ElevenLabs first if available and enabled
+                if ELEVENLABS_AVAILABLE and voice_prefs:
+                    try:
+                        elevenlabs = get_elevenlabs_service()
+                        if elevenlabs.is_available():
+                            prefs = voice_prefs.get_user_preferences(user_id) if user_id else voice_prefs._get_default_preferences()
+                            
+                            # Check if user wants ElevenLabs
+                            if prefs.get("use_elevenlabs", True):
+                                voice_id = prefs.get("voice_id")
+                                language = prefs.get("language", "en")
+                                emotion_enabled = prefs.get("emotion_enabled", True)
+                                
+                                # Detect emotion if enabled
+                                if emotion_enabled:
+                                    emotion_detector = get_emotion_detector()
+                                    # Get transcribed_text from outer scope
+                                    user_input_text = transcribed_text if 'transcribed_text' in locals() else ""
+                                    emotion = emotion_detector.detect_emotion_from_context(
+                                        user_input=user_input_text,
+                                        agent_response=agent_response
+                                    )
+                                    print(f"🎭 Using ElevenLabs with emotion: {emotion.value}", flush=True)
+                                    audio_bytes = elevenlabs.synthesize_with_emotion(
+                                        text=agent_response,
+                                        emotion=emotion,
+                                        voice_id=voice_id
+                                    )
+                                else:
+                                    # Use multilingual if language is not English
+                                    if language != "en":
+                                        print(f"🌍 Using ElevenLabs multilingual for {language}", flush=True)
+                                        audio_bytes = elevenlabs.synthesize_multilingual(
+                                            text=agent_response,
+                                            language=language,
+                                            voice_id=voice_id
+                                        )
+                                    else:
+                                        print(f"🔊 Using ElevenLabs standard TTS", flush=True)
+                                        audio_bytes = elevenlabs.synthesize(
+                                            text=agent_response,
+                                            voice_id=voice_id
+                                        )
+                                
+                                if audio_bytes:
+                                    tts_provider = "elevenlabs"
+                                    print(f"✅ ElevenLabs TTS successful: {len(audio_bytes)} bytes", flush=True)
+                    except Exception as e:
+                        print(f"⚠️ ElevenLabs TTS failed, falling back to Deepgram: {e}", flush=True)
+                        import traceback
+                        traceback.print_exc()
+                
+                # Fallback to Deepgram if ElevenLabs failed or not available
+                if not audio_bytes:
+                    print(f"🔊 Using Deepgram TTS (fallback)", flush=True)
+                    deepgram_tts = get_deepgram_tts_service()
+                    audio_bytes = deepgram_tts.synthesize_speech(agent_response, voice="aura-asteria-en")
+                    tts_provider = "deepgram"
                 
                 if not audio_bytes:
-                    raise Exception("Deepgram TTS failed to generate audio")
+                    raise Exception(f"{tts_provider.capitalize()} TTS failed to generate audio")
                 
                 # Convert speech to base64 for transmission
                 audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
