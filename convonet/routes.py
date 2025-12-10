@@ -1446,7 +1446,7 @@ async def _run_agent_async(
         # OPTIMIZED TIMEOUTS: Reduced for lower latency
         # Reduced execution timeout for faster response (was 15s, now 12s for Claude/OpenAI)
         # Gemini uses native SDK streaming (no timeout needed) or 60s fallback
-        execution_timeout = 12.0  # Reduced from 15s for lower latency
+        execution_timeout = 25.0  # Increased for Claude/OpenAI to allow final response generation (was 12s)
         print(f"⏱️ Using {execution_timeout}s timeout for graph execution (Gemini: {is_gemini})", flush=True)
         sys.stdout.flush()
         

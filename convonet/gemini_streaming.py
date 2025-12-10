@@ -174,26 +174,38 @@ class GeminiStreamingHandler:
             # Use async generate_content_stream for streaming
             # Note: system_instruction may need to be passed differently or included in contents
             # Build the request parameters
+            # Google GenAI SDK format: tools should be in config, not as separate parameter
             request_params = {
                 "model": self.model,
                 "contents": gemini_messages,
-                "config": generation_config,
             }
+            
+            # Add tools to generation config (correct format for Google GenAI SDK)
+            if tools_config:
+                # Flatten tools_config - combine all function_declarations into one list
+                all_function_declarations = []
+                for tool_config in tools_config:
+                    if isinstance(tool_config, dict) and 'function_declarations' in tool_config:
+                        all_function_declarations.extend(tool_config['function_declarations'])
+                
+                if all_function_declarations:
+                    # Tools should be passed in config, not as separate parameter
+                    generation_config["tools"] = [{"function_declarations": all_function_declarations}]
+                    print(f"🔧 Added {len(all_function_declarations)} function declaration(s) to config", flush=True)
+                    if len(all_function_declarations) > 0:
+                        print(f"🔧 First tool in config: {all_function_declarations[0].get('name', 'unknown')}", flush=True)
+                else:
+                    print(f"⚠️ No function_declarations found in tools_config", flush=True)
+            else:
+                print(f"⚠️ No tools_config to add to request", flush=True)
+            
+            # Add generation config to request
+            request_params["config"] = generation_config
             
             # Add system instruction if available - try different parameter names
             if system_instruction:
                 # Try passing as system_instruction first, if that fails, include in contents
                 request_params["system_instruction"] = system_instruction
-            
-            # Add tools if available
-            if tools_config:
-                request_params["tools"] = tools_config
-                print(f"🔧 Added {len(tools_config)} tool config(s) to request", flush=True)
-                if len(tools_config) > 0:
-                    first_tool = tools_config[0].get('function_declarations', [{}])[0] if tools_config[0].get('function_declarations') else {}
-                    print(f"🔧 First tool in request: {first_tool.get('name', 'unknown')}", flush=True)
-            else:
-                print(f"⚠️ No tools_config to add to request", flush=True)
             
             # Use async generate_content_stream for streaming
             response_stream = None
