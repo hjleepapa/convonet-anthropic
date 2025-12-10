@@ -234,6 +234,15 @@ class GeminiStreamingHandler:
                             # This shouldn't happen, but handle it gracefully
                             print(f"⚠️ tools parameter error (tools should be in config, already handled)", flush=True)
                             # Just retry - tools are already in config
+                            # Update contents with system instruction prepended
+                            request_params["contents"] = gemini_messages
+                            response_stream = await self.client.aio.models.generate_content_stream(**request_params)
+                            self._response_stream = response_stream
+                        elif "tools" in str(e):
+                            # If tools parameter error, tools are already in config (handled above)
+                            # This shouldn't happen, but handle it gracefully
+                            print(f"⚠️ tools parameter error (tools should be in config, already handled)", flush=True)
+                            # Just retry - tools are already in config
                             response_stream = await self.client.aio.models.generate_content_stream(**request_params)
                             self._response_stream = response_stream
                         else:
@@ -256,6 +265,15 @@ class GeminiStreamingHandler:
                                     "role": "user",
                                     "parts": [{"text": f"System: {system_instruction}"}]
                                 })
+                            request_params["contents"] = gemini_messages
+                            response_stream = await asyncio.to_thread(
+                                lambda: self.client.models.generate_content_stream(**request_params)
+                            )
+                            self._response_stream = response_stream
+                        elif "tools" in str(e):
+                            # If tools parameter error, tools are already in config (handled above)
+                            print(f"⚠️ tools parameter error in sync path (tools should be in config)", flush=True)
+                            # Just retry - tools are already in config
                             response_stream = await asyncio.to_thread(
                                 lambda: self.client.models.generate_content_stream(**request_params)
                             )
