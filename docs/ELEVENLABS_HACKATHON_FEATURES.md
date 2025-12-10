@@ -189,7 +189,7 @@ class VoiceMemory:
 
 **Description**:
 - Real-time voice translation during calls
-- User speaks English → Assistant responds in Spanish (if requested)
+- User speaks English → Assistant responds in Korean (if requested)
 - Multi-language team meetings
 
 **Implementation**:
