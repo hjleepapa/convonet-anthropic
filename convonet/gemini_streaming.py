@@ -377,10 +377,26 @@ class GeminiStreamingHandler:
             # Add generation config to request
             request_params["config"] = generation_config
             
-            # Add system instruction if available - try different parameter names
-            if system_instruction:
-                # Try passing as system_instruction first, if that fails, include in contents
-                request_params["system_instruction"] = system_instruction
+            # Add system instruction to contents (not as parameter - not supported by SDK)
+            # Check if system instruction is already in messages
+            has_system_instruction = False
+            if gemini_messages:
+                first_msg = gemini_messages[0]
+                # Check if first message is a system instruction
+                # Handle both Content objects and dicts
+                if isinstance(first_msg, dict):
+                    has_system_instruction = first_msg.get("role") == "system"
+                else:
+                    # Content object - check role attribute
+                    has_system_instruction = getattr(first_msg, "role", None) == "system"
+            
+            # Prepend system instruction as a user message if not already present
+            if system_instruction and not has_system_instruction:
+                gemini_messages.insert(0, {
+                    "role": "user",
+                    "parts": [{"text": f"System: {system_instruction}"}]
+                })
+                request_params["contents"] = gemini_messages
             
             # Use async generate_content_stream for streaming
             response_stream = None
@@ -390,18 +406,13 @@ class GeminiStreamingHandler:
                         response_stream = await self.client.aio.models.generate_content_stream(**request_params)
                         self._response_stream = response_stream  # Track for cleanup
                     except TypeError as e:
-                        # If system_instruction parameter is not supported, try without it
-                        if "system_instruction" in str(e):
-                            print(f"⚠️ system_instruction parameter not supported, including in contents instead", flush=True)
-                            # Remove system_instruction from params and add as first message
-                            request_params.pop("system_instruction", None)
-                            # Prepend system instruction as a user message with special role
-                            if gemini_messages and gemini_messages[0].get("role") != "system":
-                                gemini_messages.insert(0, {
-                                    "role": "user",
-                                    "parts": [{"text": f"System: {system_instruction}"}]
-                                })
-                            # Retry without system_instruction, but keep tools in config
+                        # Handle other parameter errors
+                        if "tools" in str(e):
+                            # If tools parameter error, tools are already in config (handled above)
+                            # This shouldn't happen, but handle it gracefully
+                            print(f"⚠️ tools parameter error (tools should be in config, already handled)", flush=True)
+                            # Just retry - tools are already in config
+                            request_params["contents"] = gemini_messages
                             response_stream = await self.client.aio.models.generate_content_stream(**request_params)
                             self._response_stream = response_stream
                         elif "tools" in str(e):
@@ -428,7 +439,15 @@ class GeminiStreamingHandler:
                         if "system_instruction" in str(e):
                             print(f"⚠️ system_instruction parameter not supported, including in contents instead", flush=True)
                             request_params.pop("system_instruction", None)
-                            if gemini_messages and gemini_messages[0].get("role") != "system":
+                            # Check if system instruction is already in messages (handle both Content objects and dicts)
+                            has_system = False
+                            if gemini_messages:
+                                first_msg = gemini_messages[0]
+                                if isinstance(first_msg, dict):
+                                    has_system = first_msg.get("role") == "system"
+                                else:
+                                    has_system = getattr(first_msg, "role", None) == "system"
+                            if not has_system:
                                 gemini_messages.insert(0, {
                                     "role": "user",
                                     "parts": [{"text": f"System: {system_instruction}"}]
