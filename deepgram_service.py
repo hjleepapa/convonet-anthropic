@@ -157,6 +157,11 @@ class DeepgramService:
             # Enable automatic language detection if language is "auto" or None
             use_auto_detect = language == "auto" or language is None
             
+            if use_auto_detect:
+                logger.info(f"🌍 Using automatic language detection (supports 30+ languages)")
+            else:
+                logger.info(f"🔤 Using specified language: {language}")
+            
             params = {
                 "model": "nova-2",  # Use Deepgram's latest model
                 "smart_format": "true",  # Enable smart formatting
@@ -193,6 +198,12 @@ class DeepgramService:
                 result = response.json()
                 logger.info(f"📋 Deepgram API Response: {result}")
                 
+                # Check if language was detected (in metadata)
+                detected_language = None
+                if result.get("metadata") and result["metadata"].get("language"):
+                    detected_language = result["metadata"]["language"]
+                    logger.info(f"🌍 Deepgram detected language: {detected_language}")
+                
                 # Extract transcription text
                 if result.get("results") and result["results"].get("channels"):
                     channel = result["results"]["channels"][0]
@@ -205,6 +216,8 @@ class DeepgramService:
                         
                         logger.info(f"📝 Raw transcript: '{transcription_text}'")
                         logger.info(f"🎯 Confidence: {confidence:.2f}")
+                        if detected_language:
+                            logger.info(f"🌍 Detected language: {detected_language}")
                         
                         if transcription_text and transcription_text.strip():
                             logger.info(f"✅ Deepgram transcription successful")
