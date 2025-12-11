@@ -1439,6 +1439,8 @@ def init_socketio(socketio_instance: SocketIO, app):
                                 if audio_bytes:
                                     tts_provider = "elevenlabs"
                                     print(f"✅ ElevenLabs TTS successful: {len(audio_bytes)} bytes", flush=True)
+                                    # Update status to show ElevenLabs is being used
+                                    socketio.emit('status', {'message': 'Generating speech with ElevenLabs...'}, namespace='/voice', room=session_id)
                     except Exception as e:
                         print(f"⚠️ ElevenLabs TTS failed, falling back to Deepgram: {e}", flush=True)
                         import traceback
@@ -1452,6 +1454,8 @@ def init_socketio(socketio_instance: SocketIO, app):
                 # Fallback to Deepgram if ElevenLabs failed or not available
                 if not audio_bytes:
                     print(f"🔊 Using Deepgram TTS (fallback)", flush=True)
+                    # Update status to show Deepgram is being used
+                    socketio.emit('status', {'message': 'Generating speech with Deepgram...'}, namespace='/voice', room=session_id)
                     deepgram_tts = get_deepgram_tts_service()
                     audio_bytes = deepgram_tts.synthesize_speech(agent_response, voice="aura-asteria-en")
                     tts_provider = "deepgram"
