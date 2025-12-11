@@ -5,19 +5,25 @@ from deepgram_service import get_deepgram_service
 
 logger = logging.getLogger(__name__)
 
-def transcribe_audio_with_deepgram_webrtc(audio_buffer: bytes, language: str = "en") -> Optional[str]:
+def transcribe_audio_with_deepgram_webrtc(audio_buffer: bytes, language: Optional[str] = None) -> Optional[str]:
     """
     Transcribe audio buffer using Deepgram, specifically for WebRTC chunks.
     
     Args:
         audio_buffer: Raw audio data bytes from WebRTC.
-        language: Language code (default: "en").
+        language: Language code. Use None or "auto" for automatic detection (default: None = auto-detect).
+                  Supports 30+ languages including: en, ko, ja, es, fr, de, zh, etc.
         
     Returns:
         Transcribed text string or None if failed.
     """
     try:
         service = get_deepgram_service()
+        
+        # Use "auto" for automatic language detection if None is passed
+        # Deepgram will automatically detect the language from the audio
+        if language is None:
+            language = "auto"
         
         # Deepgram is designed for real-time streaming and handles WebRTC chunks well
         # It can process smaller audio buffers more effectively than AssemblyAI

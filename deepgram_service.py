@@ -34,17 +34,21 @@ class DeepgramService:
         
         logger.info("✅ Deepgram service initialized for real-time streaming")
     
-    def transcribe_audio_buffer(self, audio_buffer: bytes, language: str = "en") -> Optional[str]:
+    def transcribe_audio_buffer(self, audio_buffer: bytes, language: Optional[str] = None) -> Optional[str]:
         """
         Transcribe audio buffer using Deepgram's streaming API
         
         Args:
             audio_buffer: Raw audio data bytes from WebRTC
-            language: Language code (default: "en")
+            language: Language code. Use None or "auto" for automatic detection (default: None = auto-detect).
+                      Supports 30+ languages including: en, ko, ja, es, fr, de, zh, etc.
             
         Returns:
             Transcribed text string or None if failed
         """
+        # Use "auto" for automatic language detection if None is passed
+        if language is None:
+            language = "auto"
         try:
                    logger.info(f"🎧 Deepgram: Transcribing audio buffer: {len(audio_buffer)} bytes")
                    
@@ -139,7 +143,7 @@ class DeepgramService:
             logger.error(f"❌ Failed to create WAV file: {e}")
             return None
     
-    def _transcribe_file(self, file_path: str, language: str) -> Optional[str]:
+    def _transcribe_file(self, file_path: str, language: Optional[str] = None) -> Optional[str]:
         """Transcribe a file using Deepgram's HTTP API"""
         try:
             logger.info(f"📤 Uploading file to Deepgram: {file_path}")
@@ -150,17 +154,23 @@ class DeepgramService:
             
             # Configure parameters for WebRTC audio - try without specifying encoding
             # Note: endpointing is NOT supported for batch/upload requests, only for streaming
+            # Enable automatic language detection if language is "auto" or None
+            use_auto_detect = language == "auto" or language is None
+            
             params = {
                 "model": "nova-2",  # Use Deepgram's latest model
-                "language": language,
                 "smart_format": "true",  # Enable smart formatting
                 "punctuate": "true",     # Add punctuation
                 "alternatives": "1",     # Single alternative
-                "detect_language": "false",  # Use specified language
+                "detect_language": "true" if use_auto_detect else "false",  # Auto-detect or use specified language
                 # "endpointing": "300",  # REMOVED: Not supported for batch requests (only streaming)
                 "vad_events": "true",       # Voice activity detection
                 "interim_results": "false"  # Final results only
             }
+            
+            # Only add language parameter if not using auto-detection
+            if not use_auto_detect:
+                params["language"] = language
             
             # Read the file
             with open(file_path, 'rb') as audio_file:

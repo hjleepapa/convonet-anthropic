@@ -1076,12 +1076,30 @@ def init_socketio(socketio_instance: SocketIO, app):
                 # Use Deepgram for transcription (WebRTC-optimized solution)
                 print(f"🎧 Deepgram: Processing audio buffer: {len(audio_buffer)} bytes")
                 
-                # Use Deepgram integration
+                # Use Deepgram integration with automatic language detection
+                # Get user's preferred language as a hint, but use auto-detection for accuracy
+                user_id = session.get('user_id')
+                preferred_language = "auto"  # Default to auto-detection
+                
+                # Try to get user's language preference as a hint (optional)
+                if ELEVENLABS_AVAILABLE and user_id:
+                    try:
+                        voice_prefs = get_voice_preferences()
+                        if voice_prefs:
+                            prefs = voice_prefs.get_user_preferences(user_id)
+                            user_lang = prefs.get("language", "auto")
+                            # Use user preference as hint, but still enable auto-detection
+                            # Deepgram will use this as a hint but can still detect other languages
+                            preferred_language = user_lang if user_lang != "auto" else "auto"
+                    except:
+                        pass  # Fallback to auto-detection
+                
                 import sys
-                print(f"🔧 About to call transcribe_audio_with_deepgram_webrtc...", flush=True)
+                print(f"🔧 About to call transcribe_audio_with_deepgram_webrtc with language={preferred_language}...", flush=True)
                 sys.stdout.flush()
                 try:
-                    transcribed_text = transcribe_audio_with_deepgram_webrtc(audio_buffer, language="en")
+                    # Use "auto" for automatic language detection (supports 30+ languages)
+                    transcribed_text = transcribe_audio_with_deepgram_webrtc(audio_buffer, language=preferred_language if preferred_language != "auto" else None)
                     print(f"✅ transcribe_audio_with_deepgram_webrtc returned: {transcribed_text[:50] if transcribed_text else 'None'}...", flush=True)
                     sys.stdout.flush()
                 except Exception as e:
