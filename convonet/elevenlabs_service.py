@@ -155,13 +155,33 @@ class ElevenLabsService:
                 use_speaker_boost=use_speaker_boost
             )
             
-            # Generate audio
-            audio_generator = self.client.generate(
-                text=text,
-                voice=voice_id,
-                model=model,
-                voice_settings=voice_settings
-            )
+            # Generate audio using ElevenLabs SDK
+            # Try different API methods based on SDK version
+            try:
+                # Method 1: text_to_speech.convert() (newer SDK versions)
+                audio_generator = self.client.text_to_speech.convert(
+                    voice_id=voice_id,
+                    text=text,
+                    model_id=model,
+                    voice_settings=voice_settings
+                )
+            except AttributeError:
+                try:
+                    # Method 2: convert() directly (alternative SDK structure)
+                    audio_generator = self.client.convert(
+                        voice_id=voice_id,
+                        text=text,
+                        model_id=model,
+                        voice_settings=voice_settings
+                    )
+                except AttributeError:
+                    # Method 3: Use generate() if available (older SDK versions)
+                    audio_generator = self.client.generate(
+                        text=text,
+                        voice=voice_id,
+                        model=model,
+                        voice_settings=voice_settings
+                    )
             
             # Convert generator to bytes
             audio_bytes = b"".join(audio_generator)

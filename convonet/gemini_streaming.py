@@ -200,81 +200,103 @@ class GeminiStreamingHandler:
             Tuple of (final_text, tool_calls)
         """
         # Convert LangChain messages to Gemini format using SDK types
-        gemini_messages = []
-        for msg in messages:
-            if isinstance(msg, SystemMessage):
-                # System messages are handled separately
-                continue
-            elif isinstance(msg, HumanMessage):
-                # Use SDK Content type for user messages
-                try:
-                    user_content = types.Content(
-                        role="user",
-                        parts=[types.Part(text=str(msg.content))]
-                    )
-                    gemini_messages.append(user_content)
-                except Exception as e:
-                    # Fallback to dict format if SDK types fail
-                    print(f"⚠️ Error creating Content for HumanMessage, using dict: {e}", flush=True)
-                    gemini_messages.append({
-                        "role": "user",
-                        "parts": [{"text": str(msg.content)}]
-                    })
-            elif isinstance(msg, AIMessage):
-                # Use SDK Content type for model messages
-                try:
-                    model_content = types.Content(
-                        role="model",
-                        parts=[types.Part(text=str(msg.content))]
-                    )
-                    gemini_messages.append(model_content)
-                except Exception as e:
-                    # Fallback to dict format if SDK types fail
-                    print(f"⚠️ Error creating Content for AIMessage, using dict: {e}", flush=True)
-                    gemini_messages.append({
-                        "role": "model",
-                        "parts": [{"text": str(msg.content)}]
-                    })
-            elif isinstance(msg, ToolMessage):
-                # Convert tool result to Gemini format using SDK FunctionResponse
-                try:
-                    # FunctionResponse expects response to be a dict or object, not a string
-                    # If content is a string, wrap it in a dict
-                    response_data = msg.content
-                    if isinstance(response_data, str):
-                        # Try to parse as JSON if possible, otherwise use as-is
-                        try:
-                            import json
-                            response_data = json.loads(response_data)
-                        except:
-                            # Not JSON, use as string value
-                            response_data = {"result": response_data}
-                    
-                    function_response = types.FunctionResponse(
-                        name=getattr(msg, 'name', 'unknown'),
-                        response=response_data
-                    )
-                    tool_content = types.Content(
-                        role="user",
-                        parts=[types.Part(function_response=function_response)]
-                    )
-                    gemini_messages.append(tool_content)
-                except Exception as e:
-                    # Fallback to dict format if SDK types fail
-                    print(f"⚠️ Error creating Content for ToolMessage, using dict: {e}", flush=True)
-                    # Ensure response is a dict, not a string
+        # Import types at function level to ensure it's available
+        if not GEMINI_SDK_AVAILABLE:
+            # Fallback to dict format if SDK not available
+            gemini_messages = []
+            for msg in messages:
+                if isinstance(msg, SystemMessage):
+                    continue
+                elif isinstance(msg, HumanMessage):
+                    gemini_messages.append({"role": "user", "parts": [{"text": str(msg.content)}]})
+                elif isinstance(msg, AIMessage):
+                    gemini_messages.append({"role": "model", "parts": [{"text": str(msg.content)}]})
+                elif isinstance(msg, ToolMessage):
                     response_data = msg.content
                     if isinstance(response_data, str):
                         response_data = {"result": response_data}
                     gemini_messages.append({
                         "role": "user",
-                        "parts": [{
-                            "function_response": {
-                                "name": getattr(msg, 'name', 'unknown'),
-                                "response": response_data
-                            }
-                        }]
+                        "parts": [{"function_response": {"name": getattr(msg, 'name', 'unknown'), "response": response_data}}]
                     })
+        else:
+            # Use SDK types if available
+            from google.genai import types as genai_types
+            gemini_messages = []
+            for msg in messages:
+                if isinstance(msg, SystemMessage):
+                    # System messages are handled separately
+                    continue
+                elif isinstance(msg, HumanMessage):
+                    # Use SDK Content type for user messages
+                    try:
+                        user_content = genai_types.Content(
+                            role="user",
+                            parts=[genai_types.Part(text=str(msg.content))]
+                        )
+                        gemini_messages.append(user_content)
+                    except Exception as e:
+                        # Fallback to dict format if SDK types fail
+                        print(f"⚠️ Error creating Content for HumanMessage, using dict: {e}", flush=True)
+                        gemini_messages.append({
+                            "role": "user",
+                            "parts": [{"text": str(msg.content)}]
+                        })
+                elif isinstance(msg, AIMessage):
+                    # Use SDK Content type for model messages
+                    try:
+                        model_content = genai_types.Content(
+                            role="model",
+                            parts=[genai_types.Part(text=str(msg.content))]
+                        )
+                        gemini_messages.append(model_content)
+                    except Exception as e:
+                        # Fallback to dict format if SDK types fail
+                        print(f"⚠️ Error creating Content for AIMessage, using dict: {e}", flush=True)
+                        gemini_messages.append({
+                            "role": "model",
+                            "parts": [{"text": str(msg.content)}]
+                        })
+                elif isinstance(msg, ToolMessage):
+                    # Convert tool result to Gemini format using SDK FunctionResponse
+                    try:
+                        # FunctionResponse expects response to be a dict or object, not a string
+                        # If content is a string, wrap it in a dict
+                        response_data = msg.content
+                        if isinstance(response_data, str):
+                            # Try to parse as JSON if possible, otherwise use as-is
+                            try:
+                                import json
+                                response_data = json.loads(response_data)
+                            except:
+                                # Not JSON, use as string value
+                                response_data = {"result": response_data}
+                        
+                        function_response = genai_types.FunctionResponse(
+                            name=getattr(msg, 'name', 'unknown'),
+                            response=response_data
+                        )
+                        tool_content = genai_types.Content(
+                            role="user",
+                            parts=[genai_types.Part(function_response=function_response)]
+                        )
+                        gemini_messages.append(tool_content)
+                    except Exception as e:
+                        # Fallback to dict format if SDK types fail
+                        print(f"⚠️ Error creating Content for ToolMessage, using dict: {e}", flush=True)
+                        # Ensure response is a dict, not a string
+                        response_data = msg.content
+                        if isinstance(response_data, str):
+                            response_data = {"result": response_data}
+                        gemini_messages.append({
+                            "role": "user",
+                            "parts": [{
+                                "function_response": {
+                                    "name": getattr(msg, 'name', 'unknown'),
+                                    "response": response_data
+                                }
+                            }]
+                        })
         
         # Prepare generation config
         generation_config = {
