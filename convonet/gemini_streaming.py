@@ -260,8 +260,8 @@ class GeminiStreamingHandler:
                 elif isinstance(msg, ToolMessage):
                     # Convert tool result to Gemini format using SDK FunctionResponse
                     try:
-                        # FunctionResponse expects response to be a dict or object, not a string
-                        # If content is a string, wrap it in a dict
+                        # FunctionResponse expects response to be a dict, not a string or list
+                        # Wrap strings and lists in a dict
                         response_data = msg.content
                         if isinstance(response_data, str):
                             # Try to parse as JSON if possible, otherwise use as-is
@@ -271,6 +271,12 @@ class GeminiStreamingHandler:
                             except:
                                 # Not JSON, use as string value
                                 response_data = {"result": response_data}
+                        elif isinstance(response_data, list):
+                            # Lists must be wrapped in a dict
+                            response_data = {"result": response_data}
+                        elif not isinstance(response_data, dict):
+                            # Any other type (int, bool, etc.) - wrap in dict
+                            response_data = {"result": response_data}
                         
                         function_response = genai_types.FunctionResponse(
                             name=getattr(msg, 'name', 'unknown'),
@@ -284,9 +290,19 @@ class GeminiStreamingHandler:
                     except Exception as e:
                         # Fallback to dict format if SDK types fail
                         print(f"⚠️ Error creating Content for ToolMessage, using dict: {e}", flush=True)
-                        # Ensure response is a dict, not a string
+                        # Ensure response is a dict, not a string or list
                         response_data = msg.content
                         if isinstance(response_data, str):
+                            try:
+                                import json
+                                response_data = json.loads(response_data)
+                            except:
+                                response_data = {"result": response_data}
+                        elif isinstance(response_data, list):
+                            # Lists must be wrapped in a dict
+                            response_data = {"result": response_data}
+                        elif not isinstance(response_data, dict):
+                            # Any other type - wrap in dict
                             response_data = {"result": response_data}
                         gemini_messages.append({
                             "role": "user",
