@@ -398,6 +398,9 @@ class GeminiStreamingHandler:
                 })
                 request_params["contents"] = gemini_messages
             
+            # Ensure system_instruction is NOT in request_params (not supported by SDK)
+            request_params.pop("system_instruction", None)
+            
             # Use async generate_content_stream for streaming
             response_stream = None
             try:
@@ -406,25 +409,26 @@ class GeminiStreamingHandler:
                         response_stream = await self.client.aio.models.generate_content_stream(**request_params)
                         self._response_stream = response_stream  # Track for cleanup
                     except TypeError as e:
-                        # Handle other parameter errors
-                        if "tools" in str(e):
-                            # If tools parameter error, tools are already in config (handled above)
-                            # This shouldn't happen, but handle it gracefully
-                            print(f"⚠️ tools parameter error (tools should be in config, already handled)", flush=True)
-                            # Just retry - tools are already in config
+                        # Handle parameter errors
+                        error_msg = str(e)
+                        if "system_instruction" in error_msg:
+                            # system_instruction should already be removed, but handle it just in case
+                            print(f"⚠️ system_instruction parameter error (should be in contents): {error_msg}", flush=True)
+                            request_params.pop("system_instruction", None)
                             request_params["contents"] = gemini_messages
                             response_stream = await self.client.aio.models.generate_content_stream(**request_params)
                             self._response_stream = response_stream
-                        elif "tools" in str(e):
+                        elif "tools" in error_msg:
                             # If tools parameter error, tools are already in config (handled above)
                             # This shouldn't happen, but handle it gracefully
-                            print(f"⚠️ tools parameter error (tools should be in config, already handled)", flush=True)
-                            # Just retry - tools are already in config
-                            # Update contents with system instruction prepended
+                            print(f"⚠️ tools parameter error (tools should be in config, already handled): {error_msg}", flush=True)
                             request_params["contents"] = gemini_messages
                             response_stream = await self.client.aio.models.generate_content_stream(**request_params)
                             self._response_stream = response_stream
                         else:
+                            # Unknown parameter error - log and re-raise
+                            print(f"❌ Unknown TypeError in Gemini streaming: {error_msg}", flush=True)
+                            print(f"🔍 request_params keys: {list(request_params.keys())}", flush=True)
                             raise
                 else:
                     # Fallback to sync streaming (will need to wrap in executor)
