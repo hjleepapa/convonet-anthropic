@@ -1380,20 +1380,27 @@ def init_socketio(socketio_instance: SocketIO, app):
                 
                 # Get user preferences
                 user_id = session.get('user_id')
+                print(f"🔍 TTS Debug: ELEVENLABS_AVAILABLE={ELEVENLABS_AVAILABLE}, user_id={user_id}", flush=True)
+                
                 voice_prefs = get_voice_preferences() if ELEVENLABS_AVAILABLE else None
+                print(f"🔍 TTS Debug: voice_prefs={voice_prefs is not None}", flush=True)
                 
                 audio_bytes = None
                 tts_provider = "deepgram"  # Default fallback
                 
                 # Try ElevenLabs first if available and enabled
                 if ELEVENLABS_AVAILABLE and voice_prefs:
+                    print(f"🔍 TTS Debug: Entering ElevenLabs block", flush=True)
                     try:
                         elevenlabs = get_elevenlabs_service()
+                        print(f"🔍 TTS Debug: elevenlabs service obtained, is_available()={elevenlabs.is_available() if elevenlabs else False}", flush=True)
                         if elevenlabs.is_available():
                             prefs = voice_prefs.get_user_preferences(user_id) if user_id else voice_prefs._get_default_preferences()
+                            print(f"🔍 TTS Debug: prefs={prefs}, use_elevenlabs={prefs.get('use_elevenlabs', True)}", flush=True)
                             
                             # Check if user wants ElevenLabs
                             if prefs.get("use_elevenlabs", True):
+                                print(f"🔍 TTS Debug: use_elevenlabs is True, proceeding with ElevenLabs", flush=True)
                                 voice_id = prefs.get("voice_id")
                                 language = prefs.get("language", "en")
                                 emotion_enabled = prefs.get("emotion_enabled", True)
@@ -1436,6 +1443,11 @@ def init_socketio(socketio_instance: SocketIO, app):
                         print(f"⚠️ ElevenLabs TTS failed, falling back to Deepgram: {e}", flush=True)
                         import traceback
                         traceback.print_exc()
+                else:
+                    if not ELEVENLABS_AVAILABLE:
+                        print(f"🔍 TTS Debug: ELEVENLABS_AVAILABLE is False", flush=True)
+                    if not voice_prefs:
+                        print(f"🔍 TTS Debug: voice_prefs is None", flush=True)
                 
                 # Fallback to Deepgram if ElevenLabs failed or not available
                 if not audio_bytes:
