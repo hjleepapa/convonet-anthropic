@@ -156,32 +156,42 @@ class ElevenLabsService:
             )
             
             # Generate audio using ElevenLabs SDK
-            # Try different API methods based on SDK version
-            try:
-                # Method 1: text_to_speech.convert() (newer SDK versions)
+            # The ElevenLabs SDK v1.0+ uses text_to_speech.convert() method
+            # Check available methods and use the correct one
+            audio_generator = None
+            
+            # Method 1: text_to_speech.convert() (SDK v1.0+ - most common)
+            if hasattr(self.client, 'text_to_speech') and hasattr(self.client.text_to_speech, 'convert'):
+                logger.info("🔊 Using ElevenLabs text_to_speech.convert() method")
                 audio_generator = self.client.text_to_speech.convert(
                     voice_id=voice_id,
                     text=text,
                     model_id=model,
                     voice_settings=voice_settings
                 )
-            except AttributeError:
-                try:
-                    # Method 2: convert() directly (alternative SDK structure)
-                    audio_generator = self.client.convert(
-                        voice_id=voice_id,
-                        text=text,
-                        model_id=model,
-                        voice_settings=voice_settings
-                    )
-                except AttributeError:
-                    # Method 3: Use generate() if available (older SDK versions)
-                    audio_generator = self.client.generate(
-                        text=text,
-                        voice=voice_id,
-                        model=model,
-                        voice_settings=voice_settings
-                    )
+            # Method 2: Direct convert() (alternative structure)
+            elif hasattr(self.client, 'convert'):
+                logger.info("🔊 Using ElevenLabs convert() method")
+                audio_generator = self.client.convert(
+                    voice_id=voice_id,
+                    text=text,
+                    model_id=model,
+                    voice_settings=voice_settings
+                )
+            # Method 3: Legacy generate() method (older SDK versions)
+            elif hasattr(self.client, 'generate'):
+                logger.info("🔊 Using ElevenLabs generate() method")
+                audio_generator = self.client.generate(
+                    text=text,
+                    voice=voice_id,
+                    model=model,
+                    voice_settings=voice_settings
+                )
+            else:
+                # Log available methods for debugging
+                available_methods = [m for m in dir(self.client) if not m.startswith('_')]
+                logger.error(f"❌ No suitable TTS method found. Available methods: {available_methods}")
+                raise AttributeError(f"ElevenLabs client has no TTS method. Available: {available_methods}")
             
             # Convert generator to bytes
             audio_bytes = b"".join(audio_generator)
