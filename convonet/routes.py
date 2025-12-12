@@ -1518,14 +1518,29 @@ Your messages are read aloud, so be brief and conversational."""
                             session_id=session_id,
                         )
                         
-                        # Convert tool calls to ToolCallInfo
+                        # Convert tool calls to ToolCallInfo (with results from Gemini streaming)
                         tool_calls_info = []
                         for tc in tool_calls_list:
-                            tool_calls_info.append(ToolCallInfo(
+                            tool_id = tc.get('id', str(uuid.uuid4()))
+                            tool_call_info = ToolCallInfo(
                                 tool_name=tc.get('name', 'unknown'),
-                                tool_id=tc.get('id', str(uuid.uuid4())),
+                                tool_id=tool_id,
                                 arguments=tc.get('args', {})
-                            ))
+                            )
+                            # Populate result, status, error, and duration if available
+                            if 'result' in tc:
+                                tool_call_info.result = tc.get('result')
+                            if 'status' in tc:
+                                tool_call_info.status = tc.get('status', 'pending')
+                            if 'error' in tc:
+                                tool_call_info.error = tc.get('error')
+                            if 'duration_ms' in tc:
+                                tool_call_info.duration_ms = tc.get('duration_ms')
+                            tool_calls_info.append(tool_call_info)
+                        
+                        print(f"📊 Gemini tool calls info: {len(tool_calls_info)} tool call(s) with results", flush=True)
+                        for tc_info in tool_calls_info:
+                            print(f"   - {tc_info.tool_name}: status={tc_info.status}, result={'present' if tc_info.result else 'missing'}", flush=True)
                         
                         print(f"✅ Gemini native streaming completed", flush=True)
                         print(f"📝 Final response length: {len(final_response)} chars", flush=True)

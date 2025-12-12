@@ -779,6 +779,7 @@ async def stream_gemini_with_tools(
     """
     text_chunks = []
     all_tool_calls = []
+    all_tool_results = {}  # Track tool results by tool_id: {result, status, error, duration_ms}
     conversation_messages = messages + [HumanMessage(content=prompt)]
     max_iterations = 5  # Prevent infinite loops
     iteration = 0  # Track current iteration
@@ -845,6 +846,13 @@ async def stream_gemini_with_tools(
                     tool_args = tc.get('args', {})
                     tool_id = tc.get('id', None)
                     
+                    # Generate tool_id if missing (needed for tracking)
+                    if not tool_id:
+                        import uuid
+                        tool_id = f"gemini_tool_{uuid.uuid4().hex[:12]}"
+                        tc['id'] = tool_id  # Update the tool call dict with generated ID
+                        print(f"🔧 Generated tool_id for {tool_name}: {tool_id}", flush=True)
+                    
                     # Find the tool
                     tool = None
                     for t in tools:
@@ -853,6 +861,8 @@ async def stream_gemini_with_tools(
                             break
                     
                     if tool:
+                        import time as tool_time
+                        tool_start_time = tool_time.time()
                         try:
                             print(f"🔧 Executing tool: {tool_name} with args: {tool_args}", flush=True)
                             # Execute tool (with timeout) - increased from 6s to 15s for MCP tools
@@ -862,22 +872,45 @@ async def stream_gemini_with_tools(
                             else:
                                 result = await asyncio.wait_for(asyncio.to_thread(tool.invoke, tool_args), timeout=tool_timeout)
                             
+                            tool_duration_ms = (tool_time.time() - tool_start_time) * 1000
                             tool_result = {
                                 'name': tool_name,
                                 'id': tool_id,
                                 'response': str(result)
                             }
                             tool_results.append(tool_result)
+                            
+                            # Track result for agent monitor
+                            if tool_id:
+                                all_tool_results[tool_id] = {
+                                    'result': str(result),
+                                    'status': 'success',
+                                    'error': None,
+                                    'duration_ms': tool_duration_ms
+                                }
+                            
                             print(f"✅ Tool {tool_name} completed: {str(result)[:100]}...", flush=True)
                         except asyncio.TimeoutError:
+                            tool_duration_ms = (tool_time.time() - tool_start_time) * 1000
                             tool_result = {
                                 'name': tool_name,
                                 'id': tool_id,
                                 'response': "I'm sorry, the operation timed out. Please try again."
                             }
                             tool_results.append(tool_result)
+                            
+                            # Track timeout for agent monitor
+                            if tool_id:
+                                all_tool_results[tool_id] = {
+                                    'result': None,
+                                    'status': 'timeout',
+                                    'error': 'Tool execution timed out',
+                                    'duration_ms': tool_duration_ms
+                                }
+                            
                             print(f"⏰ Tool {tool_name} timed out", flush=True)
                         except Exception as e:
+                            tool_duration_ms = (tool_time.time() - tool_start_time) * 1000
                             error_str = str(e)
                             tool_result = {
                                 'name': tool_name,
@@ -885,6 +918,16 @@ async def stream_gemini_with_tools(
                                 'response': f"I encountered an error: {error_str[:200]}"
                             }
                             tool_results.append(tool_result)
+                            
+                            # Track error for agent monitor
+                            if tool_id:
+                                all_tool_results[tool_id] = {
+                                    'result': None,
+                                    'status': 'failed',
+                                    'error': error_str[:200],
+                                    'duration_ms': tool_duration_ms
+                                }
+                            
                             print(f"❌ Tool {tool_name} error: {error_str}", flush=True)
                     else:
                         tool_result = {
@@ -941,7 +984,20 @@ async def stream_gemini_with_tools(
                 room=session_id
             )
         
-        return final_text, all_tool_calls
+        # Enrich tool calls with results for agent monitor
+        enriched_tool_calls = []
+        for tc in all_tool_calls:
+            tool_id = tc.get('id')
+            enriched_tc = tc.copy()
+            if tool_id and tool_id in all_tool_results:
+                result_info = all_tool_results[tool_id]
+                enriched_tc['result'] = result_info.get('result')
+                enriched_tc['status'] = result_info.get('status', 'pending')
+                enriched_tc['error'] = result_info.get('error')
+                enriched_tc['duration_ms'] = result_info.get('duration_ms')
+            enriched_tool_calls.append(enriched_tc)
+        
+        return final_text, enriched_tool_calls
     finally:
         # Cleanup: Clear handler and client references to help with garbage collection
         if handler is not None:
