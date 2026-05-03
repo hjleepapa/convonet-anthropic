@@ -74,10 +74,16 @@ GOOGLE_OAUTH2_TOKEN_B64=base64_encoded_token
 GOOGLE_CLIENT_ID=your_client_id
 GOOGLE_CLIENT_SECRET=your_client_secret
 
-# Twilio Voice
+# Twilio Voice (remove after Telnyx cutover)
 TWILIO_ACCOUNT_SID=your_twilio_sid
 TWILIO_AUTH_TOKEN=your_twilio_token
 TWILIO_PHONE_NUMBER=+1234567890
+
+# Telnyx Voice (TeXML migration — install: pip install 'telnyx>=4.0,<5.0')
+TELNYX_API_KEY=your_telnyx_key
+TELNYX_PUBLIC_KEY=your_telnyx_ed25519_public_key
+TELNYX_PHONE_NUMBER=+1234567890
+TELNYX_TEXML_APP_ID=your_texml_application_id
 
 # Speech-to-Text (STT)
 DEEPGRAM_API_KEY=your_deepgram_api_key

@@ -36,8 +36,9 @@ composio-core>=0.3.0
 # Rate limiting
 flask-limiter>=3.0.0
 
-# Twilio
+# Twilio (remove after Telnyx cutover — Phase 6)
 twilio>=8.0.0
+telnyx>=4.0,<5.0
 
 # Monitoring
 sentry-sdk[flask]>=2.0.0

@@ -647,6 +647,16 @@ TWILIO_AUTH_TOKEN=your-twilio-auth-token
 TWILIO_PHONE_NUMBER=+12344007818
 TWILIO_TRUNK_NUMBER=+19256337818  # Optional, for SIP trunking
 
+# ===== TELNYX (Voice / TeXML — add during Twilio→Telnyx migration) =====
+TELNYX_API_KEY=KEYxxxxxxxx
+# Public key for Ed25519 webhook verification (portal → Account → Public key)
+TELNYX_PUBLIC_KEY=
+TELNYX_PHONE_NUMBER=+1xxxxxxxxxx
+# Mission Control → Voice → TeXML Applications → Application ID
+TELNYX_TEXML_APP_ID=
+# Optional: single “connection” env used by some APIs; for TeXML-first often set to TeXML app ID or outbound profile per Telnyx docs
+# TELNYX_CONNECTION_ID=
+
 # ===== WEBHOOK URLS =====
 WEBHOOK_BASE_URL=https://hjlees.com
 WEBSOCKET_BASE_URL=wss://hjlees.com/anthropic/convonet_todo/ws

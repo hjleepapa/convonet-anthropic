@@ -38,6 +38,16 @@ services:
       - key: TWILIO_PHONE_NUMBER
         value: your-twilio-phone-number
       
+      # Telnyx Voice (TeXML migration — alongside Twilio until cutover)
+      - key: TELNYX_API_KEY
+        value: your-telnyx-api-key
+      - key: TELNYX_PUBLIC_KEY
+        value: your-telnyx-ed25519-public-key
+      - key: TELNYX_PHONE_NUMBER
+        value: your-telnyx-e164-number
+      - key: TELNYX_TEXML_APP_ID
+        value: your-texml-application-id
+      
       # FreePBX (optional)
       - key: FREEPBX_HOST
         value: your-freepbx-host

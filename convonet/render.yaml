@@ -56,6 +56,15 @@ services:
         sync: false
       - key: TWILIO_PHONE_NUMBER
         sync: false
+      # Telnyx Voice (TeXML migration — alongside Twilio until cutover)
+      - key: TELNYX_API_KEY
+        sync: false
+      - key: TELNYX_PUBLIC_KEY
+        sync: false
+      - key: TELNYX_PHONE_NUMBER
+        sync: false
+      - key: TELNYX_TEXML_APP_ID
+        sync: false
       # Webhook URLs (Update with your Render app name)
       - key: WEBHOOK_BASE_URL
         sync: false

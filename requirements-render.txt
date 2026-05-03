@@ -44,6 +44,7 @@ elevenlabs>=1.0.0
 cartesia>=1.0.0
 livekit==0.17.5
 twilio>=8.0.0
+telnyx>=4.0,<5.0
 numpy>=2.2.4
 pandas>=2.2.3
 scipy>=1.11.0
