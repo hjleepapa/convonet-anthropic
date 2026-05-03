@@ -2,10 +2,10 @@
 
 > **Enterprise-grade voice AI assistant with multi-LLM provider support, team collaboration, and intelligent call transfer**
 
-[![Flask](https://img.shields.io/badge/Flask-2.3+-blue.svg)](https://flask.palletsprojects.com/)
-[![LangGraph](https://img.shields.io/badge/LangGraph-0.2+-green.svg)](https://langchain-ai.github.io/langgraph/)
-[![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[Flask](https://flask.palletsprojects.com/)
+[LangGraph](https://langchain-ai.github.io/langgraph/)
+[Python](https://www.python.org/)
+[License](LICENSE)
 
 ## 🎯 Overview
 
@@ -84,6 +84,7 @@ TELNYX_API_KEY=your_telnyx_key
 TELNYX_PUBLIC_KEY=your_telnyx_ed25519_public_key
 TELNYX_PHONE_NUMBER=+1234567890
 TELNYX_TEXML_APP_ID=your_texml_application_id
+# Optional: USE_TWILIO_VOICE_TRANSFER=true forces Twilio for WebRTC→PBX transfer leg
 
 # Speech-to-Text (STT)
 DEEPGRAM_API_KEY=your_deepgram_api_key
@@ -125,11 +126,13 @@ Convonet supports **three major LLM providers** with seamless switching capabili
 
 ### Supported Providers
 
-| Provider | Model | Default Model | Best For |
-|----------|-------|---------------|----------|
-| **Claude (Anthropic)** | Claude Sonnet 4 | `claude-sonnet-4-20250514` | Best tool calling, complex reasoning |
-| **Gemini (Google)** | Gemini 2.0 Flash | `gemini-2.0-flash` | Cost-effective, fast responses |
-| **OpenAI** | GPT-4o | `gpt-4o` | General purpose, high accuracy |
+
+| Provider               | Model            | Default Model              | Best For                             |
+| ---------------------- | ---------------- | -------------------------- | ------------------------------------ |
+| **Claude (Anthropic)** | Claude Sonnet 4  | `claude-sonnet-4-20250514` | Best tool calling, complex reasoning |
+| **Gemini (Google)**    | Gemini 2.0 Flash | `gemini-2.0-flash`         | Cost-effective, fast responses       |
+| **OpenAI**             | GPT-4o           | `gpt-4o`                   | General purpose, high accuracy       |
+
 
 ### Configuration
 
@@ -150,6 +153,7 @@ GOOGLE_MODEL=gemini-2.0-flash  # Optional, defaults to gemini-2.0-flash
 ```
 
 **Available Gemini Models**:
+
 - `gemini-2.0-flash` - **Default**: Best price-performance, well-rounded capabilities
 - `gemini-1.5-pro` - Most powerful, best for multimodal and agentic tasks
 - `gemini-1.5-flash` - High-speed, cost-efficient
@@ -207,12 +211,14 @@ The system uses the following priority order:
 ### Provider-Specific Features
 
 #### Claude (Anthropic)
+
 - ✅ Excellent tool calling capabilities
 - ✅ Strong reasoning and multi-step problem solving
 - ✅ Production-grade reliability
 - ✅ Optimized timeout: 15s for execution
 
 #### Gemini (Google)
+
 - ✅ Cost-effective pricing
 - ✅ Fast response times
 - ✅ Tool limiting support (configurable via `GEMINI_MAX_TOOLS`)
@@ -220,6 +226,7 @@ The system uses the following priority order:
 - ⚠️ Requires tool binding (can be skipped with `SKIP_GEMINI_TOOL_BINDING=true`)
 
 #### OpenAI
+
 - ✅ High accuracy
 - ✅ General purpose excellence
 - ✅ Optimized timeout: 15s for execution
@@ -227,6 +234,7 @@ The system uses the following priority order:
 ### Switching Providers
 
 The system automatically:
+
 - Clears agent graph cache when provider changes
 - Reinitializes with the new provider's model
 - Maintains conversation context across switches
@@ -277,7 +285,7 @@ The system automatically:
 
 ## 📚 Documentation
 
-Comprehensive documentation is available in the [`docs/`](docs/) folder:
+Comprehensive documentation is available in the `[docs/](docs/)` folder:
 
 - **[LLM Provider Selection Guide](docs/LLM_PROVIDER_SELECTION_GUIDE.md)** - Using multiple LLM providers
 - **[Deployment Guide](docs/RENDER_DEPLOYMENT.md)** - Production deployment instructions
@@ -288,13 +296,15 @@ Comprehensive documentation is available in the [`docs/`](docs/) folder:
 
 ### Key URLs (when running locally)
 
-| Feature | URL |
-|---------|-----|
-| Voice Assistant | `/webrtc/voice-assistant` |
-| Agent Monitor | `/agent-monitor` |
+
+| Feature            | URL                                 |
+| ------------------ | ----------------------------------- |
+| Voice Assistant    | `/webrtc/voice-assistant`           |
+| Agent Monitor      | `/agent-monitor`                    |
 | Mortgage Dashboard | `/convonet_todo/mortgage/dashboard` |
-| Tool Execution | `/tool-execution` |
-| Team Dashboard | `/team-dashboard` |
+| Tool Execution     | `/tool-execution`                   |
+| Team Dashboard     | `/team-dashboard`                   |
+
 
 ---
 
@@ -309,6 +319,7 @@ URL: /webrtc/voice-assistant
 ```
 
 **Features**:
+
 - **LiveKit WebRTC**: Low-latency PCM audio streaming
 - **Streaming STT**: Deepgram or Cartesia real-time transcription
 - **Streaming TTS**: Deepgram streaming for first-sentence latency
@@ -327,6 +338,7 @@ AI: "I've created a high priority todo for reviewing the quarterly report."
 ```
 
 **Features**:
+
 - Speech-to-text via Twilio
 - Text-to-speech via Deepgram/ElevenLabs
 - Barge-in capability (interrupt AI)
@@ -347,12 +359,14 @@ AI: "I've created a high priority todo for reviewing the quarterly report."
 
 ### Team Roles
 
-| Role | Permissions |
-|------|-------------|
-| **Owner** | Full control, can delete team |
-| **Admin** | Manage members and todos |
-| **Member** | Create and edit own todos |
-| **Viewer** | Read-only access |
+
+| Role       | Permissions                   |
+| ---------- | ----------------------------- |
+| **Owner**  | Full control, can delete team |
+| **Admin**  | Manage members and todos      |
+| **Member** | Create and edit own todos     |
+| **Viewer** | Read-only access              |
+
 
 ---
 
@@ -360,11 +374,13 @@ AI: "I've created a high priority todo for reviewing the quarterly report."
 
 Convonet supports domain-specific agents with sticky context:
 
-| Domain | Features |
-|--------|----------|
-| **Productivity** | Todos, reminders, calendar, teams |
-| **Mortgage** | Applications, DTI ratio, required documents, financial info |
-| **Healthcare** | Member info, policy lookup |
+
+| Domain           | Features                                                    |
+| ---------------- | ----------------------------------------------------------- |
+| **Productivity** | Todos, reminders, calendar, teams                           |
+| **Mortgage**     | Applications, DTI ratio, required documents, financial info |
+| **Healthcare**   | Member info, policy lookup                                  |
+
 
 - **Sticky Context**: Stays in domain until user explicitly changes topic
 - **Mortgage Dashboard**: `/convonet_todo/mortgage/dashboard`
@@ -406,6 +422,7 @@ Intelligent AI-to-human agent transfer:
 5. Live conversation begins
 
 **Configuration**:
+
 - FusionPBX Extension: 2001
 - SIP/WSS connectivity
 - Google Cloud VM deployment
@@ -476,19 +493,22 @@ services:
 ### Voice Commands
 
 **Personal Productivity**:
+
 - "Create a high priority todo to review the quarterly report"
 - "Add a reminder to call the dentist tomorrow at 2 PM"
 - "Schedule a meeting for next Friday from 2 to 3 PM"
 - "Show me all my pending todos"
 
 **Team Collaboration**:
+
 - "Create a hackathon team"
 - "What teams are available?"
 - "Who are the members of the development team?"
 - "Create a high priority todo for the development team"
-- "Add admin@convonet.com to the hackathon team as owner"
+- "Add [admin@convonet.com](mailto:admin@convonet.com) to the hackathon team as owner"
 
 **Call Transfer**:
+
 - "Transfer me to an agent"
 - "I need to speak with support"
 - "Connect me to sales"
@@ -573,17 +593,17 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 For issues, questions, or contributions:
 
 - **GitHub Issues**: [Create an issue](https://github.com/hjleepapa/convonet-anthropic/issues)
-- **Documentation**: See [`docs/`](docs/) folder
-- **Email**: admin@convonet-anthropic.com
+- **Documentation**: See `[docs/](docs/)` folder
+- **Email**: [john@hjlees.com](mailto:admin@convonet-anthropic.com)
 
 ---
 
 ## 🎯 Roadmap
 
-- [ ] Additional LLM provider support (e.g., Mistral, Cohere)
-- [ ] Multi-language support
-- [ ] Advanced analytics dashboard
-- [ ] Mobile app integration
+- Additional LLM provider support (e.g., Mistral, Cohere)
+- Multi-language support
+- Advanced analytics dashboard
+- Mobile app integration
 
 ---
 

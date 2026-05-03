@@ -19,6 +19,7 @@ except ImportError:
     pass  # nest_asyncio not available, may cause issues with eventlet
 
 from twilio.twiml.voice_response import VoiceResponse, Connect, Gather
+from .voice_webhook_paths import voice_abs_path, voice_rel_path
 from .state import AgentState
 from .assistant_graph_todo import get_agent, TodoAgent, MortgageAgent, get_mortgage_agent, HealthcareAgent, get_healthcare_agent
 from .mortgage_intent_detection import detect_mortgage_intent
@@ -57,7 +58,7 @@ convonet_todo_bp = Blueprint(
 )
 
 def get_webhook_base_url():
-    """Get the webhook base URL for Twilio webhooks."""
+    """Get the webhook base URL for Twilio or Telnyx (TeXML) voice webhooks."""
     # Prefer explicit setting, then Render URL, then fallback
     return (
         os.getenv('WEBHOOK_BASE_URL')
@@ -76,11 +77,12 @@ def get_websocket_url():
     base_url = os.getenv('RENDER_EXTERNAL_URL') or 'https://convonet-anthropic.onrender.com'
     return base_url.replace('https://', 'wss://').replace('http://', 'ws://') + '/convonet_todo/ws'
 
-# --- Twilio Voice Routes ---
+# --- Twilio / Telnyx (TeXML) Voice Routes ---
 @convonet_todo_bp.route('/twilio/call', methods=['POST'])
+@convonet_todo_bp.route('/telnyx/call', methods=['POST'])
 def twilio_call_webhook():
     """
-    Handles incoming calls from Twilio.
+    Handles incoming calls from Twilio or Telnyx (TeXML-compatible webhooks).
     Asks for PIN authentication before allowing access to the assistant.
     """
     # Get the current webhook base URL
@@ -97,7 +99,7 @@ def twilio_call_webhook():
     if not is_authenticated and not is_continuation:
         gather = response.gather(
             input='dtmf speech',  # Accept both DTMF (keypad) and speech
-            action='/convonet_todo/twilio/verify_pin',
+            action=voice_rel_path(request.path, 'verify_pin'),
             method='POST',
             timeout=10,
             finish_on_key='#'  # Press # to finish (for DTMF), no num_digits requirement
@@ -105,7 +107,7 @@ def twilio_call_webhook():
         gather.say("Welcome to Convonet productivity assistant. Please enter or say your 4 to 6 digit PIN, then press pound.", voice='Polly.Amy')
         
         response.say("I didn't receive a PIN. Please try again.", voice='Polly.Amy')
-        response.redirect('/convonet_todo/twilio/call')
+        response.redirect(voice_rel_path(request.path, 'call'))
         
         print(f"Generated TwiML for PIN request: {str(response)}")
         return Response(str(response), mimetype='text/xml')
@@ -113,7 +115,7 @@ def twilio_call_webhook():
     # User is authenticated, proceed with normal conversation
     gather = response.gather(
         input='speech',
-            action='/convonet_todo/twilio/process_audio',
+            action=voice_rel_path(request.path, 'process_audio'),
         method='POST',
         speech_timeout='auto',
         timeout=10,
@@ -126,12 +128,13 @@ def twilio_call_webhook():
     
     # Fallback if no speech is detected
     response.say("I didn't hear anything. Please try again.", voice='Polly.Amy')
-    response.redirect('/convonet_todo/twilio/call?is_continuation=true&authenticated=true')
+    response.redirect(voice_rel_path(request.path, 'call') + '?is_continuation=true&authenticated=true')
     
     print(f"Generated TwiML for incoming call: {str(response)}")
     return Response(str(response), mimetype='text/xml')
 
 @convonet_todo_bp.route('/twilio/verify_pin', methods=['POST'])
+@convonet_todo_bp.route('/telnyx/verify_pin', methods=['POST'])
 def verify_pin_webhook():
     """
     Verifies the user's PIN and authenticates the session.
@@ -146,7 +149,7 @@ def verify_pin_webhook():
         if not pin:
             response = VoiceResponse()
             response.say("I didn't receive a PIN. Please try again.", voice='Polly.Amy')
-            response.redirect('/convonet_todo/twilio/call')
+            response.redirect(voice_rel_path(request.path, 'call'))
             return Response(str(response), mimetype='text/xml')
         
         # Convert spoken numbers to digits
@@ -183,7 +186,7 @@ def verify_pin_webhook():
         if not clean_pin or len(clean_pin) < 4 or len(clean_pin) > 6:
             response = VoiceResponse()
             response.say("Invalid PIN format. Please enter a 4 to 6 digit PIN.", voice='Polly.Amy')
-            response.redirect('/convonet_todo/twilio/call')
+            response.redirect(voice_rel_path(request.path, 'call'))
             return Response(str(response), mimetype='text/xml')
         
         # Verify PIN - use direct database query (fast, <100ms, avoids Twilio timeout)
@@ -217,7 +220,7 @@ def verify_pin_webhook():
                 response = VoiceResponse()
                 gather = response.gather(
                     input='speech',
-                    action=f'/convonet_todo/twilio/process_audio?user_id={user_id}',
+                    action=voice_rel_path(request.path, f'process_audio?user_id={user_id}'),
                     method='POST',
                     speech_timeout='auto',
                     timeout=10,
@@ -231,7 +234,7 @@ def verify_pin_webhook():
                 gather.say(f"Welcome back, {user_name}! How can I help you today?", voice='Polly.Amy')
                 
                 response.say("I didn't hear anything. Please try again.", voice='Polly.Amy')
-                response.redirect(f'/convonet_todo/twilio/call?is_continuation=true&authenticated=true&user_id={user_id}')
+                response.redirect(voice_rel_path(request.path, 'call') + f'?is_continuation=true&authenticated=true&user_id={user_id}')
                 
                 print(f"✅ PIN verified for user {user_id} ({user.email})")
                 return Response(str(response), mimetype='text/xml')
@@ -239,7 +242,7 @@ def verify_pin_webhook():
                 # Invalid PIN
                 response = VoiceResponse()
                 response.say("Invalid PIN. Please try again.", voice='Polly.Amy')
-                response.redirect('/convonet_todo/twilio/call')
+                response.redirect(voice_rel_path(request.path, 'call'))
                 print(f"❌ Invalid PIN: {clean_pin}")
                 return Response(str(response), mimetype='text/xml')
         
@@ -249,25 +252,26 @@ def verify_pin_webhook():
             traceback.print_exc()
             response = VoiceResponse()
             response.say("There was an error verifying your PIN. Please try again.", voice='Polly.Amy')
-            response.redirect('/convonet_todo/twilio/call')
+            response.redirect(voice_rel_path(request.path, 'call'))
             return Response(str(response), mimetype='text/xml')
-            
+        
     except Exception as e:
         print(f"Error in verify_pin_webhook: {e}")
         import traceback
         traceback.print_exc()
         response = VoiceResponse()
         response.say("Sorry, there was a system error. Please try again.", voice='Polly.Amy')
-        response.redirect('/convonet_todo/twilio/call')
+        response.redirect(voice_rel_path(request.path, 'call'))
         return Response(str(response), mimetype='text/xml')
 
 @convonet_todo_bp.route('/twilio/transfer', methods=['POST'])
+@convonet_todo_bp.route('/telnyx/transfer', methods=['POST'])
 def transfer_to_agent():
     """
     Transfer the call to a FreePBX extension/queue.
     Expects POST parameters:
     - extension: The FreePBX extension or queue number to transfer to
-    - call_sid: The Twilio Call SID
+    - CallSid: Carrier call identifier (Twilio or Telnyx TeXML)
     """
     try:
         extension = request.form.get('extension') or request.args.get('extension', '2001')
@@ -300,7 +304,7 @@ def transfer_to_agent():
             answer_on_bridge=True,  # Wait for agent to answer before connecting
             timeout=transfer_timeout,
             caller_id=caller_number,
-            action=f'/convonet_todo/twilio/transfer_callback?extension={extension}'
+            action=voice_rel_path(request.path, f'transfer_callback?extension={extension}')
         )
         
         # Add SIP destination
@@ -334,6 +338,7 @@ def transfer_to_agent():
         return Response(str(response), mimetype='text/xml')
 
 @convonet_todo_bp.route('/twilio/transfer_callback', methods=['POST'])
+@convonet_todo_bp.route('/telnyx/transfer_callback', methods=['POST'])
 def transfer_callback():
     """
     Callback handler for transfer status.
@@ -401,6 +406,7 @@ def transfer_callback():
 
 
 @convonet_todo_bp.route('/twilio/voice_assistant/transfer_bridge', methods=['GET', 'POST'])
+@convonet_todo_bp.route('/telnyx/voice_assistant/transfer_bridge', methods=['GET', 'POST'])
 def voice_assistant_transfer_bridge():
     """
     TwiML endpoint used by the WebRTC voice assistant to connect callers directly
@@ -420,7 +426,11 @@ def voice_assistant_transfer_bridge():
     try:
         extension = request.args.get('extension') or request.form.get('extension') or '2001'
         call_sid = request.form.get('CallSid', '')
-        caller_number = request.form.get('From') or os.getenv('TWILIO_PHONE_NUMBER', '')
+        caller_number = request.form.get('From') or (
+            os.getenv('TELNYX_PHONE_NUMBER')
+            or os.getenv('TWILIO_PHONE_NUMBER')
+            or ''
+        )
         
         logger.info(f"[VoiceAssistantBridge] ===== TRANSFER BRIDGE CALLED =====")
         logger.info(f"[VoiceAssistantBridge] Call SID: {call_sid}")
@@ -450,7 +460,9 @@ def voice_assistant_transfer_bridge():
         
         # Get base URL for absolute callback URL
         webhook_base_url = get_webhook_base_url()
-        callback_url = f"{webhook_base_url}/convonet_todo/twilio/transfer_callback?extension={extension}"
+        callback_url = voice_abs_path(
+            request.path, webhook_base_url, f'transfer_callback?extension={extension}'
+        )
         logger.info(f"[VoiceAssistantBridge] Callback URL: {callback_url}")
         
         response = VoiceResponse()
@@ -490,6 +502,7 @@ def voice_assistant_transfer_bridge():
         return Response(str(response), mimetype='text/xml')
 
 @convonet_todo_bp.route('/twilio/process_audio', methods=['POST'])
+@convonet_todo_bp.route('/telnyx/process_audio', methods=['POST'])
 def process_audio_webhook():
     """
     Handles audio processing requests from Twilio.
@@ -527,7 +540,11 @@ def process_audio_webhook():
                 # Use Gather with barge-in for "didn't catch that" response
                 gather = Gather(
                     input='speech',
-                    action=f'/convonet_todo/twilio/process_audio?user_id={user_id}' if user_id else '/convonet_todo/twilio/process_audio',
+                    action=(
+                        voice_rel_path(request.path, f'process_audio?user_id={user_id}')
+                        if user_id
+                        else voice_rel_path(request.path, 'process_audio')
+                    ),
                     method='POST',
                     speech_timeout='auto',
                     timeout=10,
@@ -541,14 +558,19 @@ def process_audio_webhook():
                 
                 # Fallback
                 response.say("I didn't hear anything. Please try again.", voice='Polly.Amy')
-                response.redirect(f'/convonet_todo/twilio/call?is_continuation=true&authenticated=true{user_param}')
+                response.redirect(
+                    voice_rel_path(request.path, 'call')
+                    + f'?is_continuation=true&authenticated=true{user_param}'
+                )
                 return Response(str(response), mimetype='text/xml')
             
             transfer_requested = has_transfer_intent(transcribed_text)
             if transfer_requested:
                 webhook_base_url = get_webhook_base_url()
                 response = VoiceResponse()
-                response.redirect(f'{webhook_base_url}/convonet_todo/twilio/transfer?extension=2001')
+                response.redirect(
+                    voice_abs_path(request.path, webhook_base_url, 'transfer?extension=2001')
+                )
                 logger.info(f"Redirecting call to transfer endpoint based on user request: {transcribed_text}")
                 return Response(str(response), mimetype='text/xml')
             
@@ -694,7 +716,11 @@ def process_audio_webhook():
                     
                     webhook_base_url = get_webhook_base_url()
                     response = VoiceResponse()
-                    response.redirect(f'{webhook_base_url}/convonet_todo/twilio/transfer?extension={target_extension}')
+                    response.redirect(
+                        voice_abs_path(
+                            request.path, webhook_base_url, f'transfer?extension={target_extension}'
+                        )
+                    )
                     logger.info(f"Agent initiated transfer to extension {target_extension}")
                     if user_id:
                         if not hasattr(_run_agent_async, '_reset_threads'):
@@ -712,7 +738,7 @@ def process_audio_webhook():
             # Enhanced Twilio speech recognition configuration
             gather = Gather(
                 input='speech',
-                action=f'/convonet_todo/twilio/process_audio{user_param}',
+                action=f"{voice_rel_path(request.path, 'process_audio')}{user_param}",
                 method='POST',
                 speech_timeout='auto',
                 timeout=15,  # Increased from 10s
@@ -730,7 +756,9 @@ def process_audio_webhook():
             
             # Fallback if no speech is detected after the response
             response.say("I didn't hear anything. Please try again.", voice='Polly.Amy')
-            response.redirect(f'/convonet_todo/twilio/call?is_continuation=true{auth_param}{user_param}')
+            response.redirect(
+                voice_rel_path(request.path, 'call') + f'?is_continuation=true{auth_param}{user_param}'
+            )
             
             print(f"Generated TwiML response: {str(response)}")
             return Response(str(response), mimetype='text/xml')
@@ -747,7 +775,7 @@ def process_audio_webhook():
             # Use Gather with barge-in for error messages too
             gather = Gather(
                 input='speech',
-                action=f'/convonet_todo/twilio/process_audio{user_param}',
+                action=f"{voice_rel_path(request.path, 'process_audio')}{user_param}",
                 method='POST',
                 speech_timeout='auto',
                 timeout=10,
@@ -758,7 +786,9 @@ def process_audio_webhook():
             
             # Fallback
             response.say("I didn't hear anything. Please try again.", voice='Polly.Amy')
-            response.redirect(f'/convonet_todo/twilio/call?is_continuation=true{auth_param}{user_param}')
+            response.redirect(
+                voice_rel_path(request.path, 'call') + f'?is_continuation=true{auth_param}{user_param}'
+            )
             return Response(str(response), mimetype='text/xml')
 
 # WebSocket server is now handled by a separate process

@@ -31,7 +31,7 @@ from convonet.assistant_graph_todo import get_agent
 from convonet.state import AgentState
 from convonet.voice_intent_utils import has_transfer_intent
 from langchain_core.messages import HumanMessage
-from twilio.rest import Client
+from convonet.voice_carrier_transfer import initiate_carrier_transfer, use_telnyx_for_carrier_transfer
 
 # Deepgram WebRTC integration
 from convonet.deepgram import transcribe_audio_with_deepgram_webrtc, get_deepgram_webrtc_info, get_deepgram_service
@@ -1465,99 +1465,60 @@ def set_transfer_flag(session_id: str, value: bool, session_record: dict | None 
 
 def initiate_agent_transfer(session_id: str, extension: str, department: str, reason: str, session_data: dict | None):
     """
-    Use Twilio Programmable Voice to originate a real call path to the target agent (and optionally the user).
+    Originate a carrier voice call (Twilio or Telnyx TeXML) to the FusionPBX extension for WebRTC transfer.
 
     Returns:
         (success: bool, details: dict)
     """
-    account_sid = os.getenv('TWILIO_ACCOUNT_SID')
-    auth_token = os.getenv('TWILIO_AUTH_TOKEN')
-    caller_id = (
-        os.getenv('TWILIO_TRANSFER_CALLER_ID')
-        or os.getenv('TWILIO_CALLER_ID')
-        or os.getenv('TWILIO_NUMBER')
-    )
-    # Get base URL - prefer explicit transfer URL, then public URL, then Render URL
     base_url = (
-        os.getenv('VOICE_ASSISTANT_TRANSFER_BASE_URL') 
+        os.getenv('VOICE_ASSISTANT_TRANSFER_BASE_URL')
         or os.getenv('PUBLIC_BASE_URL')
-        or os.getenv('RENDER_EXTERNAL_URL')  # Render automatically sets this
-        or 'https://convonet-anthropic.onrender.com'  # Fallback to Render service URL
+        or os.getenv('RENDER_EXTERNAL_URL')
+        or 'https://convonet-anthropic.onrender.com'
     )
-    freepbx_domain = os.getenv('FREEPBX_DOMAIN', '136.115.41.45')
-    fusionpbx_domain = os.getenv('FUSIONPBX_SIP_DOMAIN') or freepbx_domain
-    fusionpbx_transport = os.getenv('FUSIONPBX_SIP_TRANSPORT', 'udp').lower()
-    fusionpbx_sip_uri = os.getenv('FUSIONPBX_SIP_URI')  # e.g. sip:{extension}@pbx.example.com;transport=tcp
-
-    if not (account_sid and auth_token and caller_id and base_url):
-        missing = []
-        if not account_sid:
-            missing.append('TWILIO_ACCOUNT_SID')
-        if not auth_token:
-            missing.append('TWILIO_AUTH_TOKEN')
-        if not caller_id:
-            missing.append('TWILIO_TRANSFER_CALLER_ID / TWILIO_CALLER_ID / TWILIO_NUMBER')
-        if not base_url:
-            missing.append('VOICE_ASSISTANT_TRANSFER_BASE_URL / PUBLIC_BASE_URL')
-        message = f"Transfer aborted: missing configuration values: {', '.join(missing)}"
+    if not base_url:
+        message = "Transfer aborted: missing VOICE_ASSISTANT_TRANSFER_BASE_URL / PUBLIC_BASE_URL"
         print(f"⚠️ {message}")
         return False, {'error': message}
 
-    # For WebRTC transfers, we directly dial the FusionPBX extension
-    # The WebRTC user can't join a Twilio conference, so we just connect the agent
-    transfer_url = f"{base_url.rstrip('/')}/convonet_todo/twilio/voice_assistant/transfer_bridge?extension={quote(extension)}"
+    freepbx_domain = os.getenv('FREEPBX_DOMAIN', '136.115.41.45')
+    fusionpbx_domain = os.getenv('FUSIONPBX_SIP_DOMAIN') or freepbx_domain
+    fusionpbx_transport = os.getenv('FUSIONPBX_SIP_TRANSPORT', 'udp').lower()
+    fusionpbx_sip_uri = os.getenv('FUSIONPBX_SIP_URI')
 
-    client = Client(account_sid, auth_token)
-    response_details = {
-        'extension': extension,
-        'transfer_url': transfer_url,
-        'agent_call_sid': None,
-        'user_call_sid': None
-    }
+    if fusionpbx_sip_uri:
+        sip_target = fusionpbx_sip_uri.format(extension=extension)
+    else:
+        sip_target = f"sip:{extension}@{fusionpbx_domain};transport={fusionpbx_transport}"
 
-    try:
-        # Use domain/IP for Twilio (Twilio needs resolvable domain/IP)
-        # FusionPBX dialplan must be configured to route external calls to extensions
-        if fusionpbx_sip_uri:
-            sip_target = fusionpbx_sip_uri.format(extension=extension)
-        else:
-            sip_target = f"sip:{extension}@{fusionpbx_domain};transport={fusionpbx_transport}"
-        print(f"📞 Creating Twilio call:")
-        print(f"   To: {sip_target}")
-        print(f"   From: {caller_id}")
-        print(f"   URL: {transfer_url}")
-        agent_call = client.calls.create(
-            to=sip_target,
-            from_=caller_id,
-            url=transfer_url,
-            method='POST'  # Explicitly set POST method
-        )
-        response_details['agent_call_sid'] = agent_call.sid
-        print(f"📞 ✅ Initiated agent call via Twilio (Call SID: {agent_call.sid}) to {sip_target}")
-        print(f"📞 Call status: {agent_call.status}")
-        print(f"📞 Twilio will POST to: {transfer_url}")
-        
-        # Cache customer profile with call_sid after getting Call SID
-        if agent_call.sid and session_data:
-            cache_call_center_profile(extension, session_data, call_sid=agent_call.sid)
-    except Exception as agent_error:
-        message = str(agent_error)
-        if "401" in message or "Authenticate" in message or "20003" in message:
-            print("❌ Twilio 401 (Invalid credentials): Render has TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN set, but Twilio rejected them.")
-            print("   Fix: Open https://console.twilio.com → Account Info. Copy Account SID and Auth Token (click Show).")
-            print("   In Render Dashboard → Your Service → Environment, set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN to those exact values (no spaces).")
-            print("   If you regenerated Auth Token in Twilio, the old one is invalid — update TWILIO_AUTH_TOKEN in Render with the new token.")
-        print(f"❌ Failed to originate agent call: {message}")
-        response_details['error'] = message
+    carrier = 'telnyx' if use_telnyx_for_carrier_transfer() else 'twilio'
+    transfer_url = (
+        f"{base_url.rstrip('/')}/convonet_todo/{carrier}/voice_assistant/transfer_bridge"
+        f"?extension={quote(extension)}"
+    )
+
+    carrier_label = 'Telnyx TeXML' if carrier == 'telnyx' else 'Twilio'
+    print(f"📞 Creating {carrier_label} call:")
+    print(f"   To: {sip_target}")
+    print(f"   URL: {transfer_url}")
+
+    ok, response_details = initiate_carrier_transfer(
+        extension=extension,
+        sip_target=sip_target,
+        transfer_url=transfer_url,
+        session_data=session_data,
+        cache_call_center_profile=cache_call_center_profile,
+    )
+    if not ok:
         return False, response_details
 
-    # For WebRTC transfers, we don't call the user back because:
-    # 1. WebRTC is browser-based, not a phone number
-    # 2. The user needs to manually call the agent or use a different method
-    # Instead, we provide instructions to the user via the WebRTC interface
-    print(f"ℹ️ WebRTC transfer: Agent call initiated to extension {extension}. User should contact agent separately or use call center dashboard.")
-    response_details['user_instructions'] = f"Please contact extension {extension} via the call center dashboard at {base_url}/call-center/"
-
+    print(
+        f"ℹ️ WebRTC transfer: Agent call initiated to extension {extension}. "
+        f"User should contact agent separately or use call center dashboard."
+    )
+    response_details['user_instructions'] = (
+        f"Please contact extension {extension} via the call center dashboard at {base_url}/call-center/"
+    )
     return True, response_details
 
 # Sentry helper functions
@@ -1974,18 +1935,54 @@ def init_socketio(socketio_instance: SocketIO, app):
     else:
         print(f"⚠️ LiveKit Config Skipped (One or more conditions failed)", flush=True)
 
-    # Twilio transfer config (call transfer to extension 2001)
-    _sid = os.getenv('TWILIO_ACCOUNT_SID')
-    _tok = os.getenv('TWILIO_AUTH_TOKEN')
-    _from = os.getenv('TWILIO_TRANSFER_CALLER_ID') or os.getenv('TWILIO_CALLER_ID') or os.getenv('TWILIO_PHONE_NUMBER')
-    if _sid and _tok and _from:
-        print(f"📞 Twilio transfer: SID set (AC...{_sid[-4:] if len(_sid) >= 4 else '?'}), From={_from}. If transfer gets 401, update TWILIO_AUTH_TOKEN in Render from https://console.twilio.com", flush=True)
+    # Carrier transfer (Twilio or Telnyx TeXML) for WebRTC → FusionPBX
+    if use_telnyx_for_carrier_transfer():
+        _tx = os.getenv('TELNYX_TEXML_APP_ID')
+        _from = (
+            os.getenv('TELNYX_TRANSFER_CALLER_ID')
+            or os.getenv('TELNYX_PHONE_NUMBER')
+        )
+        if _tx and _from:
+            print(
+                f"📞 Telnyx transfer: TeXML app configured, From={_from}. "
+                f"Set USE_TWILIO_VOICE_TRANSFER=true to force Twilio.",
+                flush=True,
+            )
+        else:
+            print(
+                "⚠️ Telnyx transfer incomplete: set TELNYX_TEXML_APP_ID and TELNYX_PHONE_NUMBER "
+                "(or TELNYX_TRANSFER_CALLER_ID).",
+                flush=True,
+            )
     else:
-        _miss = []
-        if not _sid: _miss.append('TWILIO_ACCOUNT_SID')
-        if not _tok: _miss.append('TWILIO_AUTH_TOKEN')
-        if not _from: _miss.append('TWILIO_TRANSFER_CALLER_ID or TWILIO_CALLER_ID or TWILIO_PHONE_NUMBER')
-        print(f"⚠️ Twilio transfer disabled: missing {', '.join(_miss)}. Set in Render Dashboard → Environment to enable call transfer to extension.", flush=True)
+        _sid = os.getenv('TWILIO_ACCOUNT_SID')
+        _tok = os.getenv('TWILIO_AUTH_TOKEN')
+        _from = (
+            os.getenv('TWILIO_TRANSFER_CALLER_ID')
+            or os.getenv('TWILIO_CALLER_ID')
+            or os.getenv('TWILIO_PHONE_NUMBER')
+        )
+        if _sid and _tok and _from:
+            print(
+                f"📞 Twilio transfer: SID set (AC...{_sid[-4:] if len(_sid) >= 4 else '?'}), From={_from}. "
+                f"If transfer gets 401, update TWILIO_AUTH_TOKEN in Render.",
+                flush=True,
+            )
+        else:
+            _miss = []
+            if not _sid:
+                _miss.append('TWILIO_ACCOUNT_SID')
+            if not _tok:
+                _miss.append('TWILIO_AUTH_TOKEN')
+            if not _from:
+                _miss.append(
+                    'TWILIO_TRANSFER_CALLER_ID or TWILIO_CALLER_ID or TWILIO_PHONE_NUMBER'
+                )
+            print(
+                f"⚠️ Twilio transfer disabled: missing {', '.join(_miss)}. "
+                f"Configure Telnyx (TELNYX_*) to use TeXML outbound instead.",
+                flush=True,
+            )
 
     # LiveKit idle timeout: disconnect rooms when inactive to reduce usage charges
     def _livekit_idle_checker_loop():

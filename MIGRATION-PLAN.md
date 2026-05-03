@@ -53,8 +53,8 @@
 
 - [ ] **Phase 0: Account Setup** — Telnyx API key, TeXML Application, number, OVP / whitelisted destinations as needed  
 - [x] **Phase 3: Setup** — Branch `migrate/twilio-to-telnyx`, `telnyx>=4.0,<5.0` in requirements*, `.env.example` + Render YAML + docs (`TELNYX_API_KEY`, `TELNYX_PUBLIC_KEY`, `TELNYX_PHONE_NUMBER`, `TELNYX_TEXML_APP_ID`)  
-- [ ] **Phase 4: Voice (TeXML)** — Migrate `routes.py` TwiML handlers → TeXML + Telnyx form/JSON payloads; new routes e.g. `/telnyx/...` or same paths with provider switch  
-- [ ] **Phase 4: Outbound transfer leg** — Replace `Client` / `calls.create` in `webrtc_voice_server_socketio.py` with Telnyx dial API + TeXML bridge URL  
+- [x] **Phase 4: Voice (TeXML)** — Parallel `/convonet_todo/telnyx/*` routes mirror Twilio; TwiML XML unchanged; actions/redirects use `voice_rel_path` / `voice_abs_path`  
+- [x] **Phase 4: Outbound transfer leg** — `voice_carrier_transfer.initiate_carrier_transfer`: Telnyx `client.texml.accounts.calls.calls` when `TELNYX_*` configured (override with `USE_TWILIO_VOICE_TRANSFER=true`)  
 - [ ] **Phase 4: FusionPBX / SIP** — Update allowlists and docs from Twilio to **Telnyx** SIP signaling IPs  
 - [ ] **Phase 5: Validation** — `validate-migration.sh`, `lint-telnyx-correctness.sh`, voice smoke tests  
 - [ ] **Phase 6: Cleanup** — Remove `twilio` from `requirements.txt` after cutover; archive Twilio env vars  
@@ -73,9 +73,9 @@
 
 | Endpoint | Current | New | Notes |
 |----------|---------|-----|-------|
-| Inbound voice | Twilio Voice URL → `/convonet_todo/twilio/call` | Telnyx TeXML webhook → same handler (renamed path optional) | Payload: form → nested JSON; verify Ed25519 |
-| PIN / audio / transfer | `/twilio/verify_pin`, `/twilio/process_audio`, `/twilio/transfer`, … | Parallel `/telnyx/...` or shared parser | Map `CallSid` → Telnyx call control id / leg id per docs |
-| Transfer bridge | `/twilio/voice_assistant/transfer_bridge` | Telnyx fetches same **TeXML** shape | Used by outbound dial for WebRTC-initiated transfer |
+| Inbound voice | Twilio → `/convonet_todo/twilio/call` | Telnyx TeXML → **`/convonet_todo/telnyx/call`** (same handler) | TeXML callbacks: form fields align with Twilio-style (`webhook-migration.md`); optional Ed25519 for JSON events |
+| PIN / audio / transfer | `/twilio/*` | **`/telnyx/verify_pin`**, **`/telnyx/process_audio`**, **`/telnyx/transfer`**, … | Configure TeXML app Voice URL to `/telnyx/...` paths when cut over |
+| Transfer bridge | `/twilio/voice_assistant/transfer_bridge` | **`/telnyx/voice_assistant/transfer_bridge`** | WebRTC transfer uses Telnyx outbound when `use_telnyx_for_carrier_transfer()` |
 
 ## Risks & Mitigations
 
