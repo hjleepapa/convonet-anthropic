@@ -36,7 +36,7 @@
                     <span class="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-medium">LangChain</span>
                     <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">Claude 3.5 Sonnet</span>
                     <span class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium">Google Calendar</span>
-                    <span class="bg-pink-100 text-pink-800 px-3 py-1 rounded-full text-sm font-medium">Twilio Voice</span>
+                    <span class="bg-pink-100 text-pink-800 px-3 py-1 rounded-full text-sm font-medium">Telnyx / Twilio Voice</span>
                     <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-medium">JWT Auth</span>
                     <span class="bg-cyan-100 text-cyan-800 px-3 py-1 rounded-full text-sm font-medium">Team Collaboration</span>
                     <span class="bg-teal-100 text-teal-800 px-3 py-1 rounded-full text-sm font-medium">FusionPBX Call Transfer</span>
@@ -207,7 +207,7 @@
                                     </div>
                                     <div class="flex justify-center">
                                         <div class="text-xs text-gray-600 bg-pink-50 px-4 py-2 rounded-lg max-w-4xl w-full">
-                                            <strong>Transfer Flow:</strong> User Request → LangGraph (Detect Intent) → Twilio API → FusionPBX (Extension 2001) → Agent Dashboard (JsSIP) → User Info Popup → Live Conversation
+                                            <strong>Transfer Flow:</strong> User Request → LangGraph (Detect Intent) → Telnyx / Twilio API → FusionPBX (Extension 2001) → Agent Dashboard (JsSIP) → User Info Popup → Live Conversation
                                         </div>
                                     </div>
                                     <div class="flex justify-center">
@@ -262,7 +262,7 @@
                                 <li>• PIN authentication (4-6 digit voice PIN)</li>
                                 <li>• Anthropic Claude API (Claude 3.5 Sonnet)</li>
                                 <li>• Deepgram APIs (STT & TTS)</li>
-                                <li>• Twilio Programmable Voice with Media Streams</li>
+                                <li>• Telnyx TeXML or Twilio Programmable Voice (TwiML-compatible XML)</li>
                                 <li>• Google Calendar OAuth2 integration (optimized)</li>
                                 <li>• FusionPBX SIP integration for call transfer</li>
                                 <li>• Deepgram Speech-to-Text API for WebRTC</li>
@@ -281,7 +281,7 @@
                                 <li>• WebRTC voice with Deepgram STT transcription</li>
                                 <li>• Redis audio buffer management for WebRTC</li>
                                 <li>• Sentry error monitoring & performance tracking</li>
-                                <li>• Optimized timeouts (8s/10s/12s) for Twilio compatibility</li>
+                                <li>• Optimized timeouts (8s/10s/12s) for carrier webhook compatibility</li>
                                 <li>• Automatic thread reset on timeout/error</li>
                                 <li>• 38 MCP tools (todos, calendar, teams, transfer)</li>
                                 <li>• WebRTC call center with JsSIP softphone</li>
@@ -402,7 +402,7 @@
                                 <li>✓ Tool timeout: 8s (from 20s)</li>
                                 <li>✓ Agent timeout: 10s (from 25s)</li>
                                 <li>✓ Webhook timeout: 12s (from 30s)</li>
-                                <li>✓ Stays under Twilio's 15s HTTP limit</li>
+                                <li>✓ Stays under the ~15s carrier HTTP webhook limit</li>
                                 <li>✓ Thread reset on timeout prevents errors</li>
                             </ul>
                             <div class="mt-3 text-xs text-gray-500">
@@ -630,11 +630,11 @@
                                         <p class="text-sm text-gray-600">User requests transfer, LangGraph detects intent, sets transfer flag in Redis</p>
                                     </div>
                                     
-                                    <!-- Phase 4: Twilio Transfer -->
+                                    <!-- Phase 4: Carrier transfer -->
                                     <div class="border-l-4 border-pink-500 pl-4">
-                                        <h6 class="font-semibold text-gray-800 mb-1">Phase 4: Twilio Transfer</h6>
+                                        <h6 class="font-semibold text-gray-800 mb-1">Phase 4: Carrier transfer</h6>
                                         <p class="text-xs text-gray-600 mb-2">Steps 39-52</p>
-                                        <p class="text-sm text-gray-600">Twilio API → FusionPBX → Agent Dashboard (JsSIP) → Live conversation bridging</p>
+                                        <p class="text-sm text-gray-600">Telnyx / Carrier → FusionPBX → Agent Dashboard (JsSIP) → Live conversation bridging</p>
                                     </div>
                                 </div>
                             </div>
@@ -716,7 +716,7 @@
                                                 <td class="px-4 py-3 text-gray-600">Converts text to speech</td>
                                             </tr>
                                             <tr class="bg-gray-50">
-                                                <td class="px-4 py-3 font-medium text-gray-800">Twilio API</td>
+                                                <td class="px-4 py-3 font-medium text-gray-800">Telnyx / Twilio API</td>
                                                 <td class="px-4 py-3 text-gray-600">WebRTC Server</td>
                                                 <td class="px-4 py-3 text-gray-600">FusionPBX</td>
                                                 <td class="px-4 py-3 text-gray-600">Bridges call to agent</td>
@@ -921,14 +921,14 @@
 │   └── schemas.py                  # Shared data schemas
 └── convonet/                       # Convonet module
     ├── __init__.py                 # Package initialization
-    ├── routes.py                   # Flask routes & Twilio webhooks (Sentry integrated)
+    ├── routes.py                   # Flask routes & Telnyx/Twilio (TeXML) webhooks (Sentry integrated)
     ├── assistant_graph_todo.py     # LangGraph agent (optimized timeouts)
     ├── state.py                    # Agent state management
     ├── webrtc_voice_server.py      # WebRTC voice assistant server
     ├── audio_player_routes.py      # Audio stream player routes
     ├── redis_manager.py            # Redis session & audio buffer management
     ├── composio_tools.py           # Composio tool integration
-    ├── twilio_handler.py           # Twilio call handling
+    ├── twilio_handler.py           # Legacy Twilio call helpers (optional)
     ├── voice_intent_utils.py       # Voice intent detection utilities
     ├── voice_utils.py              # Voice processing utilities
     ├── environment_config.py       # Environment configuration
@@ -1616,17 +1616,18 @@
                         </ul>
                     </div>
                     
-                    <!-- Twilio Endpoints -->
+                    <!-- PSTN voice webhook endpoints (Telnyx / Twilio) -->
                     <div class="bg-white p-6 rounded-lg shadow">
-                        <h4 class="text-lg font-semibold mb-3 text-gray-800">Twilio Voice</h4>
+                        <h4 class="text-lg font-semibold mb-3 text-gray-800">Telnyx / Twilio Voice</h4>
                         <ul class="text-sm text-gray-600 space-y-2">
-                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">POST /anthropic/convonet_todo/twilio/call</code></li>
-                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">POST /anthropic/convonet_todo/twilio/process_audio</code></li>
-                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">POST /anthropic/convonet_todo/twilio/transfer</code></li>
+                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">POST /anthropic/convonet_todo/telnyx/call (Telnyx) or /anthropic/convonet_todo/twilio/call (Twilio)</code></li>
+                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">POST /anthropic/convonet_todo/telnyx/process_audio or /anthropic/convonet_todo/twilio/process_audio</code></li>
+                            <li><code class="bg-gray-100 px-2 py-1 rounded text-xs">POST /anthropic/convonet_todo/telnyx/transfer or /convonet_todo/twilio/transfer</code></li>
                         </ul>
                         <div class="mt-3 p-3 bg-gray-50 rounded">
                             <p class="text-xs text-gray-600 mb-2">Webhook URL:</p>
-                            <pre class="text-xs"><code>https://hjlees.com/anthropic/convonet_todo/twilio/call</code></pre>
+                            <pre class="text-xs"><code>https://hjlees.com/anthropic/convonet_todo/telnyx/call   # Telnyx TeXML app
+https://hjlees.com/anthropic/convonet_todo/twilio/call  # Twilio (legacy)</code></pre>
                         </div>
                     </div>
                     
@@ -1798,12 +1799,12 @@
                 </div>
             </div>
 
-            <!-- Twilio Voice Interface -->
+            <!-- PSTN voice interface (Telnyx or Twilio) -->
             <div class="mb-12">
-                <h3 class="text-2xl font-semibold mb-6 text-gray-800">Twilio Voice Interface</h3>
+                <h3 class="text-2xl font-semibold mb-6 text-gray-800">PSTN voice interface (Telnyx or Twilio)</h3>
                 <div class="bg-gray-50 p-6 rounded-lg">
                     <p class="text-gray-700 mb-4">
-                        The Convonet assistant provides complete voice interaction through Twilio integration, 
+                        The Convonet assistant provides complete voice interaction through Telnyx or Twilio integration, 
                         supporting natural language commands for team collaboration and task management with 
                         Amazon Polly.Amy voice and barge-in capabilities for interruption.
                     </p>
@@ -1819,7 +1820,7 @@
                                         <span class="text-blue-800 font-bold text-sm">🎤</span>
                                     </div>
                                     <div class="text-sm font-medium text-gray-800">Speech Input</div>
-                                    <div class="text-xs text-gray-600">Twilio Voice</div>
+                                    <div class="text-xs text-gray-600">Telnyx / Twilio Voice</div>
                                 </div>
                                 
                                 <!-- Speech Recognition -->
@@ -1828,7 +1829,7 @@
                                         <span class="text-green-800 font-bold text-sm">👂</span>
                                     </div>
                                     <div class="text-sm font-medium text-gray-800">Speech-to-Text</div>
-                                    <div class="text-xs text-gray-600">Twilio STT</div>
+                                    <div class="text-xs text-gray-600">Gather / STT</div>
                                 </div>
                                 
                                 <!-- LangGraph Agent -->
@@ -1855,7 +1856,7 @@
                                         <span class="text-red-800 font-bold text-sm">🔊</span>
                                     </div>
                                     <div class="text-sm font-medium text-gray-800">Voice Response</div>
-                                    <div class="text-xs text-gray-600">Twilio TTS</div>
+                                    <div class="text-xs text-gray-600">Say / TTS</div>
                                 </div>
                             </div>
                             
@@ -1914,7 +1915,7 @@
                         <div class="bg-white p-4 rounded border">
                             <h4 class="font-semibold text-gray-800 mb-2">Voice Components</h4>
                             <ul class="text-sm text-gray-600 space-y-1">
-                                <li>• <strong>Speech-to-Text:</strong> Twilio speech recognition engine</li>
+                                <li>• <strong>Speech-to-Text:</strong> Built-in speech recognition (Gather) engine</li>
                                 <li>• <strong>Text-to-Speech:</strong> Amazon Polly.Amy voice</li>
                                 <li>• <strong>Barge-in:</strong> Interrupt AI while speaking</li>
                                 <li>• <strong>Speech Timeout:</strong> Auto detection (10s)</li>
@@ -1927,8 +1928,8 @@
                         <div class="bg-white p-4 rounded border">
                             <h4 class="font-semibold text-gray-800 mb-2">Processing Flow</h4>
                             <ol class="text-sm text-gray-600 space-y-1">
-                                <li>1. User calls Twilio number</li>
-                                <li>2. Twilio webhook triggers /anthropic/convonet_todo/twilio/call</li>
+                                <li>1. User calls the PSTN number (Telnyx or Twilio)</li>
+                                <li>2. Voice webhook triggers <code class="bg-gray-100 px-1 rounded">/anthropic/convonet_todo/telnyx/call</code> or <code class="bg-gray-100 px-1 rounded">/anthropic/convonet_todo/twilio/call</code></li>
                                 <li>3. TwiML with &lt;Gather&gt; returned (10s timeout)</li>
                                 <li>4. User speaks, Twilio recognizes speech</li>
                                 <li>5. SpeechResult posted to /process_audio</li>
@@ -1944,19 +1945,19 @@
                 </div>
             </div>
 
-            <!-- Twilio Phone Integration -->
+            <!-- PSTN voice (Telnyx TeXML or Twilio) -->
             <div class="mb-12">
-                <h3 class="text-2xl font-semibold mb-6 text-gray-800">Twilio Phone Integration</h3>
+                <h3 class="text-2xl font-semibold mb-6 text-gray-800">PSTN voice (Telnyx TeXML or Twilio)</h3>
                 <div class="bg-gray-50 p-6 rounded-lg">
                     <p class="text-gray-700 mb-4">
-                        The Convonet assistant can be accessed via phone calls through Twilio integration, allowing users 
+                        The Convonet assistant can be accessed via phone calls through Telnyx or Twilio integration, allowing users 
                         to interact with the AI assistant through voice calls from any phone number. The system uses TwiML 
                         and Gather for speech recognition with barge-in capability.
                     </p>
                     
-                    <!-- Twilio Call Flow Architecture -->
+                    <!-- PSTN call flow (Telnyx or Twilio) -->
                     <div class="mb-8">
-                        <h4 class="text-lg font-semibold mb-4 text-gray-800">Twilio Call Flow Architecture</h4>
+                        <h4 class="text-lg font-semibold mb-4 text-gray-800">PSTN call flow (Telnyx or Twilio)</h4>
                         <div class="bg-white p-6 rounded-lg border-2 border-gray-200">
                             <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
                                 <!-- Phone Call -->
@@ -2029,7 +2030,7 @@
                             
                             <div class="mt-6 text-center">
                                 <p class="text-sm text-gray-600">
-                                    <strong>Call Flow:</strong> Phone → Twilio → Flask Webhook → LangGraph Agent → MCP Tools → Database/Calendar → TwiML Response
+                                    <strong>Call Flow:</strong> Phone → Telnyx/Twilio → Flask Webhook → LangGraph Agent → MCP Tools → Database/Calendar → TwiML Response
                                 </p>
                             </div>
                         </div>
@@ -2037,9 +2038,9 @@
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                         <div class="bg-white p-4 rounded border">
-                            <h4 class="font-semibold text-gray-800 mb-2">Twilio Components</h4>
+                            <h4 class="font-semibold text-gray-800 mb-2">Carrier components (Telnyx / Twilio)</h4>
                             <ul class="text-sm text-gray-600 space-y-1">
-                                <li>• <strong>Twilio Voice API:</strong> Handles incoming/outgoing calls</li>
+                                <li>• <strong>Programmable voice (Telnyx TeXML or Twilio):</strong> Handles incoming/outgoing calls</li>
                                 <li>• <strong>TwiML:</strong> XML-based call flow instructions</li>
                                 <li>• <strong>Gather Element:</strong> Collects speech input with barge-in</li>
                                 <li>• <strong>Say Element:</strong> Text-to-speech via Polly.Amy</li>
@@ -2050,8 +2051,8 @@
                         <div class="bg-white p-4 rounded border">
                             <h4 class="font-semibold text-gray-800 mb-2">Call Flow Process</h4>
                             <ol class="text-sm text-gray-600 space-y-1">
-                                <li>1. User calls Twilio phone number</li>
-                                <li>2. Twilio webhook triggers /twilio/call</li>
+                                <li>1. User calls the PSTN number (Telnyx or Twilio)</li>
+                                <li>2. Voice webhook hits <code class="bg-gray-100 px-1 rounded">/anthropic/convonet_todo/telnyx/call</code> or <code class="bg-gray-100 px-1 rounded">/anthropic/convonet_todo/twilio/call</code></li>
                                 <li>3. TwiML with &lt;Gather&gt; returned</li>
                                 <li>4. Greeting: "Hello! I'm your Convonet productivity assistant"</li>
                                 <li>5. User speaks command</li>
@@ -2065,47 +2066,50 @@
                     </div>
                     
                     <div class="bg-white p-4 rounded border">
-                        <h4 class="font-semibold text-gray-800 mb-2">Twilio Configuration</h4>
+                        <h4 class="font-semibold text-gray-800 mb-2">Environment (Telnyx / Twilio)</h4>
                         <div class="font-mono text-sm bg-gray-100 p-3 rounded">
-                            <pre># Environment Variables
-TWILIO_ACCOUNT_SID=your_account_sid
-TWILIO_AUTH_TOKEN=your_auth_token
-TWILIO_PHONE_NUMBER=+1234567890
+                            <pre># Environment — Twilio (legacy) or Telnyx (TeXML)
+TWILIO_ACCOUNT_SID=...
+TWILIO_AUTH_TOKEN=...
+TWILIO_PHONE_NUMBER=+1...
+TELNYX_API_KEY=KEY...
+TELNYX_TEXML_APP_ID=...
+TELNYX_PHONE_NUMBER=+1...
 
-# Webhook Endpoints
+# Webhook URLs (match prefix to your carrier portal)
+POST https://hjlees.com/anthropic/convonet_todo/telnyx/call
 POST https://hjlees.com/anthropic/convonet_todo/twilio/call
-POST https://hjlees.com/anthropic/convonet_todo/twilio/process_audio
 
-# TwiML Response Example
+# TwiML / TeXML example (use one carrier prefix consistently)
 &lt;Response&gt;
-  &lt;Gather action="/anthropic/convonet_todo/twilio/process_audio" 
-          method="POST" 
-          input="speech" 
-          speechTimeout="auto" 
-          timeout="10" 
+  &lt;Gather action="/anthropic/convonet_todo/telnyx/process_audio"
+          method="POST"
+          input="speech"
+          speechTimeout="auto"
+          timeout="10"
           bargeIn="true"&gt;
     &lt;Say voice="Polly.Amy"&gt;Hello! I'm your Convonet productivity assistant...&lt;/Say&gt;
   &lt;/Gather&gt;
   &lt;Say voice="Polly.Amy"&gt;I didn't hear anything. Please try again.&lt;/Say&gt;
-  &lt;Redirect&gt;/anthropic/convonet_todo/twilio/call?is_continuation=true&lt;/Redirect&gt;
+  &lt;Redirect&gt;/anthropic/convonet_todo/telnyx/call?is_continuation=true&lt;/Redirect&gt;
 &lt;/Response&gt;</pre>
                         </div>
                     </div>
                     
                     <div class="mt-6 bg-blue-50 p-4 rounded border-l-4 border-blue-400">
-                        <h4 class="font-semibold text-blue-800 mb-2">Twilio Setup Instructions</h4>
+                        <h4 class="font-semibold text-blue-800 mb-2">Telnyx / Twilio setup (webhook URLs)</h4>
                         <div class="space-y-3">
                             <div>
                                 <p class="text-sm text-blue-700 font-medium mb-1">Step 1: Configure Voice Settings</p>
-                                <p class="text-sm text-blue-600">In Twilio Console → Phone Numbers → Active Numbers → Select your number</p>
+                                <p class="text-sm text-blue-600">In Telnyx Mission Control or Twilio Console → Phone Numbers → Active Numbers → Select your number</p>
                             </div>
                             <div>
                                 <p class="text-sm text-blue-700 font-medium mb-1">Step 2: Set Webhook URL</p>
-                                <p class="text-sm text-blue-600">A CALL COMES IN: https://hjlees.com/anthropic/convonet_todo/twilio/call (HTTP POST)</p>
+                                <p class="text-sm text-blue-600">A CALL COMES IN (HTTP POST): <code class="bg-white px-1 rounded">https://hjlees.com/anthropic/convonet_todo/telnyx/call</code> (Telnyx) or <code class="bg-white px-1 rounded">https://hjlees.com/anthropic/convonet_todo/twilio/call</code> (Twilio)</p>
                             </div>
                             <div>
                                 <p class="text-sm text-blue-700 font-medium mb-1">Step 3: Test Integration</p>
-                                <p class="text-sm text-blue-600">Call your Twilio number and speak a command</p>
+                                <p class="text-sm text-blue-600">Call your configured PSTN number and speak a command</p>
                             </div>
                         </div>
                     </div>
@@ -2396,9 +2400,10 @@ jwt_auth = JWTAuth()
 require_auth = jwt_auth.require_auth</code></pre>
                     </div>
 
-                    <!-- Twilio Integration Example -->
+                    <!-- PSTN voice webhook example -->
                     <div class="bg-white p-6 rounded-lg shadow">
-                        <h4 class="text-lg font-semibold mb-3 text-gray-800">Twilio Webhook Handler (routes.py)</h4>
+                        <h4 class="text-lg font-semibold mb-3 text-gray-800">Voice webhooks (routes.py — Telnyx / Twilio)</h4>
+                        <p class="text-sm text-gray-600 mb-2">Production registers both <code class="bg-gray-100 px-1 rounded">/telnyx/...</code> and <code class="bg-gray-100 px-1 rounded">/twilio/...</code>; TeXML/TwiML actions must stay on the same carrier prefix.</p>
                         <pre class="bg-gray-100 p-4 rounded text-sm overflow-x-auto"><code>from flask import Blueprint, request, Response
 from twilio.twiml.voice_response import VoiceResponse, Gather
 import asyncio
@@ -2406,66 +2411,28 @@ import asyncio
 convonet_todo_bp = Blueprint('convonet_todo', __name__, url_prefix='/anthropic/convonet_todo')
 
 @convonet_todo_bp.route('/twilio/call', methods=['POST'])
-def twilio_call_webhook():
-    """Handle incoming calls with barge-in capability"""
+@convonet_todo_bp.route('/telnyx/call', methods=['POST'])
+def voice_call_webhook():
+    """TeXML/TwiML — same handler for Telnyx or Twilio paths."""
     is_continuation = request.args.get('is_continuation', 'false').lower() == 'true'
     response = VoiceResponse()
-    
+    ns = 'telnyx' if '/telnyx/' in request.path else 'twilio'
+
     gather = response.gather(
         input='speech',
-        action='/anthropic/convonet_todo/twilio/process_audio',
+        action=f'/anthropic/convonet_todo/{ns}/process_audio',
         method='POST',
         speech_timeout='auto',
         timeout=10,
         barge_in=True
     )
-    
     if not is_continuation:
         gather.say(
             "Hello! I'm your Convonet productivity assistant. How can I help you today?",
             voice='Polly.Amy'
         )
-    
     response.say("I didn't hear anything. Please try again.", voice='Polly.Amy')
-    response.redirect('/anthropic/convonet_todo/twilio/call?is_continuation=true')
-    
-    return Response(str(response), mimetype='text/xml')
-
-@convonet_todo_bp.route('/twilio/process_audio', methods=['POST'])
-def process_audio_webhook():
-    """Process speech input from Twilio"""
-    transcribed_text = request.form.get('SpeechResult', '')
-    
-    if not transcribed_text:
-        response = VoiceResponse()
-        gather = Gather(input='speech', action='/anthropic/convonet_todo/twilio/process_audio')
-        gather.say("I didn't catch that. Could you please repeat?", voice='Polly.Amy')
-        response.append(gather)
-        return Response(str(response), mimetype='text/xml')
-    
-    # Check for exit phrases
-    exit_phrases = ['exit', 'goodbye', 'bye', 'done']
-    if any(phrase in transcribed_text.lower() for phrase in exit_phrases):
-        response = VoiceResponse()
-        response.say("Thank you! Have a great day!", voice='Polly.Amy')
-        response.hangup()
-        return Response(str(response), mimetype='text/xml')
-    
-    # Process with agent (30s timeout)
-    try:
-        agent_response = asyncio.run(
-            asyncio.wait_for(_run_agent_async(transcribed_text), timeout=30.0)
-        )
-    except asyncio.TimeoutError:
-        agent_response = "I'm taking too long. Please try a simpler request."
-    
-    # Return TwiML response
-    response = VoiceResponse()
-    gather = Gather(input='speech', action='/anthropic/convonet_todo/twilio/process_audio', barge_in=True)
-    gather.say(agent_response, voice='Polly.Amy')
-    response.append(gather)
-    response.redirect('/anthropic/convonet_todo/twilio/call?is_continuation=true')
-    
+    response.redirect(f'/anthropic/convonet_todo/{ns}/call?is_continuation=true')
     return Response(str(response), mimetype='text/xml')</code></pre>
                     </div>
 
@@ -2648,14 +2615,17 @@ export DEEPGRAM_API_KEY="your_deepgram_api_key"
                         </div>
                         
                         <div>
-                            <h4 class="text-lg font-semibold mb-3 text-gray-800">4. Twilio Configuration</h4>
+                            <h4 class="text-lg font-semibold mb-3 text-gray-800">4. Environment (Telnyx / Twilio)</h4>
                             <div class="bg-gray-50 p-4 rounded">
-                                <pre class="text-sm"><code># Configure Twilio phone number webhook:
+                                <pre class="text-sm"><code># Configure PSTN webhook (Telnyx TeXML app or Twilio number):
+# Telnyx:
+Webhook URL: https://hjlees.com/anthropic/convonet_todo/telnyx/call
+# Twilio:
 Webhook URL: https://hjlees.com/anthropic/convonet_todo/twilio/call
 HTTP Method: POST
 
-# Test webhook:
-curl -X POST https://hjlees.com/anthropic/convonet_todo/twilio/call \
+# Test webhook (Telnyx path example):
+curl -X POST "https://hjlees.com/anthropic/convonet_todo/telnyx/call" \
   -d "CallSid=test123&From=+1234567890"</code></pre>
                             </div>
                         </div>
@@ -2697,7 +2667,7 @@ curl https://hjlees.com/anthropic/team-dashboard</code></pre>
                     
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div class="bg-gray-50 p-4 rounded">
-                            <h5 class="font-semibold text-gray-800 mb-2">Twilio Voice Commands</h5>
+                            <h5 class="font-semibold text-gray-800 mb-2">Telnyx / Twilio Voice Commands</h5>
                             <ul class="text-sm text-gray-600 space-y-1">
                                 <li>• "Create a high priority todo to review the quarterly report"</li>
                                 <li>• "Add a reminder to call mom tomorrow at 2 PM"</li>

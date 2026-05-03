@@ -49,7 +49,7 @@
                         <p class="text-sm text-gray-600">Steps 32-38</p>
                     </div>
                     <div class="border-l-4 border-pink-500 pl-4">
-                        <h4 class="font-semibold text-gray-800 mb-1">Phase 4: Twilio Transfer</h4>
+                        <h4 class="font-semibold text-gray-800 mb-1">Phase 4: Carrier transfer</h4>
                         <p class="text-sm text-gray-600">Steps 39-52</p>
                     </div>
                 </div>
@@ -181,7 +181,7 @@
                                 <div>
                                     <h4 class="font-semibold text-gray-800 mb-1">Redis → Deepgram STT: Send Audio Buffer → Transcribed Text</h4>
                                     <p class="text-sm text-gray-700">The WebRTC worker reads the current buffer and forwards it to Deepgram (not Twilio) for high-fidelity transcription. Deepgram returns the recognized text back to the WebRTC service.</p>
-                                    <p class="text-xs text-gray-500 mt-1"><strong>Important:</strong> Deepgram STT is used for WebRTC audio, not Twilio transcription.</p>
+                                    <p class="text-xs text-gray-500 mt-1"><strong>Important:</strong> Deepgram STT is used for WebRTC audio, not carrier Gather transcription alone.</p>
                                 </div>
                             </div>
                         </div>
@@ -298,10 +298,10 @@
                     </div>
                 </div>
 
-                <!-- Phase 4: Twilio Transfer Flow -->
+                <!-- Phase 4: Carrier transfer (Telnyx or Twilio) -->
                 <div class="bg-white p-6 rounded-lg shadow-md">
                     <div class="border-l-4 border-pink-500 pl-4 mb-6">
-                        <h3 class="text-2xl font-semibold text-gray-800 mb-2">Phase 4: Twilio Transfer Flow (Steps 39-52)</h3>
+                        <h3 class="text-2xl font-semibold text-gray-800 mb-2">Phase 4: Carrier transfer (Telnyx or Twilio) (Steps 39-52)</h3>
                         <p class="text-gray-600">Call bridging to FusionPBX and agent dashboard connection</p>
                     </div>
                     
@@ -310,8 +310,8 @@
                             <div class="flex items-start">
                                 <span class="bg-pink-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 flex-shrink-0">39</span>
                                 <div>
-                                    <h4 class="font-semibold text-gray-800 mb-1">WebRTC Voice Server → Twilio API: POST /voice_assistant/transfer_bridge</h4>
-                                    <p class="text-sm text-gray-700">The WebRTC backend calls the Convonet /twilio/voice_assistant/transfer_bridge endpoint. Twilio uses the provided SIP URI: <code class="bg-gray-100 px-1 rounded">sip:2001@FREEPBX_DOMAIN;transport=udp</code> or trunk number, depending on .env configuration.</p>
+                                    <h4 class="font-semibold text-gray-800 mb-1">LiveKit WebRTC Voice Server → carrier API: POST …/voice_assistant/transfer_bridge</h4>
+                                    <p class="text-sm text-gray-700">The WebRTC backend requests TeXML/TwiML from <code class="bg-gray-100 px-1 rounded">/anthropic/convonet_todo/telnyx/voice_assistant/transfer_bridge</code> (Telnyx) or <code class="bg-gray-100 px-1 rounded">/anthropic/convonet_todo/twilio/voice_assistant/transfer_bridge</code> (Twilio). The carrier uses the SIP URI <code class="bg-gray-100 px-1 rounded">sip:2001@FREEPBX_DOMAIN;transport=udp</code> (or trunk), per <code class="bg-gray-100 px-1 rounded">.env</code>.</p>
                                 </div>
                             </div>
                         </div>
@@ -320,8 +320,8 @@
                             <div class="flex items-start">
                                 <span class="bg-pink-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 flex-shrink-0">40</span>
                                 <div>
-                                    <h4 class="font-semibold text-gray-800 mb-1">Twilio → FusionPBX: SIP INVITE to Extension 2001</h4>
-                                    <p class="text-sm text-gray-700">Twilio dials FusionPBX (running on Google Cloud) via SIP INVITE. FusionPBX routes the call to the target agent extension (e.g., 2001).</p>
+                                    <h4 class="font-semibold text-gray-800 mb-1">Carrier → FusionPBX: SIP INVITE to Extension 2001</h4>
+                                    <p class="text-sm text-gray-700">The PSTN carrier dials FusionPBX (e.g., on Google Cloud) via SIP INVITE. FusionPBX routes the call to the target agent extension (e.g., 2001).</p>
                                 </div>
                             </div>
                         </div>
@@ -351,8 +351,8 @@
                                 <span class="bg-pink-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 flex-shrink-0">45-48</span>
                                 <div>
                                     <h4 class="font-semibold text-gray-800 mb-1">Agent Answers → Conversation Begins</h4>
-                                    <p class="text-sm text-gray-700">Agent answers the call via JsSIP client. FusionPBX notifies Twilio that the call is connected. Twilio bridges the audio between user leg and agent leg. Live conversation begins between the user and agent.</p>
-                                    <p class="text-xs text-gray-500 mt-2"><strong>Note:</strong> Once Twilio bridges the call to FusionPBX, the audio is now a PSTN/SIP leg (not the original WebRTC stream). Deepgram STT may still be used on the server side for context logging if needed.</p>
+                                    <p class="text-sm text-gray-700">Agent answers the call via JsSIP client. FusionPBX notifies the carrier that the call is connected. The carrier bridges the audio between user leg and agent leg. Live conversation begins between the user and agent.</p>
+                                    <p class="text-xs text-gray-500 mt-2"><strong>Note:</strong> Once the carrier bridges the call to FusionPBX, the audio is now a PSTN/SIP leg (not the original WebRTC stream). Deepgram STT may still be used on the server side for context logging if needed.</p>
                                 </div>
                             </div>
                         </div>
@@ -364,8 +364,8 @@
                                     <h4 class="font-semibold text-gray-800 mb-1">Alternative: Agent Rejects/Timeout</h4>
                                     <p class="text-sm text-gray-700">If the agent rejects the call or it times out:</p>
                                     <ul class="text-sm text-gray-700 list-disc list-inside mt-1 space-y-1">
-                                        <li>FusionPBX notifies Twilio that the call failed</li>
-                                        <li>Twilio sends transfer failed notification to WebRTC Voice Server</li>
+                                        <li>FusionPBX notifies the PSTN carrier that the call failed</li>
+                                        <li>The carrier sends transfer failed notification to WebRTC Voice Server</li>
                                         <li>WebRTC Voice Server sends transfer error event to WebSocket Server</li>
                                         <li>User browser displays transfer failed message</li>
                                     </ul>
@@ -398,7 +398,7 @@
                     </div>
                     <div class="bg-white p-4 rounded">
                         <h4 class="font-semibold text-gray-800 mb-2">Transfer Mechanism</h4>
-                        <p class="text-sm text-gray-700">Twilio bridges the WebRTC user leg to the SIP agent leg. Audio transitions from WebRTC to PSTN/SIP stream.</p>
+                        <p class="text-sm text-gray-700">The PSTN carrier bridges the WebRTC user leg to the SIP agent leg. Audio transitions from WebRTC to PSTN/SIP stream.</p>
                     </div>
                 </div>
             </div>
